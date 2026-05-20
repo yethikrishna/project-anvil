@@ -23,20 +23,20 @@
 - [x] Share links + permissions
 
 ## Phase 4: Google Docs Clone
-- [ ] Next.js 15 + Tiptap editor frontend
-- [ ] Yjs CRDT state sync
-- [ ] Hocuspocus WebSocket backend
-- [ ] Real-time cursor + presence
-- [ ] Document listing + management
+- [x] Next.js 15 + Tiptap editor frontend
+- [x] Yjs CRDT state sync
+- [x] Hocuspocus WebSocket backend
+- [x] Real-time cursor + presence
+- [x] Document listing + management
 - [ ] Export to PDF/DOCX
 
 ## Phase 5: YouTube Clone
-- [ ] React + Tailwind frontend (video player, search, sidebar)
-- [ ] RapidAPI/YouTube API integration
-- [ ] Redux Toolkit caching + rate limiting
-- [ ] Debounced autocomplete search
-- [ ] Video metadata display
-- [ ] Playlist management
+- [x] React + Tailwind frontend (video player, search, sidebar)
+- [x] RapidAPI/YouTube API integration
+- [x] Redux Toolkit caching + rate limiting
+- [x] Debounced autocomplete search
+- [x] Video metadata display
+- [x] Playlist management
 
 ## Phase 6: Google Maps Clone
 - [ ] MapLibre GL JS + OpenMapTiles setup
