@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+.mapboxgl-ctrl-logo, .maplibregl-ctrl-logo {
+  display: none !important;
+}
+
+.mapboxgl-ctrl-attrib, .maplibregl-ctrl-attrib {
+  font-size: 10px !important;
+}
