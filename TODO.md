@@ -142,9 +142,9 @@
 - [ ] Performance monitoring dashboard (Core Web Vitals, custom traces)
 
 ## Phase 16: Calendar + Tasks (Integration Apps)
-- [ ] Calendar app (FullCalendar.js + rrule.js recurring events)
-- [ ] Smart scheduling: "find a time when all attendees are free"
-- [ ] Email → calendar event extraction ("Dinner Thursday?" → event)
+- [x] Calendar app (FullCalendar.js + rrule.js recurring events)
+- [x] Smart scheduling: "find a time when all attendees are free"
+- [x] Email → calendar event extraction ("Dinner Thursday?" → event)
 - [ ] Tasks/Keep app with cross-app task creation
 - [ ] Unified notification hub (SSE delivery, action buttons, smart batching)
 - [ ] Contact system shared across Gmail, Calendar, Drive
