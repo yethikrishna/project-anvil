@@ -204,3 +204,7 @@ export {
   POPOVER_CSS,
 } from './transitions';
 export type { TransitionType } from './transitions';
+
+// ── Activity & Focus ──
+export { ActivityTimeline, FocusModeSelector } from './activity';
+export type { ActivityEntry, ActivityTimelineProps, FocusMode, FocusModeProps } from './activity';

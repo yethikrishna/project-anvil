@@ -185,10 +185,10 @@
 
 ## Phase 21: Novel Interactions & Analytics
 - [ ] Smart Clipboard (copy file from Drive → paste into Gmail as attachment)
-- [ ] Focus modes: Zen (Docs), Inbox Zero (Gmail), Deep Work (cross-app)
+- [x] Focus modes: Zen (Docs), Inbox Zero (Gmail), Deep Work (cross-app)
 - [ ] Smart bookmarks/pins across all apps + AI-suggested pins
 - [ ] Spatial navigation for grids and lists (keyboard-driven)
-- [ ] Activity timeline across all apps ("12 emails, 3 docs, 1 upload today")
+- [x] Activity timeline across all apps ("12 emails, 3 docs, 1 upload today")
 - [ ] Email analytics (response time, volume heatmap, top correspondents)
 - [ ] Drive analytics (storage by type, duplicates, shared file audit)
 - [ ] Collaboration analytics (edit heatmap, timezone visualization)
