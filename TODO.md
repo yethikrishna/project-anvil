@@ -1,11 +1,11 @@
 # Project Anvil — TODO
 
 ## Phase 1: Infrastructure Foundation
-- [ ] Docker Compose with Keycloak, PostgreSQL, Redis, MinIO
-- [ ] Shared network + volume configuration
-- [ ] Keycloak realm + client setup scripts
-- [ ] Healthcheck endpoints for all services
-- [ ] `.env` template with all config vars
+- [x] Docker Compose with Keycloak, PostgreSQL, Redis, MinIO
+- [x] Shared network + volume configuration
+- [x] Keycloak realm + client setup scripts
+- [x] Healthcheck endpoints for all services
+- [x] `.env` template with all config vars
 
 ## Phase 2: SSO & Auth Layer
 - [ ] Authentik/Keycloak OIDC integration module
@@ -15,12 +15,12 @@
 - [ ] Session propagation across all apps
 
 ## Phase 3: Google Drive Clone
-- [ ] Next.js 15 frontend (file browser, upload, download)
-- [ ] Express/FastAPI backend with WebDAV + REST API
-- [ ] S3/MinIO BLOB storage integration
-- [ ] PostgreSQL materialized path directory schema
-- [ ] HTTP multipart streaming upload
-- [ ] Share links + permissions
+- [x] Next.js 15 frontend (file browser, upload, download)
+- [x] Express/Fastify backend with REST API
+- [x] S3/MinIO BLOB storage integration
+- [x] PostgreSQL materialized path directory schema
+- [x] HTTP multipart streaming upload
+- [x] Share links + permissions
 
 ## Phase 4: Google Docs Clone
 - [ ] Next.js 15 + Tiptap editor frontend
@@ -68,7 +68,7 @@
 - [ ] Notification system
 - [ ] Dark/light theme
 - [ ] Mobile responsive layouts
-- [ ] OpenAPI 3.1 contract-first API spec
+- [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
 ## Phase 10: Deployment & CI/CD
 - [ ] Vercel frontend deployment config

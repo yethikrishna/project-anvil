@@ -30,6 +30,17 @@ CREATE INDEX idx_files_path ON files USING gist (path);
 CREATE INDEX idx_files_user ON files (user_id);
 CREATE INDEX idx_files_name ON files USING gin (name gin_trgm_ops);
 
+CREATE TABLE share_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    created_by UUID NOT NULL,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_share_links_token ON share_links (token);
+
 -- Docs: Document metadata
 \c docs_db;
 
