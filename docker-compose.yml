@@ -1,0 +1,129 @@
+version: "3.9"
+
+services:
+  # ── Identity Control Plane ──
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: anvil
+      KC_DB_PASSWORD: anvil_secret
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ── Databases ──
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: anvil
+      POSTGRES_PASSWORD: anvil_secret
+      POSTGRES_DB: anvil
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anvil"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Cache & Sessions ──
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Object Storage (S3-compatible) ──
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: anvil_minio
+      MINIO_ROOT_PASSWORD: anvil_minio_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Search Engine ──
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    environment:
+      MEILI_MASTER_KEY: anvil_meili_secret
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Mail Server ──
+  stalwart:
+    image: stalwartlabs/mail-server:latest
+    environment:
+      MAIL_SERVER_HOSTNAME: mail.anvil.local
+      MAIL_SERVER_ADMIN_SECRET: anvil_stalwart_secret
+    ports:
+      - "25:25"
+      - "587:587"
+      - "993:993"
+      - "8082:8080"
+    volumes:
+      - stalwart_data:/opt/stalwart
+    networks:
+      - anvil-net
+
+volumes:
+  keycloak_data:
+  pg_data:
+  redis_data:
+  minio_data:
+  meili_data:
+  stalwart_data:
+
+networks:
+  anvil-net:
+    driver: bridge
