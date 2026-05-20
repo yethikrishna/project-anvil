@@ -158,9 +158,9 @@
 ## Phase 17: Platform & Community
 - [ ] Plugin system with SDK + sandboxed execution
 - [x] Theme engine with live editor + community gallery
-- [ ] Public API + interactive playground (Swagger UI / Scalar)
+- [x] Public API + interactive playground (Swagger UI / Scalar)
 - [x] Admin console: team management, usage analytics, audit logs
-- [ ] Stripe billing integration with usage-based tiers
+- [x] Stripe billing integration with usage-based tiers
 - [ ] GraphQL Federation gateway (federated subgraphs per app)
 - [ ] MDX-powered blog + auto-generated changelog
 
