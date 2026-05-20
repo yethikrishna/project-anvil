@@ -8,11 +8,11 @@
 - [x] `.env` template with all config vars
 
 ## Phase 2: SSO & Auth Layer
-- [ ] Authentik/Keycloak OIDC integration module
-- [ ] Shared auth middleware (Next.js)
-- [ ] PKCE flow implementation
-- [ ] Token refresh + silent auth (`prompt=none`)
-- [ ] Session propagation across all apps
+- [x] Authentik/Keycloak OIDC integration module
+- [x] Shared auth middleware (Next.js)
+- [x] PKCE flow implementation
+- [x] Token refresh + silent auth (`prompt=none`)
+- [x] Session propagation across all apps
 
 ## Phase 3: Google Drive Clone
 - [x] Next.js 15 frontend (file browser, upload, download)

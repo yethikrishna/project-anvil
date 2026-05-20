@@ -1,51 +1,165 @@
 'use client';
 
-import {AppShell, Button, Card} from '@anvil/ui';
+import {useState, useEffect} from 'react';
+import {AppShell, Button, Card, Input} from '@anvil/ui';
+import {useAuth} from '@anvil/auth';
 
 interface DocumentItem {
   id: string;
   title: string;
-  updated: string;
-  collaborators: number;
-  type: 'doc' | 'sheet';
+  updatedAt: string;
+  collaborators: {id: string; name: string; color: string}[];
+  ownerId: string;
 }
 
-const MOCK_DOCS: DocumentItem[] = [
-  {id: '1', title: 'Project Anvil — Architecture Spec', updated: '2 min ago', collaborators: 3, type: 'doc'},
-  {id: '2', title: 'Sprint Planning — Week 21', updated: '1 hour ago', collaborators: 2, type: 'doc'},
-  {id: '3', title: 'API Contract — v0.2', updated: 'Yesterday', collaborators: 1, type: 'doc'},
-  {id: '4', title: 'Budget Tracker', updated: '3 days ago', collaborators: 1, type: 'sheet'},
-  {id: '5', title: 'Meeting Notes — May 20', updated: 'Last week', collaborators: 5, type: 'doc'},
-];
-
 export default function DocsPage() {
+  const {user, isAuthenticated, login} = useAuth();
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Fetch documents
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    fetch('/api/documents')
+      .then(r => r.json())
+      .then(data => {
+        setDocuments(Array.isArray(data) ? data : []);
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+  }, [isAuthenticated]);
+
+  // Create new document
+  const createDocument = async () => {
+    setIsCreating(true);
+    try {
+      const resp = await fetch('/api/documents', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: 'Untitled Document'}),
+      });
+      const doc = await resp.json();
+      window.location.href = `/editor/${doc.id}`;
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Delete document
+  const deleteDocument = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Delete this document?')) return;
+
+    await fetch(`/api/documents/${id}`, {method: 'DELETE'});
+    setDocuments(prev => prev.filter(d => d.id !== id));
+  };
+
+  // Filter documents
+  const filteredDocs = documents.filter(d =>
+    d.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Format relative time
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <AppShell activeApp="docs">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-4">Sign in to access your documents</h2>
+            <Button onClick={() => login()}>Sign in with SSO</Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell activeApp="docs">
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">My Documents</h2>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm">+ New Sheet</Button>
-            <Button size="sm">+ New Document</Button>
+          <div className="flex gap-3">
+            <div className="w-72">
+              <Input
+                placeholder="Search documents..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={createDocument} disabled={isCreating}>
+              {isCreating ? 'Creating...' : '+ New Document'}
+            </Button>
           </div>
         </div>
 
-        <div className="space-y-2">
-          {MOCK_DOCS.map(doc => (
-            <Card key={doc.id} onClick={() => {}}>
-              <div className="flex items-center gap-4">
-                <span className="text-2xl">{doc.type === 'sheet' ? '📊' : '📝'}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{doc.title}</p>
-                  <p className="text-xs text-gray-500">
-                    Opened {doc.updated} • {doc.collaborators} collaborator{doc.collaborators > 1 ? 's' : ''}
-                  </p>
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">Loading documents...</div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">
+              {searchQuery ? 'No documents match your search.' : 'No documents yet.'}
+            </p>
+            {!searchQuery && (
+              <Button onClick={createDocument}>Create your first document</Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredDocs.map(doc => (
+              <Card key={doc.id} onClick={() => window.location.href = `/editor/${doc.id}`}>
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">📝</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
+                    <p className="text-xs text-gray-500">
+                      Last edited {formatTime(doc.updatedAt)}
+                      {doc.collaborators?.length > 0 &&
+                        ` • ${doc.collaborators.length} collaborator${doc.collaborators.length > 1 ? 's' : ''}`}
+                    </p>
+                  </div>
+                  {/* Collaborator avatars */}
+                  {doc.collaborators?.length > 0 && (
+                    <div className="flex -space-x-1">
+                      {doc.collaborators.slice(0, 3).map((c, i) => (
+                        <div
+                          key={i}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-medium border border-white"
+                          style={{backgroundColor: c.color}}
+                          title={c.name}
+                        >
+                          {c.name.charAt(0).toUpperCase()}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button variant="ghost" size="sm">Open</Button>
+                  <button
+                    onClick={e => deleteDocument(doc.id, e)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <Button variant="ghost" size="sm">Open</Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </AppShell>
   );
