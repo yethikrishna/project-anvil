@@ -105,6 +105,12 @@
 - [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
 - [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
 - [ ] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
+- [ ] Upgrade **Hocuspocus to v4** (cross-runtime, memory optimization, edge deploy on CF Workers)
+- [ ] Plan **Next.js 15 → 16 migration** (Cache Components, Turbopack default, async params)
+- [ ] Evaluate **MLT vector tile format** for Maps clone (6× smaller tiles, Martin tile server)
+- [ ] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
+- [ ] Evaluate **PowerSync** for offline-first Drive/Docs (SQLite ↔ PostgreSQL sync)
+- [ ] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
@@ -192,6 +198,24 @@
 - [ ] Email analytics (response time, volume heatmap, top correspondents)
 - [ ] Drive analytics (storage by type, duplicates, shared file audit)
 - [ ] Collaboration analytics (edit heatmap, timezone visualization)
+
+## Phase 12: Research-Driven Enhancements (2026-05-20)
+- [x] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
+- [ ] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
+- [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
+- [ ] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
+- [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
+- [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
+- [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
+- [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
+- [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
+- [ ] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
+- [ ] Upgrade **Hocuspocus to v4** (cross-runtime, memory optimization, edge deploy on CF Workers)
+- [ ] Plan **Next.js 15 → 16 migration** (Cache Components, Turbopack default, async params)
+- [ ] Evaluate **MLT vector tile format** for Maps clone (6× smaller tiles, Martin tile server)
+- [ ] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
+- [ ] Evaluate **PowerSync** for offline-first Drive/Docs (SQLite ↔ PostgreSQL sync)
+- [ ] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
 
 ## Backlog (Architecture)
 - [ ] Micro-frontend shell with Module Federation
