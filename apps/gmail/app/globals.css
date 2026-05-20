@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+.tiptap {
+  outline: none;
+  min-height: 200px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap ul {
+  list-style: disc;
+  padding-left: 20px;
+}
+
+.tiptap ol {
+  list-style: decimal;
+  padding-left: 20px;
+}
+
+.tiptap blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 12px;
+  color: #6b7280;
+}
+
+.tiptap code {
+  background: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 13px;
+}
