@@ -211,3 +211,11 @@ export type { ActivityEntry, ActivityTimelineProps, FocusMode, FocusModeProps } 
 
 // ── API Playground ──
 export { ApiPlayground } from './api-playground';
+
+// ── Cross-app Drag & Drop ──
+export {useDragSource, useDropTarget, DragPreview, DropZone, DROP_HANDLERS, handleFileToEmail, handleVideoToDoc, handleLocationInsert} from './dnd';
+export type {DragItem, DragItemType, DropTarget} from './dnd';
+
+// ── Presence ──
+export {PresenceIndicator, GlobalPresenceBar, usePresence} from './presence';
+export type {PresenceUser} from './presence';

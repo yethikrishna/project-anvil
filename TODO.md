@@ -133,8 +133,8 @@
 
 ## Phase 14: Power User Experience
 - [x] Unified Command Palette (Cmd+K) across all apps
-- [ ] Cross-app drag-and-drop (file → email, video → doc, location → email)
-- [ ] Real-time presence indicators across the workspace shell
+- [x] Cross-app drag-and-drop (file → email, video → doc, location → email)
+- [x] Real-time presence indicators across the workspace shell
 - [x] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
 - [x] Global shortcuts: Cmd+1–6 for app switching
 - [ ] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
