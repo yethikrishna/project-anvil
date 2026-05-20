@@ -99,7 +99,7 @@
 - [x] Smart file tagging in Drive
 - [x] Collaborative document templates
 - [x] Video transcript search
-- [ ] Location-based search suggestions
+- [x] Location-based search suggestions
 - [ ] Voice-to-search integration
 - [ ] Real-time collaboration analytics
 - [ ] Plugin marketplace

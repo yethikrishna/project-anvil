@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn, AppShell, ThemeProvider, ThemeToggle } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
+import { useGeolocation, getLocationSuggestions, isLocationQuery, enhanceQueryWithLocation } from '../lib/use-location';
 
 // ─── Types ───
 
@@ -119,6 +120,7 @@ export default function SearchPage() {
   const [searchTime, setSearchTime] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceQuery = useDebounce(query, DEBOUNCE_MS);
+  const {location, loading: locationLoading, requestLocation} = useGeolocation();
 
   // Auto-search on debounced query (only if user has already submitted once)
   useEffect(() => {
@@ -148,8 +150,12 @@ export default function SearchPage() {
     if (!q.trim()) return;
     setLoading(true);
     const start = performance.now();
+
+    // Enhance location-based queries
+    const enhancedQuery = enhanceQueryWithLocation(q, location);
+
     try {
-      const res = await fetch(`${SEARCH_API}/api/search?q=${encodeURIComponent(q)}&limit=20`);
+      const res = await fetch(`${SEARCH_API}/api/search?q=${encodeURIComponent(enhancedQuery)}&limit=20`);
       if (res.ok) {
         const data: SearchResponse = await res.json();
         setResults(data.hits || []);
@@ -238,7 +244,7 @@ export default function SearchPage() {
         </div>
 
         {/* Quick links */}
-        <div className="flex gap-3 mt-8">
+        <div className="flex gap-3 mt-8 flex-wrap justify-center">
           {['Next.js', 'Meilisearch', 'MapLibre', 'Docker'].map((q) => (
             <button
               key={q}
@@ -248,6 +254,38 @@ export default function SearchPage() {
               {q}
             </button>
           ))}
+        </div>
+
+        {/* Location-based suggestions */}
+        <div className="mt-6 max-w-xl w-full">
+          <div className="flex items-center gap-2 mb-3 justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            {location ? (
+              <span className="text-xs text-gray-500">📍 {location.city ? `${location.city}, ` : ''}{location.country ?? 'Located'}</span>
+            ) : (
+              <button
+                onClick={requestLocation}
+                disabled={locationLoading}
+                className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+              >
+                {locationLoading ? 'Detecting location...' : 'Enable location for nearby suggestions'}
+              </button>
+            )}
+          </div>
+          {location && (
+            <div className="flex gap-2 flex-wrap justify-center">
+              {getLocationSuggestions(location).slice(0, 4).map((q) => (
+                <button
+                  key={q}
+                  onClick={() => { setQuery(q); setSearched(true); performSearch(q); }}
+                  className="px-3 py-1.5 bg-blue-50 text-sm text-blue-700 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
