@@ -39,28 +39,36 @@
 - [x] Playlist management
 
 ## Phase 6: Google Maps Clone
-- [ ] MapLibre GL JS + OpenMapTiles setup
-- [ ] Nominatim geocoding search
-- [ ] OSRM routing integration
-- [ ] WebGL vector tile rendering
-- [ ] `useGeolocation` hook + location overlay
-- [ ] Mobile-friendly slide-up sheet (Vaul)
+- [x] MapLibre GL JS + OpenMapTiles setup
+- [x] Nominatim geocoding search
+- [x] OSRM routing integration
+- [x] WebGL vector tile rendering
+- [x] `useGeolocation` hook + location overlay
+- [x] Mobile-friendly slide-up sheet (Vaul)
+- [x] Marker clustering for POI areas
 
 ## Phase 7: Google Search Clone
-- [ ] Meilisearch integration
-- [ ] Search-as-you-type UI
-- [ ] Hybrid BM25 + vector embedding search
-- [ ] MiniLM transformer for semantic queries
-- [ ] Search results page with rich snippets
-- [ ] Mwmbl-inspired hash map index (stretch)
+- [x] Meilisearch integration
+- [x] Search-as-you-type UI
+- [x] Hybrid BM25 + vector embedding search
+- [x] MiniLM transformer for semantic queries
+- [x] Search results page with rich snippets
+- [x] "Did you mean" spelling suggestions
+- [x] Image search tab (stub/mock)
+- [x] Search API backend (Fastify + Meilisearch)
+- [x] Setup scripts for hybrid search
 
 ## Phase 8: Gmail Clone
-- [ ] Stalwart Mail Server Docker setup
-- [ ] Next.js email client frontend
-- [ ] JMAP (RFC 8620) protocol client
-- [ ] Inbox, compose, thread views
-- [ ] SPF/DKIM/DMARC DNS configuration guide
-- [ ] RocksDB/PostgreSQL persistence
+- [x] Stalwart Mail Server Docker setup
+- [x] Next.js email client frontend
+- [x] JMAP (RFC 8620) protocol client
+- [x] Inbox, compose, thread views
+- [x] SPF/DKIM/DMARC DNS configuration guide
+- [x] RocksDB/PostgreSQL persistence
+- [x] Tiptap rich text compose modal
+- [x] Collapsible thread view with multiple messages
+- [x] Labels/folders management
+- [x] Star/archive/spam actions
 
 ## Phase 9: Cross-Cutting Features
 - [ ] Unified navigation shell (sidebar + app switcher)
@@ -95,52 +103,3 @@
 - [ ] Voice-to-search integration
 - [ ] Real-time collaboration analytics
 - [ ] Plugin marketplace
-
-## Phase 12: AI Intelligence Layer
-- [ ] `@anvil/ai` package with provider abstraction (OpenAI, Ollama, local)
-- [ ] Semantic file search with pgvector + HNSW index
-- [ ] Cross-app AI Copilot sidebar (context-aware across all apps)
-- [ ] Client-side ML inference via ONNX/Wasm (email triage, doc autocomplete)
-- [ ] Natural language file search: "find the contract I sent to Acme Corp"
-- [ ] Document intelligence: auto TOC, style matching, version diff summary
-- [ ] Email thread summarization + sentiment analysis
-
-## Phase 13: Power User Experience
-- [ ] Unified Command Palette (Cmd+K) across all apps
-- [ ] Cross-app drag-and-drop (file → email, video → doc, location → email)
-- [ ] Real-time presence indicators across the workspace shell
-- [ ] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
-- [ ] Global shortcuts: Cmd+1–6 for app switching
-- [ ] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
-
-## Phase 14: Technical Showcase
-- [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
-- [ ] WebGPU-accelerated analytics dashboard (3D treemap, particle visualizations)
-- [ ] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
-- [ ] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
-- [ ] Shared Worker threads: one WebSocket for all tabs
-- [ ] Performance monitoring dashboard (Core Web Vitals, custom traces)
-
-## Phase 15: Calendar + Tasks (Integration Apps)
-- [ ] Calendar app (FullCalendar.js + rrule.js recurring events)
-- [ ] Smart scheduling: "find a time when all attendees are free"
-- [ ] Email → calendar event extraction ("Dinner Thursday?" → event)
-- [ ] Tasks/Keep app with cross-app task creation
-- [ ] Unified notification hub (SSE delivery, action buttons, smart batching)
-- [ ] Contact system shared across Gmail, Calendar, Drive
-
-## Phase 16: Platform & Community
-- [ ] Plugin system with SDK + sandboxed execution
-- [ ] Theme engine with live editor + community gallery
-- [ ] Public API + interactive playground (Swagger UI / Scalar)
-- [ ] Admin console: team management, usage analytics, audit logs
-- [ ] Stripe billing integration with usage-based tiers
-- [ ] GraphQL Federation gateway (federated subgraphs per app)
-- [ ] MDX-powered blog + auto-generated changelog
-
-## Backlog (Architecture)
-- [ ] Micro-frontend shell with Module Federation
-- [ ] Edge computing (Cloudflare Workers / Vercel Edge) for auth + caching
-- [ ] Event sourcing for Docs (time-travel, branch & merge)
-- [ ] Full offline PWA with Workbox (Service Worker + Background Sync)
-- [ ] Progressive enhancement: works without JS for core flows
