@@ -71,11 +71,11 @@
 - [x] Star/archive/spam actions
 
 ## Phase 9: Cross-Cutting Features
-- [ ] Unified navigation shell (sidebar + app switcher)
-- [ ] Shared UI component library
-- [ ] Notification system
-- [ ] Dark/light theme
-- [ ] Mobile responsive layouts
+- [x] Unified navigation shell (sidebar + app switcher)
+- [x] Shared UI component library
+- [x] Notification system
+- [x] Dark/light theme
+- [x] Mobile responsive layouts
 - [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
 ## Phase 10: Deployment & CI/CD
