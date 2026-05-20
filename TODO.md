@@ -98,7 +98,7 @@
 - [x] AI-powered email categorization
 - [x] Smart file tagging in Drive
 - [x] Collaborative document templates
-- [ ] Video transcript search
+- [x] Video transcript search
 - [ ] Location-based search suggestions
 - [ ] Voice-to-search integration
 - [ ] Real-time collaboration analytics

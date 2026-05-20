@@ -1,11 +1,12 @@
 'use client';
 
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import ReactPlayer from 'react-player/youtube';
 import {useAuth} from '@anvil/auth';
 import {AppShell, Button, Card, Input} from '@anvil/ui';
 import {getVideoDetails, getRelatedVideos, type VideoDetails, type VideoResult} from '../../lib/youtube-api';
 import {usePlaylistStore} from '../../lib/playlist-store';
+import {TranscriptPanel} from './TranscriptPanel';
 
 interface VideoPageProps {
   params: {id: string};
@@ -17,7 +18,9 @@ export default function VideoPage({params}: VideoPageProps) {
   const [related, setRelated] = useState<VideoResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const playerRef = useRef<any>(null);
 
   const {playlists, createPlaylist, addToPlaylist, isInPlaylist} = usePlaylistStore();
 
@@ -32,6 +35,10 @@ export default function VideoPage({params}: VideoPageProps) {
       setIsLoading(false);
     });
   }, [params.id]);
+
+  const handleSeek = (seconds: number) => {
+    playerRef.current?.seekTo(seconds, 'seconds');
+  };
 
   const handleAddToPlaylist = (playlistId: string) => {
     if (!video) return;
@@ -94,6 +101,7 @@ export default function VideoPage({params}: VideoPageProps) {
           {/* Video player */}
           <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4">
             <ReactPlayer
+              ref={playerRef}
               url={`https://www.youtube.com/watch?v=${params.id}`}
               width="100%"
               height="100%"
@@ -148,6 +156,13 @@ export default function VideoPage({params}: VideoPageProps) {
                 </div>
               )}
             </div>
+            <Button
+              variant={showTranscript ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setShowTranscript(!showTranscript)}
+            >
+              📝 Transcript
+            </Button>
           </div>
 
           {/* Description */}
@@ -165,9 +180,18 @@ export default function VideoPage({params}: VideoPageProps) {
           </div>
         </div>
 
-        {/* Sidebar — Related videos */}
-        <aside className="w-96 border-l border-gray-200 bg-white overflow-auto p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Related Videos</h3>
+        {/* Sidebar — Transcript + Related videos */}
+        <aside className="w-96 border-l border-gray-200 bg-white overflow-hidden flex flex-col">
+          {/* Transcript Panel */}
+          {showTranscript && (
+            <div className="h-1/2 border-b border-gray-100 overflow-auto">
+              <TranscriptPanel videoId={params.id} onSeek={handleSeek} />
+            </div>
+          )}
+
+          {/* Related Videos */}
+          <div className={`overflow-auto p-4 ${showTranscript ? 'h-1/2' : 'flex-1'}`}>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Related Videos</h3>
           <div className="space-y-3">
             {related.map(v => (
               <a
