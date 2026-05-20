@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn, AppShell, ThemeProvider, ThemeToggle } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 import { useGeolocation, getLocationSuggestions, isLocationQuery, enhanceQueryWithLocation } from '../lib/use-location';
+import { useVoiceSearch, VoiceSearchButton } from '../lib/use-voice-search';
 
 // ─── Types ───
 
@@ -121,6 +122,15 @@ export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceQuery = useDebounce(query, DEBOUNCE_MS);
   const {location, loading: locationLoading, requestLocation} = useGeolocation();
+  const {state: voiceState, startListening, stopListening, resetTranscript} = useVoiceSearch({
+    onResult: (transcript, isFinal) => {
+      setQuery(transcript);
+      if (isFinal) {
+        setSearched(true);
+        performSearch(transcript);
+      }
+    },
+  });
 
   // Auto-search on debounced query (only if user has already submitted once)
   useEffect(() => {
@@ -217,6 +227,11 @@ export default function SearchPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             )}
+            <VoiceSearchButton
+              isListening={voiceState.isListening}
+              isSupported={voiceState.isSupported}
+              onClick={voiceState.isListening ? stopListening : startListening}
+            />
             <button onClick={handleSearch} className="ml-2 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -325,6 +340,12 @@ export default function SearchPage() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               )}
+              <VoiceSearchButton
+                isListening={voiceState.isListening}
+                isSupported={voiceState.isSupported}
+                onClick={voiceState.isListening ? stopListening : startListening}
+                className="ml-1"
+              />
               <button onClick={handleSearch} className="ml-2 p-1.5 text-blue-600 hover:bg-blue-50 rounded-full">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />

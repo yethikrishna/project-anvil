@@ -100,6 +100,6 @@
 - [x] Collaborative document templates
 - [x] Video transcript search
 - [x] Location-based search suggestions
-- [ ] Voice-to-search integration
+- [x] Voice-to-search integration
 - [ ] Real-time collaboration analytics
 - [ ] Plugin marketplace
