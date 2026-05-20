@@ -180,3 +180,14 @@ export type { DataTableProps, Column } from './data-table';
 
 // ── Theme ──
 export { ThemeProvider, ThemeToggle, useTheme } from './theme';
+
+// ── AI Copilot ──
+export { AICopilot, CopilotToggleButton } from './copilot';
+
+// ── Command Palette ──
+export { CommandPalette, useGlobalShortcuts } from './command-palette';
+export type { CommandItem, CommandPaletteProps, GlobalShortcut } from './command-palette';
+
+// ── Keyboard Shortcuts ──
+export { useKeyboardShortcuts, ShortcutHelpOverlay, GLOBAL_SHORTCUTS, GMAIL_SHORTCUTS, DOCS_SHORTCUTS } from './shortcuts';
+export type { ShortcutDef, ShortcutState } from './shortcuts';

@@ -95,13 +95,13 @@
 - [x] ATS keyword optimization
 
 ## Phase 12: Research-Driven Enhancements (2026-05-20)
-- [ ] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
+- [x] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
 - [ ] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
-- [ ] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
+- [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
 - [ ] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
 - [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
 - [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
-- [ ] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
+- [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
 - [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
 - [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
 - [ ] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
@@ -117,20 +117,20 @@
 - [x] Plugin marketplace
 
 ## Phase 13: AI Intelligence Layer
-- [ ] `@anvil/ai` package with provider abstraction (OpenAI, Ollama, local)
-- [ ] Semantic file search with pgvector + HNSW index
-- [ ] Cross-app AI Copilot sidebar (context-aware across all apps)
+- [x] `@anvil/ai` package with provider abstraction (OpenAI, Ollama, local)
+- [x] Semantic file search with pgvector + HNSW index
+- [x] Cross-app AI Copilot sidebar (context-aware across all apps)
 - [ ] Client-side ML inference via ONNX/Wasm (email triage, doc autocomplete)
-- [ ] Natural language file search: "find the contract I sent to Acme Corp"
-- [ ] Document intelligence: auto TOC, style matching, version diff summary
+- [x] Natural language file search: "find the contract I sent to Acme Corp"
+- [x] Document intelligence: auto TOC, style matching, version diff summary
 - [ ] Email thread summarization + sentiment analysis
 
 ## Phase 14: Power User Experience
-- [ ] Unified Command Palette (Cmd+K) across all apps
+- [x] Unified Command Palette (Cmd+K) across all apps
 - [ ] Cross-app drag-and-drop (file → email, video → doc, location → email)
 - [ ] Real-time presence indicators across the workspace shell
-- [ ] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
-- [ ] Global shortcuts: Cmd+1–6 for app switching
+- [x] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
+- [x] Global shortcuts: Cmd+1–6 for app switching
 - [ ] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
 
 ## Phase 15: Technical Showcase

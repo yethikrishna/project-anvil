@@ -4,7 +4,7 @@
 
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { pgTable, uuid, text, bigint, boolean, timestamp, ltree, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, bigint, boolean, timestamp, ltree, index, vector } from 'drizzle-orm/pg-core';
 
 // ── Connection ────────────────────────────────────────────
 
@@ -27,6 +27,9 @@ export const files = pgTable('files', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  /** 1536-dimensional embedding for semantic search (pgvector) */
+  embedding: vector('embedding', { dimensions: 1536 }),
+  tags: text('tags').array(),
 }, (table) => [
   index('idx_files_path').using('gist', table.path),
   index('idx_files_user').on(table.userId),

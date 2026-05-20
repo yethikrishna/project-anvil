@@ -18,6 +18,7 @@ import { authMiddleware, optionalAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
 import { fileRoutes } from './routes/files.js';
 import { healthRoutes } from './routes/health.js';
+import { semanticSearchRoutes } from './routes/semantic-search.js';
 import { ensureBucket } from './storage.js';
 
 const PORT = parseInt(process.env.PORT ?? '3100');
@@ -67,6 +68,7 @@ async function main() {
 
   await app.register(healthRoutes);
   await app.register(fileRoutes);
+  await app.register(semanticSearchRoutes);
 
   // ── Startup ───────────────────────────────────────────
 
