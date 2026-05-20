@@ -28,7 +28,7 @@
 - [x] Hocuspocus WebSocket backend
 - [x] Real-time cursor + presence
 - [x] Document listing + management
-- [ ] Export to PDF/DOCX
+- [x] Export to PDF/DOCX
 
 ## Phase 5: YouTube Clone
 - [x] React + Tailwind frontend (video player, search, sidebar)
@@ -79,12 +79,12 @@
 - [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
 ## Phase 10: Deployment & CI/CD
-- [ ] Vercel frontend deployment config
-- [ ] Render backend deployment (with keep-warm cron)
-- [ ] Neon PostgreSQL serverless setup
-- [ ] Supabase Storage for BLOBs
-- [ ] GitHub Actions CI pipeline
-- [ ] Pre-build API client generation (`@hey-api/openapi-ts`)
+- [x] Vercel frontend deployment config
+- [x] Render backend deployment (with keep-warm cron)
+- [x] Neon PostgreSQL serverless setup
+- [x] Supabase Storage for BLOBs
+- [x] GitHub Actions CI pipeline
+- [x] Pre-build API client generation (`@hey-api/openapi-ts`)
 
 ## Phase 11: Portfolio & Documentation
 - [ ] README with architecture diagrams

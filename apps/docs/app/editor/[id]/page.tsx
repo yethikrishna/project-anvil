@@ -19,13 +19,34 @@ import {Button} from '@anvil/ui';
 
 // ── Toolbar ──
 
-function Toolbar({editor}: {editor: ReturnType<typeof useEditor>}) {
+function Toolbar({editor, docId}: {editor: ReturnType<typeof useEditor>; docId: string}) {
   if (!editor) return null;
 
   const btnClass = (active: boolean) =>
     `px-2 py-1 rounded text-sm transition-colors ${
       active ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
     }`;
+
+  const handleExport = async (format: 'pdf' | 'docx') => {
+    try {
+      const resp = await fetch(`/api/documents/${docId}/export/${format}`);
+      if (!resp.ok) throw new Error('Export failed');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Extract filename from Content-Disposition or use fallback
+      const disposition = resp.headers.get('content-disposition') ?? '';
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      a.download = filenameMatch ? filenameMatch[1] : `document.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Export failed. Please try again.');
+    }
+  };
 
   return (
     <div className="border-b border-gray-200 bg-white px-4 py-2 flex items-center gap-1 flex-wrap sticky top-0 z-10">
@@ -159,6 +180,26 @@ function Toolbar({editor}: {editor: ReturnType<typeof useEditor>}) {
         title="Redo"
       >
         ↪ Redo
+      </button>
+
+      <div className="w-px h-6 bg-gray-200 mx-1" />
+
+      {/* Export */}
+      <button
+        onClick={() => handleExport('pdf')}
+        className="px-2 py-1 rounded text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1"
+        title="Export as PDF"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        PDF
+      </button>
+      <button
+        onClick={() => handleExport('docx')}
+        className="px-2 py-1 rounded text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1"
+        title="Export as DOCX"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        DOCX
       </button>
     </div>
   );
@@ -350,7 +391,7 @@ export default function EditorPage({params}: EditorPageProps) {
       </div>
 
       {/* Toolbar */}
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} docId={params.id} />
 
       {/* Editor */}
       <div className="flex-1 overflow-auto">
