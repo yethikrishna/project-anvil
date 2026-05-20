@@ -170,8 +170,8 @@
 - [ ] Accessibility score dashboard per app
 - [ ] Screen reader-optimized mode (ARIA live regions, landmark nav)
 - [ ] Voice control interface via Web Speech API
-- [ ] `@anvil/i18n` package with type-safe keys + RTL support
-- [ ] Locale-aware formatting (dates, numbers, distances, file sizes)
+- [x] `@anvil/i18n` package with type-safe keys + RTL support
+- [x] Locale-aware formatting (dates, numbers, distances, file sizes)
 
 ## Phase 20: Testing & Observability
 - [x] Test pyramid: Vitest (unit) + testcontainers (integration) + Playwright (E2E)
