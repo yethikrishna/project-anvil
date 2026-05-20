@@ -191,3 +191,7 @@ export type { CommandItem, CommandPaletteProps, GlobalShortcut } from './command
 // ── Keyboard Shortcuts ──
 export { useKeyboardShortcuts, ShortcutHelpOverlay, GLOBAL_SHORTCUTS, GMAIL_SHORTCUTS, DOCS_SHORTCUTS } from './shortcuts';
 export type { ShortcutDef, ShortcutState } from './shortcuts';
+
+// ── Theme Editor ──
+export { ThemeEditor, useThemeEditor, THEME_PRESETS } from './theme-editor';
+export type { ThemeConfig } from './theme-editor';
