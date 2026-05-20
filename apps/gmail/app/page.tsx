@@ -4,8 +4,9 @@ import { useState, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { AppShell, ThemeProvider, ThemeToggle, cn } from '@anvil/ui';
+import { AppShell, ThemeProvider, ThemeToggle, cn, Badge } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
+import { classifyEmail, CATEGORY_CONFIG, type EmailCategory } from './lib/ai-categorizer';
 
 // ─── Types ───
 
@@ -622,10 +623,20 @@ export default function GmailPage() {
                           </span>
                         )}
                         {mail.labels.filter((l) => l !== 'spam' && l !== 'archive' && l !== 'trash').map((l) => (
-                          <span key={l} className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-medium', LABEL_COLORS[l] || 'bg-gray-100 text-gray-700')}>
+                          <span key={l} className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-medium', LABEL_COLORS[l] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400')}>
                             {l}
                           </span>
                         ))}
+                        {/* AI Category Badge */}
+                        {(() => {
+                          const cat = classifyEmail({ subject: mail.subject, from: mail.from.email, body: mail.body });
+                          const cfg = CATEGORY_CONFIG[cat.category];
+                          return cat.confidence > 0.4 ? (
+                            <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-0.5', cfg.color)} title={`AI: ${cat.confidence}% confidence${cat.reasoning ? ' — ' + cat.reasoning : ''}`}>
+                              {cfg.icon} {cfg.label}
+                            </span>
+                          ) : null;
+                        })()}
                         {mail.attachments && mail.attachments.length > 0 && (
                           <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
                         )}

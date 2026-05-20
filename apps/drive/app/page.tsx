@@ -10,6 +10,7 @@ import { FilePreview } from './components/FilePreview';
 import { ContextMenu, useContextMenu } from './components/ContextMenu';
 import { AppShell, ThemeProvider, ThemeToggle, NotificationBell } from '@anvil/ui';
 import { NotificationProvider } from '@anvil/notifications';
+import { tagFile, TAG_CONFIG } from './lib/ai-tagger';
 
 interface FileEntry {
   id: string;
@@ -266,7 +267,19 @@ export default function DrivePage() {
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-lg flex-shrink-0">{getFileIcon(file)}</span>
-                  <span className="text-sm text-gray-900 truncate">{file.name}</span>
+                  <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{file.name}</span>
+                  {/* AI Tags */}
+                  {!file.isDirectory && (() => {
+                    const result = tagFile(file);
+                    return result.tags.slice(0, 3).map(tag => {
+                      const cfg = TAG_CONFIG[tag];
+                      return (
+                        <span key={tag} className={cn('px-1.5 py-0.5 rounded-full text-[9px] font-medium hidden sm:inline-flex items-center gap-0.5', cfg.color)} title={`AI tag: ${cfg.label}`}>
+                          {cfg.icon} {cfg.label}
+                        </span>
+                      );
+                    });
+                  })()}
                 </div>
                 <span className="text-sm text-gray-500">
                   {file.isDirectory ? '—' : formatSize(file.size)}

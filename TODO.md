@@ -87,12 +87,12 @@
 - [x] Pre-build API client generation (`@hey-api/openapi-ts`)
 
 ## Phase 11: Portfolio & Documentation
-- [ ] README with architecture diagrams
-- [ ] System design documentation
-- [ ] Engineering tradeoff explanations
-- [ ] Resume-ready project descriptions
-- [ ] Live demo URLs
-- [ ] ATS keyword optimization
+- [x] README with architecture diagrams
+- [x] System design documentation
+- [x] Engineering tradeoff explanations
+- [x] Resume-ready project descriptions
+- [x] Live demo URLs
+- [x] ATS keyword optimization
 
 ## Backlog (AI-Generated Features)
 - [ ] AI-powered email categorization
