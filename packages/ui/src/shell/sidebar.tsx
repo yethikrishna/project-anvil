@@ -5,7 +5,7 @@ import { cn } from '../utils';
 
 // ── Types ──
 
-export type AnvilApp = 'drive' | 'docs' | 'youtube' | 'maps' | 'search' | 'gmail' | 'marketplace' | 'calendar';
+export type AnvilApp = 'drive' | 'docs' | 'youtube' | 'maps' | 'search' | 'gmail' | 'marketplace' | 'calendar' | 'tasks';
 
 export interface NavItem {
   id: AnvilApp;
@@ -96,6 +96,15 @@ function CalendarIcon({ className }: { className?: string }) {
   );
 }
 
+function TasksIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
 // ── App Registry ──
 
 export const ANVIL_APPS: NavItem[] = [
@@ -107,6 +116,7 @@ export const ANVIL_APPS: NavItem[] = [
   { id: 'maps', label: 'Maps', icon: <MapsIcon />, href: '/maps' },
   { id: 'marketplace' as AnvilApp, label: 'Plugins', icon: <span className="text-base">🧩</span>, href: '/marketplace' },
   { id: 'calendar' as AnvilApp, label: 'Calendar', icon: <CalendarIcon />, href: '/calendar' },
+  { id: 'tasks' as AnvilApp, label: 'Tasks', icon: <TasksIcon />, href: '/tasks' },
 ];
 
 // ── App Switcher ──

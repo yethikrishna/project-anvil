@@ -143,17 +143,17 @@
 - [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
 - [ ] WebGPU-accelerated analytics dashboard (3D treemap, particle visualizations)
 - [ ] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
-- [ ] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
-- [ ] Shared Worker threads: one WebSocket for all tabs
+- [x] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
+- [x] Shared Worker threads: one WebSocket for all tabs
 - [ ] Performance monitoring dashboard (Core Web Vitals, custom traces)
 
 ## Phase 16: Calendar + Tasks (Integration Apps)
 - [x] Calendar app (FullCalendar.js + rrule.js recurring events)
 - [x] Smart scheduling: "find a time when all attendees are free"
 - [x] Email → calendar event extraction ("Dinner Thursday?" → event)
-- [ ] Tasks/Keep app with cross-app task creation
-- [ ] Unified notification hub (SSE delivery, action buttons, smart batching)
-- [ ] Contact system shared across Gmail, Calendar, Drive
+- [x] Tasks/Keep app with cross-app task creation
+- [x] Unified notification hub (SSE delivery, action buttons, smart batching)
+- [x] Contact system shared across Gmail, Calendar, Drive
 
 ## Phase 17: Platform & Community
 - [ ] Plugin system with SDK + sandboxed execution
