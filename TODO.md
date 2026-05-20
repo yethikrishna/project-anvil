@@ -159,10 +159,10 @@
 - [ ] MDX-powered blog + auto-generated changelog
 
 ## Phase 18: Modern Web Platform (Polish)
-- [ ] View Transitions API for cross-app navigation animations
-- [ ] Scroll-driven CSS animations (parallax, staggered reveals, progress bars)
-- [ ] CSS Container Queries for adaptive component rendering
-- [ ] Popover API + Anchor Positioning for menus and tooltips
+- [x] View Transitions API for cross-app navigation animations
+- [x] Scroll-driven CSS animations (parallax, staggered reveals, progress bars)
+- [x] CSS Container Queries for adaptive component rendering
+- [x] Popover API + Anchor Positioning for menus and tooltips
 - [ ] `<selectlist>` customizable selects across all apps
 
 ## Phase 19: Accessibility & Internationalization
@@ -174,10 +174,10 @@
 - [ ] Locale-aware formatting (dates, numbers, distances, file sizes)
 
 ## Phase 20: Testing & Observability
-- [ ] Test pyramid: Vitest (unit) + testcontainers (integration) + Playwright (E2E)
+- [x] Test pyramid: Vitest (unit) + testcontainers (integration) + Playwright (E2E)
 - [ ] Visual regression testing in CI (Playwright screenshots)
-- [ ] k6 load testing scripts with performance baselines
-- [ ] OpenTelemetry distributed tracing (frontend → API → DB → S3)
+- [x] k6 load testing scripts with performance baselines
+- [x] OpenTelemetry distributed tracing (frontend → API → DB → S3)
 - [ ] Real-time error tracking (custom Sentry-lite)
 - [ ] Performance budget enforcement in CI (Lighthouse CI)
 - [ ] Developer playground (API explorer, CRDT debug visualizer)

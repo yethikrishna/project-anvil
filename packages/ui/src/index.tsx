@@ -195,3 +195,12 @@ export type { ShortcutDef, ShortcutState } from './shortcuts';
 // ── Theme Editor ──
 export { ThemeEditor, useThemeEditor, THEME_PRESETS } from './theme-editor';
 export type { ThemeConfig } from './theme-editor';
+
+// ── View Transitions & Modern CSS ──
+export {
+  navigateWithTransition,
+  SCROLL_ANIMATION_CSS,
+  CONTAINER_QUERY_CSS,
+  POPOVER_CSS,
+} from './transitions';
+export type { TransitionType } from './transitions';
