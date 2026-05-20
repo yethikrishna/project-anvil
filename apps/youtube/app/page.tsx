@@ -1,8 +1,9 @@
 'use client';
 
 import {useRef, useEffect} from 'react';
-import {AppShell, Button, Card, Input} from '@anvil/ui';
+import {AppShell, Button, Card, Input, ThemeProvider, ThemeToggle} from '@anvil/ui';
 import {useAuth} from '@anvil/auth';
+import {NotificationProvider, NotificationBell} from '@anvil/notifications';
 import {useDebouncedSearch} from '../lib/use-debounced-search';
 import {usePlaylistStore} from '../lib/playlist-store';
 
@@ -17,19 +18,19 @@ export default function YouTubePage() {
 
   if (!isAuthenticated) {
     return (
-      <AppShell activeApp="youtube">
+      <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="youtube" notifications={<><ThemeToggle/><NotificationBell/></>}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <h2 className="text-xl font-bold mb-4">Sign in to search and watch videos</h2>
             <Button onClick={() => login()}>Sign in with SSO</Button>
           </div>
         </div>
-      </AppShell>
+      </AppShell></NotificationProvider></ThemeProvider>
     );
   }
 
   return (
-    <AppShell activeApp="youtube">
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="youtube" notifications={<><ThemeToggle/><NotificationBell/></>}>
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -157,6 +158,6 @@ export default function YouTubePage() {
           onClick={() => setShowSuggestions(false)}
         />
       )}
-    </AppShell>
-  );
+    </AppShell></NotificationProvider></ThemeProvider>;
+  };
 }

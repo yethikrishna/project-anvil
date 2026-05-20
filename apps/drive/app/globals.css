@@ -1,1 +1,49 @@
 @import "tailwindcss";
+
+/* Dark mode: use class-based strategy (managed by ThemeProvider) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Mobile bottom nav safe area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Skeleton wave animation */
+@keyframes skeleton-wave {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-wave {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.1) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+/* Dark mode adjustments for tiptap editor */
+.dark .tiptap pre {
+  background: #111827;
+  color: #f9fafb;
+}
+.dark .tiptap code {
+  background: #374151;
+  color: #e5e7eb;
+}
+.dark .tiptap blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+.dark .tiptap a {
+  color: #60a5fa;
+}
+.dark .tiptap mark {
+  background-color: #854d0e;
+  color: #fef08a;
+}
+
+/* Scrollbar styles for dark mode */
+.dark aside::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+.dark aside::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

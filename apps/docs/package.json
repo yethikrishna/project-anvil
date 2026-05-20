@@ -13,6 +13,7 @@
     "react-dom": "^19.0.0",
     "@anvil/auth": "workspace:*",
     "@anvil/ui": "workspace:*",
+    "@anvil/notifications": "workspace:*",
     "@tiptap/react": "^2.10.0",
     "@tiptap/starter-kit": "^2.10.0",
     "@tiptap/extension-collaboration": "^2.10.0",

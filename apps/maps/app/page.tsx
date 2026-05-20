@@ -3,7 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { cn } from '@anvil/ui';
+import { cn, AppShell, ThemeProvider, ThemeToggle } from '@anvil/ui';
+import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 
 // ─── Types ───
 
@@ -485,7 +486,8 @@ export default function MapsPage() {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="maps" notifications={<><ThemeToggle/><NotificationBell/></>}>
+    <div className="relative h-full w-full overflow-hidden">
       {/* Map container */}
       <div ref={mapContainer} className="absolute inset-0" />
 
@@ -682,5 +684,6 @@ export default function MapsPage() {
         </div>
       </div>
     </div>
-  );
+    </AppShell></NotificationProvider></ThemeProvider>;
+  };
 }

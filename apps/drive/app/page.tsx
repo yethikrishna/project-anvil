@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { FilePreview } from './components/FilePreview';
 import { ContextMenu, useContextMenu } from './components/ContextMenu';
+import { AppShell, ThemeProvider, ThemeToggle, NotificationBell } from '@anvil/ui';
+import { NotificationProvider } from '@anvil/notifications';
 
 interface FileEntry {
   id: string;
@@ -167,6 +169,27 @@ export default function DrivePage() {
     .filter(Boolean);
 
   return (
+    <ThemeProvider>
+    <NotificationProvider userId="demo-user">
+    <AppShell
+      activeApp="drive"
+      user={{ name: 'Demo User', email: 'demo@anvil.local' }}
+      header={<h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Drive</h1>}
+      sidebarContent={
+        <>
+          <a href="/" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <span>📁</span><span>My Drive</span>
+          </a>
+          <a href="/shared" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <span>🔗</span><span>Shared with me</span>
+          </a>
+          <a href="/trash" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <span>🗑️</span><span>Trash</span>
+          </a>
+        </>
+      }
+      notifications={<><ThemeToggle /><NotificationBell /></>}
+    >
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
@@ -311,5 +334,8 @@ export default function DrivePage() {
         </div>
       )}
     </div>
+    </AppShell>
+    </NotificationProvider>
+    </ThemeProvider>
   );
 }

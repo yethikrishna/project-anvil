@@ -1,8 +1,9 @@
 'use client';
 
 import {useState, useEffect} from 'react';
-import {AppShell, Button, Card, Input} from '@anvil/ui';
+import {AppShell, Button, Card, Input, ThemeProvider, ThemeToggle} from '@anvil/ui';
 import {useAuth} from '@anvil/auth';
+import {NotificationProvider, NotificationBell} from '@anvil/notifications';
 
 interface DocumentItem {
   id: string;
@@ -77,22 +78,22 @@ export default function DocsPage() {
 
   if (!isAuthenticated) {
     return (
-      <AppShell activeApp="docs">
+      <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <h2 className="text-xl font-bold mb-4">Sign in to access your documents</h2>
             <Button onClick={() => login()}>Sign in with SSO</Button>
           </div>
         </div>
-      </AppShell>
+      </AppShell></NotificationProvider></ThemeProvider>
     );
   }
 
   return (
-    <AppShell activeApp="docs">
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">My Documents</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Documents</h2>
           <div className="flex gap-3">
             <div className="w-72">
               <Input
@@ -161,6 +162,6 @@ export default function DocsPage() {
           </div>
         )}
       </div>
-    </AppShell>
-  );
+    </AppShell></NotificationProvider></ThemeProvider>;
+  };
 }

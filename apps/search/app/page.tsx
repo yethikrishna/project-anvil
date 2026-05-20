@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { cn } from '@anvil/ui';
+import { cn, AppShell, ThemeProvider, ThemeToggle } from '@anvil/ui';
+import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 
 // ─── Types ───
 
@@ -255,7 +256,8 @@ export default function SearchPage() {
   // ─── Results page ───
 
   return (
-    <div className="min-h-screen bg-white">
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="search" notifications={<><ThemeToggle/><NotificationBell/></>}>
+    <div className="min-h-full bg-white dark:bg-gray-950">
       {/* Top bar */}
       <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
         <div className="flex items-center gap-4 px-6 py-3">
@@ -401,5 +403,6 @@ export default function SearchPage() {
         )}
       </div>
     </div>
-  );
+    </AppShell></NotificationProvider></ThemeProvider>;
+  };
 }

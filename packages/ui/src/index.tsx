@@ -2,75 +2,15 @@
  * @anvil/ui — Shared component library for Project Anvil
  */
 
-import {clsx, type ClassValue} from 'clsx';
-import {twMerge} from 'tailwind-merge';
-
 // ── Utilities ──
+export { cn } from './utils';
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// ── Shell (sidebar, app switcher, mobile nav) ──
+export { AppShell } from './shell/app-shell';
+export { Sidebar, AppSwitcher, MobileNav, HamburgerButton, ANVIL_APPS } from './shell/sidebar';
+export type { AnvilApp, SidebarProps, AppSwitcherProps, MobileNavProps, NavItem, AppShellProps } from './shell';
 
-// ── App Shell ──
-
-export interface AppShellProps {
-  children: React.ReactNode;
-  sidebar?: React.ReactNode;
-  header?: React.ReactNode;
-  activeApp?: 'drive' | 'docs' | 'youtube' | 'maps' | 'search' | 'gmail';
-}
-
-export function AppShell({children, sidebar, header, activeApp}: AppShellProps) {
-  const apps = [
-    {id: 'drive', label: 'Drive', icon: '📁', href: '/drive'},
-    {id: 'docs', label: 'Docs', icon: '📝', href: '/docs'},
-    {id: 'youtube', label: 'YouTube', icon: '▶️', href: '/youtube'},
-    {id: 'maps', label: 'Maps', icon: '🗺️', href: '/maps'},
-    {id: 'search', label: 'Search', icon: '🔍', href: '/search'},
-    {id: 'gmail', label: 'Gmail', icon: '✉️', href: '/gmail'},
-  ] as const;
-
-  return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">Anvil</h1>
-        </div>
-        <nav className="flex-1 p-2">
-          {apps.map(app => (
-            <a
-              key={app.id}
-              href={app.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                activeApp === app.id
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              <span>{app.icon}</span>
-              <span>{app.label}</span>
-            </a>
-          ))}
-        </nav>
-        {sidebar}
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {header && (
-          <header className="h-14 border-b border-gray-200 bg-white flex items-center px-4">
-            {header}
-          </header>
-        )}
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
-    </div>
-  );
-}
-
-// ── Button ──
+// ── Primitives ──
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -91,10 +31,10 @@ export function Button({
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
         'disabled:pointer-events-none disabled:opacity-50',
         {
-          'bg-blue-600 text-white hover:bg-blue-700': variant === 'primary',
-          'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50': variant === 'secondary',
-          'text-gray-600 hover:bg-gray-100': variant === 'ghost',
-          'bg-red-600 text-white hover:bg-red-700': variant === 'danger',
+          'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600': variant === 'primary',
+          'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700': variant === 'secondary',
+          'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800': variant === 'ghost',
+          'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600': variant === 'danger',
         },
         {
           'h-8 px-3 text-sm': size === 'sm',
@@ -121,22 +61,23 @@ export function Input({label, error, className, id, ...props}: InputProps) {
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
         </label>
       )}
       <input
         id={id}
         className={cn(
-          'w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm',
+          'w-full h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm',
+          'text-gray-900 dark:text-gray-100',
           'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-          'placeholder:text-gray-400',
+          'placeholder:text-gray-400 dark:placeholder:text-gray-500',
           error && 'border-red-500 focus:ring-red-500',
           className
         )}
         {...props}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -154,7 +95,7 @@ export function Card({children, className, onClick}: CardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'rounded-xl border border-gray-200 bg-white p-4 shadow-sm',
+        'rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm',
         onClick && 'cursor-pointer hover:shadow-md transition-shadow',
         className
       )}
@@ -195,7 +136,7 @@ export function Avatar({name, src, size = 'md'}: AvatarProps) {
   return (
     <div
       className={cn(
-        'rounded-full bg-blue-600 text-white flex items-center justify-center font-medium',
+        'rounded-full bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center font-medium',
         sizeClasses[size]
       )}
     >
@@ -217,10 +158,10 @@ export function Badge({children, variant = 'default'}: BadgeProps) {
       className={cn(
         'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
         {
-          'bg-gray-100 text-gray-700': variant === 'default',
-          'bg-green-100 text-green-700': variant === 'success',
-          'bg-yellow-100 text-yellow-700': variant === 'warning',
-          'bg-red-100 text-red-700': variant === 'danger',
+          'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300': variant === 'default',
+          'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400': variant === 'success',
+          'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400': variant === 'warning',
+          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400': variant === 'danger',
         }
       )}
     >
@@ -228,3 +169,14 @@ export function Badge({children, variant = 'default'}: BadgeProps) {
     </span>
   );
 }
+
+// ── Overlay Components ──
+export { Modal, Dropdown, Tabs, ToastDisplay, ToastContainer, Tooltip, Skeleton, SkeletonTable, SkeletonCard, SkeletonList } from './overlay';
+export type { ModalProps, DropdownProps, DropdownItem, TabsProps, Tab, Toast, ToastType, ToastContainerProps, TooltipProps, SkeletonProps } from './overlay';
+
+// ── DataTable ──
+export { DataTable } from './data-table';
+export type { DataTableProps, Column } from './data-table';
+
+// ── Theme ──
+export { ThemeProvider, ThemeToggle, useTheme } from './theme';

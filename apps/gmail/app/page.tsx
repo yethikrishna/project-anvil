@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { cn } from '@anvil/ui';
+import { AppShell, ThemeProvider, ThemeToggle, cn } from '@anvil/ui';
+import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 
 // ─── Types ───
 
@@ -485,50 +486,57 @@ export default function GmailPage() {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-56 border-r border-gray-200 bg-white flex flex-col">
-        <div className="p-3">
-          <button
-            onClick={() => setShowCompose(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium shadow-sm"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-            Compose
-          </button>
+    <ThemeProvider>
+    <NotificationProvider userId="demo-user">
+    <AppShell
+      activeApp="gmail"
+      user={{ name: 'Demo User', email: 'demo@anvil.local' }}
+      header={
+        <div className="flex items-center gap-3 flex-1">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Mail</h1>
         </div>
-
-        <nav className="flex-1 px-2 space-y-0.5">
+      }
+      sidebarContent={
+        <>
+          <div className="mb-3">
+            <button
+              onClick={() => setShowCompose(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 font-medium shadow-sm"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+              Compose
+            </button>
+          </div>
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => { setSelectedFolder(item.id); setSelectedThread(null); }}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                selectedFolder === item.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
+                selectedFolder === item.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               )}
             >
               <span className="text-sm">{item.icon}</span>
               <span className="flex-1 text-left">{item.label}</span>
               {item.count !== undefined && item.count > 0 && (
-                <span className="text-xs font-medium text-blue-600">{item.count}</span>
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{item.count}</span>
               )}
             </button>
           ))}
-        </nav>
-
-        {/* Labels */}
-        <div className="px-3 py-2 border-t border-gray-200">
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Labels</p>
-          {['work', 'github', 'newsletter', 'deploy', 'important'].map((label) => (
-            <div key={label} className="flex items-center gap-2 px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 rounded cursor-pointer">
-              <span className={cn('w-2.5 h-2.5 rounded-full', LABEL_COLORS[label]?.split(' ')[0] || 'bg-gray-300')} />
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
-
+          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-3">Labels</p>
+            {['work', 'github', 'newsletter', 'deploy', 'important'].map((label) => (
+              <div key={label} className="flex items-center gap-2 px-3 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer">
+                <span className={cn('w-2.5 h-2.5 rounded-full', LABEL_COLORS[label]?.split(' ')[0] || 'bg-gray-300')} />
+                {label}
+              </div>
+            ))}
+          </div>
+        </>
+      }
+      notifications={<><ThemeToggle /><NotificationBell /></>}
+    >
+    <div className="flex h-full">
       {/* Main content */}
       {selectedThread ? (
         <ThreadView
@@ -644,5 +652,8 @@ export default function GmailPage() {
         />
       )}
     </div>
+    </AppShell>
+    </NotificationProvider>
+    </ThemeProvider>
   );
 }
