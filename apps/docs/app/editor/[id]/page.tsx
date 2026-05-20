@@ -16,6 +16,7 @@ import {HocuspocusProvider} from '@hocuspocus/provider';
 import {useState, useEffect, useCallback} from 'react';
 import {useAuth} from '@anvil/auth';
 import {Button} from '@anvil/ui';
+import {AnalyticsPanel} from './AnalyticsPanel';
 
 // ── Toolbar ──
 
@@ -263,6 +264,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [docTitle, setDocTitle] = useState('Loading...');
   const [isSaving, setIsSaving] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Fetch document metadata
   useEffect(() => {
@@ -271,6 +273,30 @@ export default function EditorPage({params}: EditorPageProps) {
       .then(data => setDocTitle(data.title ?? 'Untitled'))
       .catch(() => setDocTitle('Untitled'));
   }, [params.id]);
+
+  // Report join/leave to analytics
+  useEffect(() => {
+    if (!user?.id) return;
+
+    fetch('/api/analytics/join', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        documentId: params.id,
+        userId: user.id,
+        userName: user.name ?? 'Anonymous',
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      }),
+    }).catch(() => {});
+
+    return () => {
+      fetch('/api/analytics/leave', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({documentId: params.id, userId: user.id}),
+      }).catch(() => {});
+    };
+  }, [params.id, user?.id]);
 
   // Create Yjs document + Hocuspocus provider
   useEffect(() => {
@@ -357,6 +383,13 @@ export default function EditorPage({params}: EditorPageProps) {
       const html = editor.getHTML();
       if (saveTimeout) clearTimeout(saveTimeout);
       setTimeout(() => saveDocument(html), 3000);
+
+      // Report edit to analytics
+      fetch('/api/analytics/edit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({documentId: params.id, userId: user?.id ?? 'anonymous'}),
+      }).catch(() => {});
     },
     editorProps: {
       attributes: {
@@ -388,6 +421,17 @@ export default function EditorPage({params}: EditorPageProps) {
         />
         <PresenceIndicator provider={provider} />
         {isSaving && <span className="text-xs text-gray-400">Saving...</span>}
+        <button
+          onClick={() => setShowAnalytics(!showAnalytics)}
+          className={`px-2 py-1 rounded text-xs transition-colors ${
+            showAnalytics
+              ? 'bg-purple-100 text-purple-700'
+              : 'text-gray-500 hover:bg-gray-100'
+          }`}
+          title="Collaboration Analytics"
+        >
+          📊 Analytics
+        </button>
       </div>
 
       {/* Toolbar */}
@@ -395,10 +439,17 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* Editor */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto px-8 py-6">
+        <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''}`}>
           <EditorContent editor={editor} />
         </div>
       </div>
+
+      {/* Analytics Side Panel */}
+      <AnalyticsPanel
+        documentId={params.id}
+        open={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
+      />
     </div>
   );
 }

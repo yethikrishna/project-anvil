@@ -16,6 +16,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import {documentRoutes} from './routes/documents.js';
 import {exportRoutes} from './routes/export.js';
+import {analyticsRoutes} from './routes/analytics-routes.js';
 import {db} from './db/index.js';
 import {documents} from './db/schema.js';
 import {eq} from 'drizzle-orm';
@@ -130,6 +131,9 @@ async function main() {
 
   // Document export (PDF / DOCX)
   await app.register(exportRoutes);
+
+  // Collaboration analytics
+  await app.register(analyticsRoutes);
 
   // Proxy WebSocket connections to Hocuspocus
   app.get('/hocuspocus', {websocket: true}, (socket, request) => {
