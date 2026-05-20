@@ -115,3 +115,87 @@
 - [x] Voice-to-search integration
 - [x] Real-time collaboration analytics
 - [x] Plugin marketplace
+
+## Phase 13: AI Intelligence Layer
+- [ ] `@anvil/ai` package with provider abstraction (OpenAI, Ollama, local)
+- [ ] Semantic file search with pgvector + HNSW index
+- [ ] Cross-app AI Copilot sidebar (context-aware across all apps)
+- [ ] Client-side ML inference via ONNX/Wasm (email triage, doc autocomplete)
+- [ ] Natural language file search: "find the contract I sent to Acme Corp"
+- [ ] Document intelligence: auto TOC, style matching, version diff summary
+- [ ] Email thread summarization + sentiment analysis
+
+## Phase 14: Power User Experience
+- [ ] Unified Command Palette (Cmd+K) across all apps
+- [ ] Cross-app drag-and-drop (file → email, video → doc, location → email)
+- [ ] Real-time presence indicators across the workspace shell
+- [ ] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
+- [ ] Global shortcuts: Cmd+1–6 for app switching
+- [ ] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
+
+## Phase 15: Technical Showcase
+- [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
+- [ ] WebGPU-accelerated analytics dashboard (3D treemap, particle visualizations)
+- [ ] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
+- [ ] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
+- [ ] Shared Worker threads: one WebSocket for all tabs
+- [ ] Performance monitoring dashboard (Core Web Vitals, custom traces)
+
+## Phase 16: Calendar + Tasks (Integration Apps)
+- [ ] Calendar app (FullCalendar.js + rrule.js recurring events)
+- [ ] Smart scheduling: "find a time when all attendees are free"
+- [ ] Email → calendar event extraction ("Dinner Thursday?" → event)
+- [ ] Tasks/Keep app with cross-app task creation
+- [ ] Unified notification hub (SSE delivery, action buttons, smart batching)
+- [ ] Contact system shared across Gmail, Calendar, Drive
+
+## Phase 17: Platform & Community
+- [ ] Plugin system with SDK + sandboxed execution
+- [ ] Theme engine with live editor + community gallery
+- [ ] Public API + interactive playground (Swagger UI / Scalar)
+- [ ] Admin console: team management, usage analytics, audit logs
+- [ ] Stripe billing integration with usage-based tiers
+- [ ] GraphQL Federation gateway (federated subgraphs per app)
+- [ ] MDX-powered blog + auto-generated changelog
+
+## Phase 18: Modern Web Platform (Polish)
+- [ ] View Transitions API for cross-app navigation animations
+- [ ] Scroll-driven CSS animations (parallax, staggered reveals, progress bars)
+- [ ] CSS Container Queries for adaptive component rendering
+- [ ] Popover API + Anchor Positioning for menus and tooltips
+- [ ] `<selectlist>` customizable selects across all apps
+
+## Phase 19: Accessibility & Internationalization
+- [ ] WCAG 2.2 AA compliance with axe-core CI integration
+- [ ] Accessibility score dashboard per app
+- [ ] Screen reader-optimized mode (ARIA live regions, landmark nav)
+- [ ] Voice control interface via Web Speech API
+- [ ] `@anvil/i18n` package with type-safe keys + RTL support
+- [ ] Locale-aware formatting (dates, numbers, distances, file sizes)
+
+## Phase 20: Testing & Observability
+- [ ] Test pyramid: Vitest (unit) + testcontainers (integration) + Playwright (E2E)
+- [ ] Visual regression testing in CI (Playwright screenshots)
+- [ ] k6 load testing scripts with performance baselines
+- [ ] OpenTelemetry distributed tracing (frontend → API → DB → S3)
+- [ ] Real-time error tracking (custom Sentry-lite)
+- [ ] Performance budget enforcement in CI (Lighthouse CI)
+- [ ] Developer playground (API explorer, CRDT debug visualizer)
+- [ ] Contract testing between services (Pact-style)
+
+## Phase 21: Novel Interactions & Analytics
+- [ ] Smart Clipboard (copy file from Drive → paste into Gmail as attachment)
+- [ ] Focus modes: Zen (Docs), Inbox Zero (Gmail), Deep Work (cross-app)
+- [ ] Smart bookmarks/pins across all apps + AI-suggested pins
+- [ ] Spatial navigation for grids and lists (keyboard-driven)
+- [ ] Activity timeline across all apps ("12 emails, 3 docs, 1 upload today")
+- [ ] Email analytics (response time, volume heatmap, top correspondents)
+- [ ] Drive analytics (storage by type, duplicates, shared file audit)
+- [ ] Collaboration analytics (edit heatmap, timezone visualization)
+
+## Backlog (Architecture)
+- [ ] Micro-frontend shell with Module Federation
+- [ ] Edge computing (Cloudflare Workers / Vercel Edge) for auth + caching
+- [ ] Event sourcing for Docs (time-travel, branch & merge)
+- [ ] Full offline PWA with Workbox (Service Worker + Background Sync)
+- [ ] Progressive enhancement: works without JS for core flows
