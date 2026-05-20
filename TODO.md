@@ -95,8 +95,8 @@
 - [x] ATS keyword optimization
 
 ## Backlog (AI-Generated Features)
-- [ ] AI-powered email categorization
-- [ ] Smart file tagging in Drive
+- [x] AI-powered email categorization
+- [x] Smart file tagging in Drive
 - [ ] Collaborative document templates
 - [ ] Video transcript search
 - [ ] Location-based search suggestions
