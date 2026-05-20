@@ -97,7 +97,7 @@
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
 - [x] Smart file tagging in Drive
-- [ ] Collaborative document templates
+- [x] Collaborative document templates
 - [ ] Video transcript search
 - [ ] Location-based search suggestions
 - [ ] Voice-to-search integration

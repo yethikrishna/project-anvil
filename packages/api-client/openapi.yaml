@@ -1,0 +1,786 @@
+openapi: "3.1.0"
+info:
+  title: Project Anvil API
+  description: Contract-first API specification for the Anvil federated Alphabet ecosystem
+  version: "0.1.0"
+  contact:
+    name: Project Anvil
+    url: https://github.com/yethikrishna/project-anvil
+
+servers:
+  - url: http://localhost:3100
+    description: Drive API
+  - url: http://localhost:3102
+    description: Docs API
+  - url: http://localhost:3300
+    description: YouTube API
+  - url: http://localhost:3400
+    description: Maps API
+  - url: http://localhost:3500
+    description: Search API
+  - url: http://localhost:3600
+    description: Gmail API
+
+# ── Common Components ───────────────────────────────────
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak OIDC access token
+
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    pageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    docIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    fileIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # Common
+    Paginated:
+      type: object
+      properties:
+        items:
+          type: array
+          items: {}
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    Timestamps:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Auth
+    User:
+      type: object
+      required: [id, email, firstName, lastName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+
+    # Drive
+    FileEntry:
+      type: object
+      required: [id, userId, name, path, isDirectory]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        mimeType:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          minimum: 0
+        s3Key:
+          type: string
+          nullable: true
+        isDirectory:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FileUploadResult:
+      type: object
+      required: [id, name, s3Key, size, mimeType]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        s3Key:
+          type: string
+        size:
+          type: integer
+        mimeType:
+          type: string
+
+    ShareLink:
+      type: object
+      required: [id, fileId, token, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    FolderCreateRequest:
+      type: object
+      required: [name, parentPath]
+      properties:
+        name:
+          type: string
+        parentPath:
+          type: string
+
+    ShareLinkCreateRequest:
+      type: object
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        expiresInHours:
+          type: integer
+          minimum: 1
+
+    # Docs
+    Document:
+      type: object
+      required: [id, title, ownerId, collaborators, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+          description: HTML content
+        version:
+          type: integer
+        collaborators:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentCollaborator"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentCollaborator:
+      type: object
+      required: [userId, role]
+      properties:
+        userId:
+          type: string
+        role:
+          type: string
+          enum: [owner, editor, viewer]
+
+    # YouTube
+    Video:
+      type: object
+      required: [id, title, thumbnailUrl, channelTitle]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+          format: uri
+        channelTitle:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+        duration:
+          type: string
+        viewCount:
+          type: integer
+
+    Playlist:
+      type: object
+      required: [id, title, itemCount]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        itemCount:
+          type: integer
+        thumbnails:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              width:
+                type: integer
+              height:
+                type: integer
+
+    # Maps
+    GeocodeResult:
+      type: object
+      required: [displayName, lat, lon, type]
+      properties:
+        displayName:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        type:
+          type: string
+        address:
+          type: object
+          additionalProperties:
+            type: string
+
+    Route:
+      type: object
+      required: [distance, duration, geometry, steps]
+      properties:
+        distance:
+          type: number
+          description: Distance in meters
+        duration:
+          type: number
+          description: Duration in seconds
+        geometry:
+          type: string
+          description: Encoded polyline
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteStep"
+
+    RouteStep:
+      type: object
+      required: [instruction, distance, duration, name]
+      properties:
+        instruction:
+          type: string
+        distance:
+          type: number
+        duration:
+          type: number
+        name:
+          type: string
+
+    # Search
+    SearchResult:
+      type: object
+      required: [id, url, title, snippet, score]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        snippet:
+          type: string
+        score:
+          type: number
+          format: float
+
+    # Gmail
+    EmailMessage:
+      type: object
+      required: [id, messageId, threadId, from, to, subject, labels, read, starred, date]
+      properties:
+        id:
+          type: string
+        messageId:
+          type: string
+        threadId:
+          type: string
+        from:
+          type: string
+          format: email
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        subject:
+          type: string
+        labels:
+          type: array
+          items:
+            type: string
+        read:
+          type: boolean
+        starred:
+          type: boolean
+        date:
+          type: string
+          format: date-time
+
+    EmailCompose:
+      type: object
+      required: [to, subject, body]
+      properties:
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        subject:
+          type: string
+        body:
+          type: string
+        inReplyTo:
+          type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+security:
+  - BearerAuth: []
+
+# ── Paths ──────────────────────────────────────────────
+
+paths:
+  # ── Drive ────────────────────────────────────────────
+  /api/files:
+    get:
+      tags: [Drive]
+      operationId: listFiles
+      summary: List files in a directory
+      parameters:
+        - name: path
+          in: query
+          schema:
+            type: string
+            default: "/"
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/pageSizeParam"
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, size, createdAt, updatedAt]
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        "200":
+          description: File listing
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileEntry"
+
+    post:
+      tags: [Drive]
+      operationId: createFolder
+      summary: Create a new folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderCreateRequest"
+      responses:
+        "201":
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileEntry"
+
+  /api/files/upload:
+    post:
+      tags: [Drive]
+      operationId: uploadFile
+      summary: Upload a file via multipart form
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, path]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                path:
+                  type: string
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResult"
+
+  /api/files/{id}:
+    get:
+      tags: [Drive]
+      operationId: getFile
+      summary: Get file metadata or download
+      parameters:
+        - $ref: "#/components/parameters/fileIdParam"
+      responses:
+        "200":
+          description: File metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Drive]
+      operationId: deleteFile
+      summary: Delete a file or folder
+      parameters:
+        - $ref: "#/components/parameters/fileIdParam"
+      responses:
+        "200":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/files/{id}/share:
+    post:
+      tags: [Drive]
+      operationId: createShareLink
+      summary: Create a share link for a file
+      parameters:
+        - $ref: "#/components/parameters/fileIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareLinkCreateRequest"
+      responses:
+        "201":
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+
+  # ── Docs ─────────────────────────────────────────────
+  /api/documents:
+    get:
+      tags: [Docs]
+      operationId: listDocuments
+      summary: List user's documents
+      responses:
+        "200":
+          description: Document list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+    post:
+      tags: [Docs]
+      operationId: createDocument
+      summary: Create a new document
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /api/documents/{id}:
+    get:
+      tags: [Docs]
+      operationId: getDocument
+      summary: Get a document
+      parameters:
+        - $ref: "#/components/parameters/docIdParam"
+      responses:
+        "200":
+          description: Document data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [Docs]
+      operationId: updateDocument
+      summary: Update document (auto-save)
+      parameters:
+        - $ref: "#/components/parameters/docIdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                ydocState:
+                  type: string
+      responses:
+        "200":
+          description: Updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Docs]
+      operationId: deleteDocument
+      summary: Delete a document
+      parameters:
+        - $ref: "#/components/parameters/docIdParam"
+      responses:
+        "200":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/documents/{id}/export/pdf:
+    get:
+      tags: [Docs]
+      operationId: exportPdf
+      summary: Export document as PDF
+      parameters:
+        - $ref: "#/components/parameters/docIdParam"
+      responses:
+        "200":
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/documents/{id}/export/docx:
+    get:
+      tags: [Docs]
+      operationId: exportDocx
+      summary: Export document as DOCX
+      parameters:
+        - $ref: "#/components/parameters/docIdParam"
+      responses:
+        "200":
+          description: DOCX file
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/documents/search:
+    get:
+      tags: [Docs]
+      operationId: searchDocuments
+      summary: Search documents by title
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  # ── Search ───────────────────────────────────────────
+  /api/search:
+    get:
+      tags: [Search]
+      operationId: search
+      summary: Full-text + vector search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+
+  # ── Gmail ────────────────────────────────────────────
+  /api/email/inbox:
+    get:
+      tags: [Gmail]
+      operationId: listInbox
+      summary: List inbox emails
+      parameters:
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/pageSizeParam"
+      responses:
+        "200":
+          description: Email list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailMessage"
+
+  /api/email/send:
+    post:
+      tags: [Gmail]
+      operationId: sendEmail
+      summary: Send an email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCompose"
+      responses:
+        "201":
+          description: Email sent

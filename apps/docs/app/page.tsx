@@ -4,6 +4,8 @@ import {useState, useEffect} from 'react';
 import {AppShell, Button, Card, Input, ThemeProvider, ThemeToggle} from '@anvil/ui';
 import {useAuth} from '@anvil/auth';
 import {NotificationProvider, NotificationBell} from '@anvil/notifications';
+import {TemplatePicker} from './templates/TemplatePicker';
+import {type DocumentTemplate} from './templates/definitions';
 
 interface DocumentItem {
   id: string;
@@ -19,6 +21,7 @@ export default function DocsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Fetch documents
   useEffect(() => {
@@ -34,13 +37,30 @@ export default function DocsPage() {
   }, [isAuthenticated]);
 
   // Create new document
-  const createDocument = async () => {
+  const createDocument = async (title?: string) => {
     setIsCreating(true);
     try {
       const resp = await fetch('/api/documents', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({title: 'Untitled Document'}),
+        body: JSON.stringify({title: title ?? 'Untitled Document'}),
+      });
+      const doc = await resp.json();
+      window.location.href = `/editor/${doc.id}`;
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Create document from template
+  const createFromTemplate = async (template: DocumentTemplate) => {
+    setIsCreating(true);
+    setShowTemplates(false);
+    try {
+      const resp = await fetch('/api/documents/from-template', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({templateId: template.id, title: template.title}),
       });
       const doc = await resp.json();
       window.location.href = `/editor/${doc.id}`;
@@ -90,7 +110,8 @@ export default function DocsPage() {
   }
 
   return (
-    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>
+    <>
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Documents</h2>
@@ -102,7 +123,10 @@ export default function DocsPage() {
                 onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button onClick={createDocument} disabled={isCreating}>
+            <Button onClick={() => setShowTemplates(true)} variant="ghost">
+              📋 Templates
+            </Button>
+            <Button onClick={() => createDocument()} disabled={isCreating}>
               {isCreating ? 'Creating...' : '+ New Document'}
             </Button>
           </div>
@@ -116,7 +140,10 @@ export default function DocsPage() {
               {searchQuery ? 'No documents match your search.' : 'No documents yet.'}
             </p>
             {!searchQuery && (
-              <Button onClick={createDocument}>Create your first document</Button>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={() => setShowTemplates(true)} variant="ghost">📋 Use a template</Button>
+                <Button onClick={() => createDocument()}>Create your first document</Button>
+              </div>
             )}
           </div>
         ) : (
@@ -162,6 +189,14 @@ export default function DocsPage() {
           </div>
         )}
       </div>
-    </AppShell></NotificationProvider></ThemeProvider>;
-  };
+    </AppShell></NotificationProvider></ThemeProvider>
+
+    {/* Template Picker Modal — rendered outside AppShell */}
+    <TemplatePicker
+      open={showTemplates}
+      onClose={() => setShowTemplates(false)}
+      onSelect={createFromTemplate}
+    />
+    </>
+  );
 }
