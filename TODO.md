@@ -199,23 +199,71 @@
 - [ ] Drive analytics (storage by type, duplicates, shared file audit)
 - [ ] Collaboration analytics (edit heatmap, timezone visualization)
 
-## Phase 12: Research-Driven Enhancements (2026-05-20)
-- [x] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
-- [ ] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
-- [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
-- [ ] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
-- [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
-- [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
-- [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
-- [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
-- [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
-- [ ] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
-- [ ] Upgrade **Hocuspocus to v4** (cross-runtime, memory optimization, edge deploy on CF Workers)
-- [ ] Plan **Next.js 15 → 16 migration** (Cache Components, Turbopack default, async params)
-- [ ] Evaluate **MLT vector tile format** for Maps clone (6× smaller tiles, Martin tile server)
-- [ ] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
-- [ ] Evaluate **PowerSync** for offline-first Drive/Docs (SQLite ↔ PostgreSQL sync)
-- [ ] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
+## Phase 22: Security Hardening
+- [ ] Security headers + CSP nonce policy on all apps (target A+ on SecurityHeaders.com)
+- [ ] OWASP Top 10 audit document with per-risk mitigation proof
+- [ ] Session security: device fingerprinting, revocation, login history
+- [ ] API key management with scoped permissions + request signing
+- [ ] Dependency audit pipeline (npm audit + trivy + SBOM in CI)
+- [ ] Rate limiting on all endpoints (express-rate-limit + Redis)
+
+## Phase 23: Google Photos Clone
+- [ ] Timeline view with virtualized infinite scroll
+- [ ] Album management (auto + manual) + sharing
+- [ ] EXIF metadata extraction + search
+- [ ] Face detection + clustering (face-api.js / ONNX model)
+- [ ] Scene detection (MobileNet) + semantic photo search (CLIP)
+- [ ] Duplicate detection via perceptual hashing (WASM)
+- [ ] Map view: geotagged photos on MapLibre
+- [ ] Progressive image loading with blur-up placeholders
+- [ ] `@anvil/media` shared package (Photos, Drive, YouTube)
+
+## Phase 24: Chat + Video Calling (WebRTC)
+- [ ] Direct messages + group channels + threaded conversations
+- [ ] Message search via Meilisearch integration
+- [ ] 1:1 video calls with WebRTC + screen sharing
+- [ ] Virtual backgrounds (TensorFlow.js body segmentation)
+- [ ] Audio visualization via Web Audio API
+- [ ] Multi-party calling with mediasoup SFU
+- [ ] Typing indicators + read receipts + presence
+
+## Phase 25: Desktop & Mobile
+- [ ] Tauri 2.0 desktop app (10MB, system tray, native dialogs)
+- [ ] PWA with Web Push + offline access + share target
+- [ ] React Native mobile app (Expo, biometric auth, camera)
+
+## Phase 26: Data Portability & Compliance
+- [ ] Google Takeout import (Gmail mbox, Drive metadata, Photos)
+- [ ] Universal export (Anvil Takeout) — all data as structured JSON
+- [ ] GDPR compliance suite (cookie consent, data retention, right to erasure)
+- [ ] Multi-tenancy (organization workspaces, row-level security, custom branding)
+- [ ] Email migration via IMAP import
+- [ ] File migration from Google Drive / Dropbox / OneDrive
+- [ ] Calendar iCal/CalDAV sync + contact CardDAV sync
+
+## Phase 27: Design System & Storybook
+- [ ] Storybook 8+ for all @anvil/ui components with interactive docs
+- [ ] Design tokens (JSON → CSS variables) with Figma integration
+- [ ] Visual regression testing via Chromatic
+- [ ] Pattern library: pre-built page patterns with copy-paste code
+
+## Phase 28: Gamification & Engagement
+- [ ] Productivity score (daily activity across apps)
+- [ ] Achievement/badge system ("Inbox Zero", "Power User", "Collaborator")
+- [ ] Onboarding quests as guided tutorials
+- [ ] Trophy case on profile page
+
+## Phase 29: Ambient UX & Widgets
+- [ ] Customizable dashboard with drag-and-drop widgets
+- [ ] Browser new-tab extension with Anvil quick access
+- [ ] Ambient screensaver mode (photos, calendar, weather)
+
+## Phase 30: Developer Experience
+- [ ] One-command setup (`docker compose up` with demo data)
+- [ ] Dev containers + GitHub Codespaces config
+- [ ] Architecture Decision Records (ADRs)
+- [ ] Contribution guide with "good first issue" labels
+- [ ] Semantic versioning + auto-changelog
 
 ## Backlog (Architecture)
 - [ ] Micro-frontend shell with Module Federation
