@@ -165,3 +165,9 @@ export async function getLogoutUrl(
     post_logout_redirect_uri: postLogoutRedirectUri,
   }) ?? '';
 }
+
+// ── Re-exports for convenience ──
+
+export * from './hooks';
+export * from './route-handlers';
+export * from './middleware';
