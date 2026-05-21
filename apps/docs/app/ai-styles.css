@@ -277,6 +277,43 @@
   display: none;
 }
 
+/* ── AI Quick Actions Bar (inline floating toolbar) ── */
+
+.ai-quick-actions-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 3px;
+  position: relative;
+  margin-top: 4px;
+  z-index: 100;
+  animation: ai-toolbar-in 0.1s ease-out;
+}
+
+.ai-quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #4b5563;
+  white-space: nowrap;
+  transition: all 0.1s;
+}
+
+.ai-quick-action-btn:hover {
+  background: #eff1fe;
+  color: #4f46e5;
+}
+
 /* ── Dark Mode ── */
 
 @media (prefers-color-scheme: dark) {
@@ -320,6 +357,21 @@
   }
 
   .ai-slash-trigger {
+    background: #2d2d44;
+    color: #a5b4fc;
+  }
+
+  .ai-quick-actions-bar {
+    background: #1e1e2e;
+    border-color: #374151;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .ai-quick-action-btn {
+    color: #9ca3af;
+  }
+
+  .ai-quick-action-btn:hover {
     background: #2d2d44;
     color: #a5b4fc;
   }

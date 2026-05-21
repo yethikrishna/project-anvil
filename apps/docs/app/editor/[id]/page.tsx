@@ -22,6 +22,7 @@ import {AISlashCommands} from '../../../lib/ai/ai-slash-commands';
 import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../../lib/ai/ai-components';
 import {useAutoTitleSummary} from '../../../lib/ai/use-auto-title';
 import {AIAssistantPanel} from '../../../lib/ai/ai-assistant-panel';
+import {AIQuickActions} from '../../../lib/ai/ai-quick-actions';
 import '../../../ai-styles.css';
 
 // ── Toolbar ──
@@ -265,6 +266,7 @@ export default function EditorPage({params}: EditorPageProps) {
       AIRewrite,
       AIShortcuts,
       AISlashCommands,
+      AIQuickActions,
       ...(provider ? [
         Collaboration.configure({document: provider.document}),
         CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
