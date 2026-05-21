@@ -77,10 +77,10 @@
 ## Architecture Decisions (Architect, implement these)
 
 ### AD-1: Event-Driven Cross-App Bus
-- Implement internal event bus using Valkey pub/sub (already in Docker stack)
-- Pipeline: file upload → search index → AI tag → notification
-- Create `packages/events/` with typed event definitions
-- Each app publishes/subscribes via shared bus
+- **Status**: ✅ DONE (commit 49769f9)
+- Implemented `@anvil/events` package with typed `AnvilEvent`, Valkey/ioredis pub/sub, auto-reconnect, subscribe/publish API
+- Pipeline ready: `file.uploaded` → search index → `ai.tagged` → notification
+- Integrated into monorepo with typecheck/build support
 
 ### AD-2: Hono Edge Gateway Expansion
 - `edge/wrangler.toml` exists but only handles search/geocoding
