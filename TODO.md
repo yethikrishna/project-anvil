@@ -183,7 +183,7 @@
 - [x] Evaluate **Hono** as edge gateway for CF Workers (402K ops/sec, <14KB, multi-runtime)
 - [ ] Add **SeaweedFS** as MinIO replacement for self-hosted BLOB storage (3-4× faster, Apache 2.0)
 - [x] Add **Cloudflare R2** as managed storage for demo deployment (10 GB free, free egress)
-- [ ] Create **Cloudflare Free Stack** deployment guide (Workers + R2 + D1 + KV + Pages = $0/mo)
+- [x] Create **Cloudflare Free Stack** deployment guide (Workers + R2 + D1 + KV + Pages = $0/mo)
 - [ ] Evaluate **React Aria Components** for accessibility layer in @anvil/ui (50+ ARIA-compliant components)
 
 ## Phase 12c: Research-Driven Enhancements (2026-05-21 Session 7)
