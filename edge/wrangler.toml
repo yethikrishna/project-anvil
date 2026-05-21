@@ -1,0 +1,34 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "anvil-edge-router"
+main = "search-router.ts"
+compatibility_date = "2026-04-21"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Environment Variables (secrets via `wrangler secret put`) ──
+[vars]
+NOMINATIM_URL = "https://nominatim.openstreetmap.org"
+OSRM_URL = "https://router.project-osrm.org"
+
+# Secrets (set via CLI):
+# wrangler secret put MEILISEARCH_URL
+# wrangler secret put MEILISEARCH_API_KEY
+# wrangler secret put BACKEND_URL
+
+# ── Free Tier Limits ──
+# 100,000 requests/day
+# 10ms CPU time per invocation
+# 128MB memory
+
+# ── Staging ──
+[env.staging]
+name = "anvil-edge-router-staging"
+routes = [
+  { pattern = "api-staging.anvil.dev/*", zone_name = "anvil.dev" }
+]
+
+# ── Production ──
+[env.production]
+name = "anvil-edge-router"
+routes = [
+  { pattern = "api.anvil.dev/*", zone_name = "anvil.dev" }
+]
