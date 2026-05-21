@@ -271,6 +271,46 @@
 - [ ] Contribution guide with "good first issue" labels
 - [ ] Semantic versioning + auto-changelog
 
+## Phase 31: Workflow Automation (Anvil Flows)
+- [ ] Trigger + action system across all apps (20+ trigger/action types)
+- [ ] Visual drag-and-drop flow builder (React Flow)
+- [ ] BullMQ execution pipeline with retry + error handling
+- [ ] Template library: pre-built flows (invoice processing, weekly digest, meeting prep)
+- [ ] Cron triggers: "Every Friday at 5pm → email summary"
+- [ ] Community flow sharing via marketplace
+
+## Phase 32: Collaborative Whiteboard
+- [ ] Infinite canvas with drawing tools (pen, shapes, text, sticky notes, arrows)
+- [ ] Real-time multi-user collaboration via Yjs CRDT
+- [ ] Laser pointer mode for presentations
+- [ ] Export to PNG/SVG/PDF
+- [ ] Embed in Docs as a doc block
+- [ ] Templates: wireframe, mind map, flowchart, retrospective
+- [ ] Tech: Excalidraw library wrapped as Anvil app
+
+## Phase 33: Passwordless Auth + Passkeys
+- [ ] WebAuthn/FIDO2 passkeys for passwordless login
+- [ ] Magic link email login
+- [ ] QR code login from mobile
+- [ ] Hardware security key support (YubiKey)
+- [ ] Account recovery without passwords (trusted devices)
+- [ ] Tech: @simplewebauthn/server + browser WebAuthn API
+
+## Phase 34: Multi-Layer Cache Architecture
+- [ ] Browser: Service Worker cache for static assets
+- [ ] CDN: Edge cache with stale-while-revalidate
+- [ ] Application: Redis cache with per-type TTL + event-driven invalidation
+- [ ] Database: PostgreSQL materialized views for analytics
+- [ ] Cache invalidation via Redis pub/sub (write-through for search)
+- [ ] Documented architecture diagram as portfolio artifact
+
+## Phase 35: White-Label / Embed Mode
+- [ ] Embeddable app iframes with custom branding
+- [ ] Dynamic theming via query params (?brand=acme&primary=#3b82f6)
+- [ ] SSO passthrough for embedded sessions
+- [ ] postMessage API for parent-child communication
+- [ ] CSP frame-ancestors configuration
+
 ## Backlog (Architecture)
 - [ ] Micro-frontend shell with Module Federation
 - [ ] Edge computing (Cloudflare Workers / Vercel Edge) for auth + caching
