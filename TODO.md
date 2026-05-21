@@ -150,7 +150,7 @@
 - [x] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
 - [x] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
 - [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
-- [ ] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
+- [x] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
 - [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
 - [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
 - [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
