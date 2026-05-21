@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template';
   payload: Record<string, unknown>;
 }
 
@@ -338,6 +338,71 @@ Rules:
   return {html: result.text.trim()};
 }
 
+async function handleSmartTemplate(ai: ReturnType<typeof getAI>, payload: {
+  type: string;
+  description: string;
+  tone?: string;
+  language?: string;
+  length?: string;
+  context?: string;
+}): Promise<{html: string; suggestedTitle: string; suggestedTags: string[]; estimatedReadTime: number; wordCount: number}> {
+  const lengthGuide = payload.length === 'brief' ? 'Keep it concise (200-400 words)' :
+    payload.length === 'detailed' ? 'Be comprehensive (800-1500 words)' :
+    'Moderate length (400-800 words)';
+
+  const tone = payload.tone || 'professional';
+  const language = payload.language || 'English';
+  const context = payload.context ? `\nAdditional context: ${payload.context.slice(0, 500)}` : '';
+
+  const templatePrompts: Record<string, string> = {
+    'proposal': 'a comprehensive project proposal with executive summary, objectives, methodology, timeline, budget, expected outcomes, and success metrics',
+    'meeting-notes': 'structured meeting notes with attendees, agenda, discussion points, decisions, and action items with owners and deadlines',
+    'weekly-report': 'a weekly status report with completed items, in-progress work, blockers, next week plans, and key metrics',
+    'blog-post': 'an engaging blog post with a hook intro, well-structured body with subheadings, examples, and a compelling conclusion',
+    'letter': 'a formal business letter with proper salutation, body paragraphs, and closing',
+    'memo': 'a professional memo with clear purpose, background context, key points, and call to action',
+    'research-paper': 'a research paper outline with abstract, introduction, literature review, methodology, results, discussion, and conclusion sections',
+    'presentation': 'presentation speaker notes with slide-by-slide breakdown including talking points and transitions',
+    'swot-analysis': 'a SWOT analysis with Strengths, Weaknesses, Opportunities, and Threats organized in a structured format with actionable insights',
+    'project-charter': 'a project charter with purpose, scope, objectives, stakeholders, milestones, risks, and governance structure',
+    'sop': 'a standard operating procedure with purpose, scope, prerequisites, step-by-step instructions, and quality checks',
+    'custom': 'a custom document',
+  };
+
+  const templateDesc = templatePrompts[payload.type] || templatePrompts['custom'];
+
+  const result = await ai.generate([
+    {role: 'system', content: `Generate ${templateDesc} based on the user's description.
+Tone: ${tone}. Language: ${language}. ${lengthGuide}.
+Rules:
+- Valid HTML only: h1-h3, p, ul, ol, li, strong, em, blockquote, table, th, td, tr, hr
+- Be specific and substantive — real content, not placeholder text like [Enter details here]
+- Include realistic data, examples, and specifics
+- Proper formatting and logical structure
+- First line MUST be a comment with the suggested title: <!-- TITLE: Your Title Here -->
+- Second line MUST be a comment with suggested tags: <!-- TAGS: tag1, tag2, tag3 -->`},
+    {role: 'user', content: `Generate ${templateDesc}.\nUser's description: ${payload.description}${context}`},
+  ], {temperature: 0.5, maxTokens: 4000});
+
+  // Extract metadata from comments
+  const titleMatch = result.text.match(/<!-- TITLE: (.+?) -->/);
+  const tagsMatch = result.text.match(/<!-- TAGS: (.+?) -->/);
+  const html = result.text
+    .replace(/<!-- TITLE: .+? -->\n?/, '')
+    .replace(/<!-- TAGS: .+? -->\n?/, '')
+    .trim();
+
+  const wordCount = html.replace(/<[^>]+>/g, '').split(/\s+/).filter(w => w.length > 0).length;
+
+  return {
+    html,
+    suggestedTitle: titleMatch?.[1] || `${payload.type.charAt(0).toUpperCase() + payload.type.slice(1)} Document`,
+    suggestedTags: tagsMatch?.[1]?.split(',').map(t => t.trim()) || [],
+    estimatedReadTime: Math.ceil(wordCount / 200),
+    wordCount,
+  };
+}
+
 async function handleVersionDiff(ai: ReturnType<typeof getAI>, payload: {
   fromSummary: string;
   toSummary: string;
@@ -434,6 +499,8 @@ export async function POST(request: Request) {
         return Response.json(await handleTOC(ai, body.payload as any));
       case 'version-diff':
         return Response.json(await handleVersionDiff(ai, body.payload as any));
+      case 'smart-template':
+        return Response.json(await handleSmartTemplate(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }
