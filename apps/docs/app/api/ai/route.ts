@@ -13,6 +13,11 @@
  *   summary     — Auto-generate document summary
  *   translate   — Translate text to target language
  *   template    — Generate smart template content
+ *   continue    — Continue writing from cursor position
+ *   explain     — Explain selected text in plain language
+ *   improve     — Improve clarity and flow of selected text
+ *   assistant   — Document-aware AI assistant Q&A
+ *   toc         — Generate table of contents from document
  */
 
 import {createAI} from '@anvil/ai';
@@ -31,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc';
   payload: Record<string, unknown>;
 }
 
@@ -260,6 +265,110 @@ Rules:
   return {html, suggestedTitle};
 }
 
+async function handleContinue(ai: ReturnType<typeof getAI>, payload: {
+  textBefore: string;
+  documentContext?: string;
+}): Promise<{text: string}> {
+  const context = payload.documentContext?.slice(-500) || '';
+  const before = payload.textBefore.slice(-400);
+
+  const result = await ai.generate([
+    {role: 'system', content: `You are a writing assistant. Continue the text naturally from where it left off.
+Rules:
+- Output ONLY the continuation text
+- Match the writing style, tone, and voice of the existing text
+- Continue for 2-4 sentences
+- Do not repeat what was already written
+- Be contextually appropriate given the document topic`},
+    {role: 'user', content: `Document context: ${context}\n\nText so far (continue from here): "${before}"`},
+  ], {temperature: 0.4, maxTokens: 400});
+
+  return {text: result.text.trim()};
+}
+
+async function handleExplain(ai: ReturnType<typeof getAI>, payload: {
+  text: string;
+  context?: string;
+}): Promise<{explanation: string}> {
+  const ctx = payload.context ? `\n\nDocument context: ${payload.context.slice(0, 1000)}` : '';
+
+  const result = await ai.generate([
+    {role: 'system', content: 'Explain the following text in simple, clear language that anyone can understand. Use analogies where helpful. Keep it concise — 2-4 sentences.'},
+    {role: 'user', content: `Explain this text:${ctx}\n\n"${payload.text}"`},
+  ], {temperature: 0.3, maxTokens: 500});
+
+  return {explanation: result.text.trim()};
+}
+
+async function handleImprove(ai: ReturnType<typeof getAI>, payload: {
+  text: string;
+  context?: string;
+}): Promise<{text: string}> {
+  const contextPrompt = payload.context ? `\n\nDocument context for reference:\n${payload.context.slice(0, 1000)}` : '';
+
+  const result = await ai.generate([
+    {role: 'system', content: `You are an expert writing editor. Improve the following text by:
+- Enhancing clarity and readability
+- Improving sentence structure and flow
+- Strengthening word choice
+- Removing redundancy
+- Maintaining the original meaning and tone
+Output ONLY the improved text with no commentary.`},
+    {role: 'user', content: `Improve this text:${contextPrompt}\n\n${payload.text}`},
+  ], {temperature: 0.3, maxTokens: 2000});
+
+  return {text: result.text.trim()};
+}
+
+async function handleTOC(ai: ReturnType<typeof getAI>, payload: {
+  content: string;
+}): Promise<{html: string}> {
+  const text = payload.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const result = await ai.generate([
+    {role: 'system', content: `Generate a table of contents for this document.
+Rules:
+- Output as an HTML ordered list: <ol><li><a href="#section-id">Section Title</a></li></ol>
+- Use proper nesting for subsections with <ol> inside <li>
+- Include a heading: <h2>Table of Contents</h2>
+- Only include major sections (h2 and h3 level)`},
+    {role: 'user', content: text.slice(0, 4000)},
+  ], {temperature: 0.1, maxTokens: 500});
+
+  return {html: result.text.trim()};
+}
+
+async function handleAssistant(ai: ReturnType<typeof getAI>, payload: {
+  question: string;
+  documentContent: string;
+  conversationHistory?: Array<{role: string; content: string}>;
+}): Promise<{response: string; actions?: Array<{label: string; type: string; payload: Record<string, unknown>}>}> {
+  const history = payload.conversationHistory || [];
+  const systemPrompt = `You are an intelligent document assistant. You help the user with their document by answering questions, making suggestions, and offering actions.
+
+Current document content:
+"""
+${payload.documentContent.slice(0, 3000)}
+"""
+
+Rules:
+- Be concise and specific to the document
+- If you suggest an edit, describe it clearly
+- If the user asks about the document, reference specific sections
+- Offer actionable suggestions when possible
+- Keep responses under 200 words`;
+
+  const messages: Array<{role: string; content: string}> = [
+    {role: 'system', content: systemPrompt},
+    ...history.slice(-4).map(m => ({role: m.role === 'user' ? 'user' : 'assistant', content: m.content})),
+    {role: 'user', content: payload.question},
+  ];
+
+  const result = await ai.generate(messages as any, {temperature: 0.3, maxTokens: 500});
+
+  return {response: result.text.trim()};
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -284,6 +393,16 @@ export async function POST(request: Request) {
         return Response.json(await handleTranslate(ai, body.payload as any));
       case 'template':
         return Response.json(await handleTemplate(ai, body.payload as any));
+      case 'continue':
+        return Response.json(await handleContinue(ai, body.payload as any));
+      case 'explain':
+        return Response.json(await handleExplain(ai, body.payload as any));
+      case 'improve':
+        return Response.json(await handleImprove(ai, body.payload as any));
+      case 'assistant':
+        return Response.json(await handleAssistant(ai, body.payload as any));
+      case 'toc':
+        return Response.json(await handleTOC(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

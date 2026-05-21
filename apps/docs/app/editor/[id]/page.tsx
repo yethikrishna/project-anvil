@@ -18,8 +18,11 @@ import {useState, useEffect, useCallback, use, useRef} from 'react';
 import {useAuth} from '@anvil/auth';
 import {AnalyticsPanel} from './AnalyticsPanel';
 import {AIRewrite, AIShortcuts} from '../../../lib/ai/tiptap-extensions';
+import {AISlashCommands} from '../../../lib/ai/ai-slash-commands';
 import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../../lib/ai/ai-components';
 import {useAutoTitleSummary} from '../../../lib/ai/use-auto-title';
+import {AIAssistantPanel} from '../../../lib/ai/ai-assistant-panel';
+import '../../../ai-styles.css';
 
 // ── Toolbar ──
 
@@ -178,6 +181,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [docSummary, setDocSummary] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showAIRewrite, setShowAIRewrite] = useState(false);
   const [showAICommands, setShowAICommands] = useState(false);
   const [hasSuggestion, setHasSuggestion] = useState(false);
@@ -260,6 +264,7 @@ export default function EditorPage({params}: EditorPageProps) {
       CharacterCount,
       AIRewrite,
       AIShortcuts,
+      AISlashCommands,
       ...(provider ? [
         Collaboration.configure({document: provider.document}),
         CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
@@ -293,28 +298,46 @@ export default function EditorPage({params}: EditorPageProps) {
     }).catch(() => {});
   });
 
-  // Handle slash commands
+  // Handle AI command dispatch from slash menu
   useEffect(() => {
     if (!editor) return;
 
-    const handleKeyDown = (view: any, event: KeyboardEvent) => {
-      // Check if user typed "/ai "
-      const pos = view.state.selection.$head;
-      const textBefore = pos.parent.textContent.slice(0, pos.parentOffset);
-      if (textBefore.endsWith('/ai ') || textBefore === '/ai') {
-        event.preventDefault();
-        // Delete the "/ai " text
-        const from = view.state.selection.from - (textBefore.endsWith('/ai ') ? 4 : 3);
-        view.dispatch(view.state.tr.delete(from, view.state.selection.from));
-        setShowAICommands(true);
-        return true;
+    const handleTransaction = ({transaction}: {transaction: any}) => {
+      const meta = transaction.getMeta('ai-command');
+      if (!meta) return;
+
+      switch (meta.action) {
+        case 'draft':
+        case 'research':
+        case 'translate':
+        case 'template':
+          setShowAICommands(true);
+          break;
+        case 'title':
+          if (meta.title) {
+            setDocTitle(meta.title);
+            fetch(`/api/documents/${paramsId}`, {
+              method: 'PATCH',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({title: meta.title}),
+            }).catch(() => {});
+          }
+          break;
+        case 'summary':
+          if (meta.summary) {
+            setDocSummary(meta.summary);
+          }
+          break;
+        case 'error':
+          // Could show a toast notification here
+          console.warn('AI command error:', meta.message);
+          break;
       }
-      return false;
     };
 
-    editor.on('keydown' as any, handleKeyDown);
-    return () => { editor.off('keydown' as any, handleKeyDown); };
-  }, [editor]);
+    editor.on('transaction', handleTransaction);
+    return () => { editor.off('transaction', handleTransaction); };
+  }, [editor, paramsId]);
 
   // Update title
   const handleTitleChange = async (newTitle: string) => {
@@ -368,6 +391,13 @@ export default function EditorPage({params}: EditorPageProps) {
           {autoTitle.isGenerating ? '⏳' : '✨ Title/Summary'}
         </button>
         <button
+          onClick={() => setShowAIAssistant(!showAIAssistant)}
+          className={`px-2 py-1 rounded text-xs transition-colors ${showAIAssistant ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100'}`}
+          title="AI Document Assistant"
+        >
+          ✨ AI Assist
+        </button>
+        <button
           onClick={() => setShowAnalytics(!showAnalytics)}
           className={`px-2 py-1 rounded text-xs transition-colors ${showAnalytics ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100'}`}
           title="Collaboration Analytics"
@@ -387,10 +417,15 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* Editor */}
       <div className="flex-1 overflow-auto">
-        <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''}`}>
+        <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''} ${showAIAssistant ? 'mr-80' : ''}`}>
           <EditorContent editor={editor} />
         </div>
       </div>
+
+      {/* AI Assistant Side Panel */}
+      {showAIAssistant && editor && (
+        <AIAssistantPanel editor={editor} onClose={() => setShowAIAssistant(false)} />
+      )}
 
       {/* Analytics Side Panel */}
       <AnalyticsPanel documentId={paramsId} open={showAnalytics} onClose={() => setShowAnalytics(false)} />

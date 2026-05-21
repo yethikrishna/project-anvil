@@ -7,6 +7,8 @@
  *   compose            — AI compose with thread context + writing style
  *   digest             — Summarize all unread mail
  *   semantic-search    — AI-powered email search
+ *   classify           — LLM-powered inbox categorization
+ *   embed-emails       — Generate embeddings for email content
  */
 
 import {createAI} from '@anvil/ai';
@@ -139,6 +141,55 @@ Max 10 results. Only include emails with relevance > 0.3.`},
   }
 }
 
+// ── LLM Classification ──
+
+async function handleClassify(ai: ReturnType<typeof getAI>, payload: {
+  subject: string;
+  from: string;
+  bodyPreview: string;
+  categories: string[];
+}): Promise<{category: string; confidence: number; reasoning: string; subCategory?: string; priority?: string}> {
+  const result = await ai.generate([
+    {role: 'system', content: `Classify this email into exactly one of these categories: ${payload.categories.join(', ')}.
+Also determine:
+- Sub-category (dev-tools, newsletter, transaction, social, calendar, education, health, finance, travel, general)
+- Priority (low, medium, high, urgent)
+
+Output JSON: {"category": "...", "confidence": 0.9, "reasoning": "...", "subCategory": "...", "priority": "..."}`},
+    {role: 'user', content: `From: ${payload.from}\nSubject: ${payload.subject}\nBody preview: ${payload.bodyPreview}`},
+  ], {temperature: 0.1, maxTokens: 300});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {category: 'primary', confidence: 0.4, reasoning: 'LLM parse error, fallback'};
+  }
+}
+
+// ── Email Embeddings ──
+
+async function handleEmbedEmails(ai: ReturnType<typeof getAI>, payload: {
+  emails: Array<{id: string; text: string}>;
+}): Promise<{embeddings: Array<{id: string; embedding: number[]; text: string}>}> {
+  const results: Array<{id: string; embedding: number[]; text: string}> = [];
+
+  for (const email of payload.emails) {
+    try {
+      const emb = await ai.embed(email.text.slice(0, 500));
+      results.push({
+        id: email.id,
+        embedding: emb.vector,
+        text: email.text.slice(0, 200),
+      });
+    } catch {
+      // Skip emails that fail to embed
+    }
+  }
+
+  return {embeddings: results};
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -155,6 +206,10 @@ export async function POST(request: Request) {
         return Response.json(await handleDigest(ai, body.payload as any));
       case 'semantic-search':
         return Response.json(await handleSemanticSearch(ai, body.payload as any));
+      case 'classify':
+        return Response.json(await handleClassify(ai, body.payload as any));
+      case 'embed-emails':
+        return Response.json(await handleEmbedEmails(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

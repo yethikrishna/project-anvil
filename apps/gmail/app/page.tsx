@@ -13,6 +13,12 @@ import {
   INBOX_CATEGORY_CONFIG,
 } from './lib/ai-mail';
 import {
+  classifyEnhanced,
+  recordCorrection,
+  type EnhancedCategoryResult,
+} from './lib/ai-categorizer-enhanced';
+import { analyzeWritingStyle, getStyleHints, buildComposePrompt } from './lib/writing-style-analyzer';
+import {
   ThreadSummaryPanel,
   SmartReplyBar,
   UnreadDigestModal,
@@ -21,6 +27,7 @@ import {
   AIComposeModal,
   SemanticSearchBar,
 } from './components/ai-mail-ui';
+import { semanticSearch as semanticSearchAI } from './lib/semantic-email-search';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
 
@@ -420,12 +427,12 @@ export default function GmailPage() {
   const [showDigest, setShowDigest] = useState(false);
   const [showSmartFilters, setShowSmartFilters] = useState(false);
 
-  // Compute inbox category counts
+  // Compute inbox category counts (enhanced with priority detection)
   const inboxCategoryCounts = useMemo(() => {
     const counts: Record<InboxCategory, number> = {primary: 0, updates: 0, 'action-needed': 0, fyi: 0};
     for (const m of messages) {
       if (m.read || m.labels.includes('spam') || m.labels.includes('archive') || m.labels.includes('trash')) continue;
-      const cat = classifyInboxCategory({subject: m.subject, from: m.from.email, body: m.body});
+      const cat = classifyEnhanced({subject: m.subject, from: m.from.email, body: m.body});
       counts[cat.category]++;
     }
     return counts;
@@ -457,10 +464,10 @@ export default function GmailPage() {
         filtered = filtered.filter((m) => !m.labels.includes('spam') && !m.labels.includes('archive') && !m.labels.includes('trash'));
     }
 
-    // AI inbox category filter
+    // AI inbox category filter (enhanced)
     if (selectedFolder === 'inbox' && activeInboxCategory !== 'all') {
       filtered = filtered.filter((m) => {
-        const cat = classifyInboxCategory({subject: m.subject, from: m.from.email, body: m.body});
+        const cat = classifyEnhanced({subject: m.subject, from: m.from.email, body: m.body});
         return cat.category === activeInboxCategory;
       });
     }
