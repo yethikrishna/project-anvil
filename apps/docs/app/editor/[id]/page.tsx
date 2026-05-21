@@ -14,14 +14,22 @@ import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
 import * as Y from 'yjs';
 import {HocuspocusProvider} from '@hocuspocus/provider';
-import {useState, useEffect, useCallback, use} from 'react';
+import {useState, useEffect, useCallback, use, useRef} from 'react';
 import {useAuth} from '@anvil/auth';
-import {Button} from '@anvil/ui';
 import {AnalyticsPanel} from './AnalyticsPanel';
+import {AIRewrite, AIShortcuts} from '../../lib/ai/tiptap-extensions';
+import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../lib/ai/ai-components';
+import {useAutoTitleSummary} from '../../lib/ai/use-auto-title';
 
 // ── Toolbar ──
 
-function Toolbar({editor, docId}: {editor: ReturnType<typeof useEditor>; docId: string}) {
+function Toolbar({editor, docId, onShowAICommands, onShowAIRewrite, showAIRewrite}: {
+  editor: ReturnType<typeof useEditor>;
+  docId: string;
+  onShowAICommands: () => void;
+  onShowAIRewrite: () => void;
+  showAIRewrite: boolean;
+}) {
   if (!editor) return null;
 
   const btnClass = (active: boolean) =>
@@ -37,7 +45,6 @@ function Toolbar({editor, docId}: {editor: ReturnType<typeof useEditor>; docId: 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Extract filename from Content-Disposition or use fallback
       const disposition = resp.headers.get('content-disposition') ?? '';
       const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
       a.download = filenameMatch ? filenameMatch[1] : `document.${format}`;
@@ -53,154 +60,72 @@ function Toolbar({editor, docId}: {editor: ReturnType<typeof useEditor>; docId: 
   return (
     <div className="border-b border-gray-200 bg-white px-4 py-2 flex items-center gap-1 flex-wrap sticky top-0 z-10">
       {/* Text formatting */}
-      <button
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        className={btnClass(editor.isActive('bold'))}
-        title="Bold"
-      >
-        <strong>B</strong>
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={btnClass(editor.isActive('italic'))}
-        title="Italic"
-      >
-        <em>I</em>
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        className={btnClass(editor.isActive('underline'))}
-        title="Underline"
-      >
-        <u>U</u>
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        className={btnClass(editor.isActive('strike'))}
-        title="Strikethrough"
-      >
-        <s>S</s>
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        className={btnClass(editor.isActive('highlight'))}
-        title="Highlight"
-      >
-        🖍️
-      </button>
+      <button onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Bold"><strong>B</strong></button>
+      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive('italic'))} title="Italic"><em>I</em></button>
+      <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={btnClass(editor.isActive('underline'))} title="Underline"><u>U</u></button>
+      <button onClick={() => editor.chain().focus().toggleStrike().run()} className={btnClass(editor.isActive('strike'))} title="Strikethrough"><s>S</s></button>
+      <button onClick={() => editor.chain().focus().toggleHighlight().run()} className={btnClass(editor.isActive('highlight'))} title="Highlight">🖍️</button>
 
       <div className="w-px h-6 bg-gray-200 mx-1" />
 
       {/* Headings */}
-      <button
-        onClick={() => editor.chain().focus().toggleHeading({level: 1}).run()}
-        className={btnClass(editor.isActive('heading', {level: 1}))}
-        title="Heading 1"
-      >
-        H1
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleHeading({level: 2}).run()}
-        className={btnClass(editor.isActive('heading', {level: 2}))}
-        title="Heading 2"
-      >
-        H2
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleHeading({level: 3}).run()}
-        className={btnClass(editor.isActive('heading', {level: 3}))}
-        title="Heading 3"
-      >
-        H3
-      </button>
+      <button onClick={() => editor.chain().focus().toggleHeading({level: 1}).run()} className={btnClass(editor.isActive('heading', {level: 1}))} title="Heading 1">H1</button>
+      <button onClick={() => editor.chain().focus().toggleHeading({level: 2}).run()} className={btnClass(editor.isActive('heading', {level: 2}))} title="Heading 2">H2</button>
+      <button onClick={() => editor.chain().focus().toggleHeading({level: 3}).run()} className={btnClass(editor.isActive('heading', {level: 3}))} title="Heading 3">H3</button>
 
       <div className="w-px h-6 bg-gray-200 mx-1" />
 
       {/* Lists */}
-      <button
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={btnClass(editor.isActive('bulletList'))}
-        title="Bullet List"
-      >
-        • List
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={btnClass(editor.isActive('orderedList'))}
-        title="Numbered List"
-      >
-        1. List
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={btnClass(editor.isActive('blockquote'))}
-        title="Blockquote"
-      >
-        ❝ Quote
-      </button>
-      <button
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        className={btnClass(editor.isActive('codeBlock'))}
-        title="Code Block"
-      >
-        {'</>'}
-      </button>
+      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive('bulletList'))} title="Bullet List">• List</button>
+      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive('orderedList'))} title="Numbered List">1. List</button>
+      <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive('blockquote'))} title="Blockquote">❝ Quote</button>
+      <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive('codeBlock'))} title="Code Block">{'</>'}</button>
 
       <div className="w-px h-6 bg-gray-200 mx-1" />
 
       {/* Text align */}
-      <button
-        onClick={() => editor.chain().focus().setTextAlign('left').run()}
-        className={btnClass(editor.isActive({textAlign: 'left'}))}
-        title="Align Left"
-      >
-        ☰
-      </button>
-      <button
-        onClick={() => editor.chain().focus().setTextAlign('center').run()}
-        className={btnClass(editor.isActive({textAlign: 'center'}))}
-        title="Align Center"
-      >
-        ☰≡
-      </button>
+      <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className={btnClass(editor.isActive({textAlign: 'left'}))} title="Align Left">☰</button>
+      <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={btnClass(editor.isActive({textAlign: 'center'}))} title="Align Center">☰≡</button>
 
       <div className="w-px h-6 bg-gray-200 mx-1" />
 
       {/* Undo/Redo */}
-      <button
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        className="px-2 py-1 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-        title="Undo"
-      >
-        ↩ Undo
-      </button>
-      <button
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        className="px-2 py-1 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-        title="Redo"
-      >
-        ↪ Redo
-      </button>
+      <button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="px-2 py-1 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-30" title="Undo">↩ Undo</button>
+      <button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="px-2 py-1 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-30" title="Redo">↪ Redo</button>
 
       <div className="w-px h-6 bg-gray-200 mx-1" />
 
-      {/* Export */}
+      {/* AI Tools */}
+      <div className="relative">
+        <button
+          onClick={onShowAIRewrite}
+          className={`px-2 py-1 rounded text-sm transition-colors ${
+            showAIRewrite ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50'
+          }`}
+          title="AI Rewrite (select text first)"
+        >
+          ✨ AI Rewrite
+        </button>
+        {showAIRewrite && <AIRewriteToolbar editor={editor} onClose={() => onShowAIRewrite()} />}
+      </div>
+
       <button
-        onClick={() => handleExport('pdf')}
-        className="px-2 py-1 rounded text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1"
-        title="Export as PDF"
+        onClick={onShowAICommands}
+        className="px-2 py-1 rounded text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+        title="/ai commands"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        🤖 AI Commands
+      </button>
+
+      <div className="flex-1" />
+
+      {/* Export */}
+      <button onClick={() => handleExport('pdf')} className="px-2 py-1 rounded text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1" title="Export as PDF">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         PDF
       </button>
-      <button
-        onClick={() => handleExport('docx')}
-        className="px-2 py-1 rounded text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1"
-        title="Export as DOCX"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <button onClick={() => handleExport('docx')} className="px-2 py-1 rounded text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1" title="Export as DOCX">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         DOCX
       </button>
     </div>
@@ -214,38 +139,23 @@ function PresenceIndicator({provider}: {provider: HocuspocusProvider | null}) {
 
   useEffect(() => {
     if (!provider) return;
-
     const awareness = provider.awareness;
     const updateUsers = () => {
       const states = awareness.getStates();
       const userList: {name: string; color: string}[] = [];
-      states.forEach((state) => {
-        if (state.user) {
-          userList.push({name: state.user.name, color: state.user.color});
-        }
-      });
+      states.forEach((state) => { if (state.user) userList.push({name: state.user.name, color: state.user.color}); });
       setUsers(userList);
     };
-
     awareness.on('change', updateUsers);
     updateUsers();
-
-    return () => {
-      awareness.off('change', updateUsers);
-    };
+    return () => { awareness.off('change', updateUsers); };
   }, [provider]);
 
   if (users.length <= 1) return null;
-
   return (
     <div className="flex items-center gap-1 px-3">
       {users.map((user, i) => (
-        <div
-          key={i}
-          className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-medium"
-          style={{backgroundColor: user.color, marginLeft: i > 0 ? '-4px' : '0'}}
-          title={user.name}
-        >
+        <div key={i} className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-medium" style={{backgroundColor: user.color, marginLeft: i > 0 ? '-4px' : '0'}} title={user.name}>
           {user.name.charAt(0).toUpperCase()}
         </div>
       ))}
@@ -265,32 +175,34 @@ export default function EditorPage({params}: EditorPageProps) {
   const {user, isAuthenticated} = useAuth();
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [docTitle, setDocTitle] = useState('Loading...');
+  const [docSummary, setDocSummary] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAIRewrite, setShowAIRewrite] = useState(false);
+  const [showAICommands, setShowAICommands] = useState(false);
+  const [hasSuggestion, setHasSuggestion] = useState(false);
+  const [suggestionText, setSuggestionText] = useState('');
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch document metadata
   useEffect(() => {
     fetch(`/api/documents/${paramsId}`)
       .then(r => r.json())
-      .then(data => setDocTitle(data.title ?? 'Untitled'))
+      .then(data => {
+        setDocTitle(data.title ?? 'Untitled');
+        if (data.summary) setDocSummary(data.summary);
+      })
       .catch(() => setDocTitle('Untitled'));
   }, [paramsId]);
 
   // Report join/leave to analytics
   useEffect(() => {
     if (!user?.sub) return;
-
     fetch('/api/analytics/join', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        documentId: paramsId,
-        userId: user.sub,
-        userName: user.name ?? 'Anonymous',
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      }),
+      body: JSON.stringify({documentId: paramsId, userId: user.sub, userName: user.name ?? 'Anonymous', color: COLORS[Math.floor(Math.random() * COLORS.length)]}),
     }).catch(() => {});
-
     return () => {
       fetch('/api/analytics/leave', {
         method: 'POST',
@@ -303,35 +215,22 @@ export default function EditorPage({params}: EditorPageProps) {
   // Create Yjs document + Hocuspocus provider
   useEffect(() => {
     const ydoc = new Y.Doc();
-
     const hocuspocusProvider = new HocuspocusProvider({
       url: process.env.NEXT_PUBLIC_HOCUSPOCUS_URL ?? 'ws://localhost:3102/hocuspocus',
       name: `doc-${paramsId}`,
       document: ydoc,
-      onAuthenticated() {
-        console.log('Connected to Hocuspocus');
-      },
-      onAuthenticationFailed({reason}) {
-        console.error('Auth failed:', reason);
-      },
+      onAuthenticated() { console.log('Connected to Hocuspocus'); },
+      onAuthenticationFailed({reason}) { console.error('Auth failed:', reason); },
     });
-
-    // Set local awareness state
     hocuspocusProvider.awareness.setLocalStateField('user', {
       name: user?.name ?? 'Anonymous',
       color: getRandomColor(),
     });
-
     setProvider(hocuspocusProvider);
-
-    return () => {
-      hocuspocusProvider.destroy();
-      ydoc.destroy();
-    };
+    return () => { hocuspocusProvider.destroy(); ydoc.destroy(); };
   }, [paramsId, user?.name]);
 
-  // Auto-save debounce
-  const saveTimeout = useState<ReturnType<typeof setTimeout> | null>(null)[0];
+  // Auto-save with AI title/summary generation
   const saveDocument = useCallback(async (html: string) => {
     setIsSaving(true);
     try {
@@ -340,54 +239,37 @@ export default function EditorPage({params}: EditorPageProps) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({content: html}),
       });
+      // Dispatch save event for auto-title hook
+      window.dispatchEvent(new CustomEvent('anvil:doc-saved'));
     } finally {
       setIsSaving(false);
     }
   }, [paramsId]);
 
-  // Create editor
+  // Create editor with AI extensions
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        undoRedo: false, // Collaboration handles history via UndoRedo (renamed from history)
-      }),
-      Placeholder.configure({
-        placeholder: 'Start writing...',
-      }),
+      StarterKit.configure({undoRedo: false}),
+      Placeholder.configure({placeholder: 'Start writing... or use /ai commands'}),
       Underline,
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
+      TextAlign.configure({types: ['heading', 'paragraph']}),
       Highlight,
-      Link.configure({
-        openOnClick: false,
-      }),
+      Link.configure({openOnClick: false}),
       Typography,
       Image,
       CharacterCount,
-      ...(provider
-        ? [
-            Collaboration.configure({
-              document: provider.document,
-            }),
-            CollaborationCaret.configure({
-              provider,
-              user: {
-                name: user?.name ?? 'Anonymous',
-                color: getRandomColor(),
-              },
-            }),
-          ]
-        : []),
+      AIRewrite,
+      AIShortcuts,
+      ...(provider ? [
+        Collaboration.configure({document: provider.document}),
+        CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
+      ] : []),
     ],
     shouldRerenderOnTransaction: false,
     onUpdate: ({editor}) => {
-      // Debounced auto-save
       const html = editor.getHTML();
-      if (saveTimeout) clearTimeout(saveTimeout);
-      setTimeout(() => saveDocument(html), 3000);
-
-      // Report edit to analytics
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => saveDocument(html), 3000);
       fetch('/api/analytics/edit', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -401,6 +283,39 @@ export default function EditorPage({params}: EditorPageProps) {
     },
   });
 
+  // Auto title/summary hook
+  const autoTitle = useAutoTitleSummary(editor, paramsId, docTitle, (title) => {
+    setDocTitle(title);
+    fetch(`/api/documents/${paramsId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title}),
+    }).catch(() => {});
+  });
+
+  // Handle slash commands
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (view: any, event: KeyboardEvent) => {
+      // Check if user typed "/ai "
+      const pos = view.state.selection.$head;
+      const textBefore = pos.parent.textContent.slice(0, pos.parentOffset);
+      if (textBefore.endsWith('/ai ') || textBefore === '/ai') {
+        event.preventDefault();
+        // Delete the "/ai " text
+        const from = view.state.selection.from - (textBefore.endsWith('/ai ') ? 4 : 3);
+        view.dispatch(view.state.tr.delete(from, view.state.selection.from));
+        setShowAICommands(true);
+        return true;
+      }
+      return false;
+    };
+
+    editor.on('keydown', handleKeyDown);
+    return () => { editor.off('keydown', handleKeyDown); };
+  }, [editor]);
+
   // Update title
   const handleTitleChange = async (newTitle: string) => {
     setDocTitle(newTitle);
@@ -410,6 +325,21 @@ export default function EditorPage({params}: EditorPageProps) {
       body: JSON.stringify({title: newTitle}),
     });
   };
+
+  // Auto-generate summary for display
+  const handleGenerateSummary = useCallback(async () => {
+    if (!editor) return;
+    const result = await autoTitle.generate();
+    if (result) {
+      setDocSummary(result.summary);
+      // Save summary to document metadata
+      fetch(`/api/documents/${paramsId}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({summary: result.summary}),
+      }).catch(() => {});
+    }
+  }, [editor, autoTitle, paramsId]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -422,23 +352,38 @@ export default function EditorPage({params}: EditorPageProps) {
           onChange={e => handleTitleChange(e.target.value)}
           className="text-lg font-medium text-gray-900 border-none outline-none bg-transparent flex-1"
         />
+        {docSummary && (
+          <span className="text-xs text-gray-400 max-w-[300px] truncate hidden lg:block" title={docSummary}>
+            {docSummary}
+          </span>
+        )}
         <PresenceIndicator provider={provider} />
         {isSaving && <span className="text-xs text-gray-400">Saving...</span>}
         <button
+          onClick={handleGenerateSummary}
+          disabled={autoTitle.isGenerating}
+          className="px-2 py-1 rounded text-xs text-purple-600 hover:bg-purple-50 disabled:opacity-50"
+          title="AI: Generate title & summary"
+        >
+          {autoTitle.isGenerating ? '⏳' : '✨ Title/Summary'}
+        </button>
+        <button
           onClick={() => setShowAnalytics(!showAnalytics)}
-          className={`px-2 py-1 rounded text-xs transition-colors ${
-            showAnalytics
-              ? 'bg-purple-100 text-purple-700'
-              : 'text-gray-500 hover:bg-gray-100'
-          }`}
+          className={`px-2 py-1 rounded text-xs transition-colors ${showAnalytics ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100'}`}
           title="Collaboration Analytics"
         >
           📊 Analytics
         </button>
       </div>
 
-      {/* Toolbar */}
-      <Toolbar editor={editor} docId={paramsId} />
+      {/* Toolbar with AI */}
+      <Toolbar
+        editor={editor}
+        docId={paramsId}
+        onShowAICommands={() => setShowAICommands(true)}
+        onShowAIRewrite={() => setShowAIRewrite(!showAIRewrite)}
+        showAIRewrite={showAIRewrite}
+      />
 
       {/* Editor */}
       <div className="flex-1 overflow-auto">
@@ -448,10 +393,19 @@ export default function EditorPage({params}: EditorPageProps) {
       </div>
 
       {/* Analytics Side Panel */}
-      <AnalyticsPanel
-        documentId={paramsId}
-        open={showAnalytics}
-        onClose={() => setShowAnalytics(false)}
+      <AnalyticsPanel documentId={paramsId} open={showAnalytics} onClose={() => setShowAnalytics(false)} />
+
+      {/* AI Command Panel */}
+      {showAICommands && editor && (
+        <AICommandPanel editor={editor} onClose={() => setShowAICommands(false)} />
+      )}
+
+      {/* AI Suggestion Bar */}
+      <AISuggestionBar
+        visible={hasSuggestion}
+        suggestionText={suggestionText}
+        onAccept={() => editor?.commands.aiAcceptSuggestion?.()}
+        onReject={() => editor?.commands.aiRejectSuggestion?.()}
       />
     </div>
   );
@@ -459,11 +413,7 @@ export default function EditorPage({params}: EditorPageProps) {
 
 // ── Helpers ──
 
-const COLORS = [
-  '#f87171', '#fb923c', '#fbbf24', '#a3e635',
-  '#34d399', '#22d3ee', '#818cf8', '#c084fc',
-  '#f472b6', '#94a3b8',
-];
+const COLORS = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3ee', '#818cf8', '#c084fc', '#f472b6', '#94a3b8'];
 
 function getRandomColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)];

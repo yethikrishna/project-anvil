@@ -7,6 +7,20 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { AppShell, ThemeProvider, ThemeToggle, cn, Badge } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 import { classifyEmail, CATEGORY_CONFIG, type EmailCategory } from './lib/ai-categorizer';
+import {
+  type InboxCategory,
+  classifyInboxCategory,
+  INBOX_CATEGORY_CONFIG,
+} from './lib/ai-mail';
+import {
+  ThreadSummaryPanel,
+  SmartReplyBar,
+  UnreadDigestModal,
+  SmartFilterPanel,
+  InboxCategoryTabs,
+  AIComposeModal,
+  SemanticSearchBar,
+} from './components/ai-mail-ui';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
 
@@ -306,6 +320,11 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
         <h2 className="text-xl font-normal text-gray-900">{subject}</h2>
       </div>
 
+      {/* AI Thread Summary */}
+      <div className="px-6">
+        <ThreadSummaryPanel messages={messages} />
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-auto px-6 pb-4">
         {sortedMessages.map((msg) => {
@@ -374,6 +393,16 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
           );
         })}
       </div>
+
+      {/* AI Smart Replies at bottom of thread */}
+      <div className="border-t border-gray-200 px-6">
+        <SmartReplyBar
+          messages={messages}
+          onReply={(text) => {
+            console.log('Smart reply:', text);
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -387,6 +416,20 @@ export default function GmailPage() {
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeInboxCategory, setActiveInboxCategory] = useState<InboxCategory | 'all'>('all');
+  const [showDigest, setShowDigest] = useState(false);
+  const [showSmartFilters, setShowSmartFilters] = useState(false);
+
+  // Compute inbox category counts
+  const inboxCategoryCounts = useMemo(() => {
+    const counts: Record<InboxCategory, number> = {primary: 0, updates: 0, 'action-needed': 0, fyi: 0};
+    for (const m of messages) {
+      if (m.read || m.labels.includes('spam') || m.labels.includes('archive') || m.labels.includes('trash')) continue;
+      const cat = classifyInboxCategory({subject: m.subject, from: m.from.email, body: m.body});
+      counts[cat.category]++;
+    }
+    return counts;
+  }, [messages]);
 
   // Filter messages by folder
   const filteredMessages = useMemo(() => {
@@ -414,6 +457,14 @@ export default function GmailPage() {
         filtered = filtered.filter((m) => !m.labels.includes('spam') && !m.labels.includes('archive') && !m.labels.includes('trash'));
     }
 
+    // AI inbox category filter
+    if (selectedFolder === 'inbox' && activeInboxCategory !== 'all') {
+      filtered = filtered.filter((m) => {
+        const cat = classifyInboxCategory({subject: m.subject, from: m.from.email, body: m.body});
+        return cat.category === activeInboxCategory;
+      });
+    }
+
     // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -433,7 +484,7 @@ export default function GmailPage() {
       seenThreads.add(m.threadId);
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [messages, selectedFolder, searchQuery]);
+  }, [messages, selectedFolder, searchQuery, activeInboxCategory]);
 
   const unreadCount = messages.filter((m) => !m.read && !m.labels.includes('spam') && !m.labels.includes('trash')).length;
 
@@ -531,6 +582,21 @@ export default function GmailPage() {
           {/* Calendar & Contacts shortcuts */}
           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
             <button
+              onClick={() => setShowDigest(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+            >
+              <span className="text-sm">✨</span>
+              <span className="flex-1 text-left">AI Digest</span>
+              {unreadCount > 0 && <span className="text-[10px] text-purple-500">{unreadCount}</span>}
+            </button>
+            <button
+              onClick={() => setShowSmartFilters(!showSmartFilters)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+            >
+              <span className="text-sm">🤖</span>
+              <span className="flex-1 text-left">Smart Filters</span>
+            </button>
+            <button
               onClick={() => setAppView('calendar')}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
@@ -582,21 +648,29 @@ export default function GmailPage() {
         />
       ) : (
         <div className="flex-1 flex flex-col">
-          {/* Search bar */}
+          {/* Smart Filters (collapsible) */}
+          {showSmartFilters && (
+            <SmartFilterPanel
+              messages={messages}
+              onApplyFilter={(filter) => {
+                // Apply filter logic
+                console.log('Applied filter:', filter);
+              }}
+            />
+          )}
+          {/* Search bar — now with semantic search */}
           <div className="px-4 py-2 border-b border-gray-200 bg-white">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5">
-              <svg className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search mail..."
-                className="flex-1 bg-transparent text-sm outline-none"
-              />
-            </div>
+            <SemanticSearchBar messages={messages} onSelectEmail={(threadId) => setSelectedThread(threadId)} />
           </div>
+
+          {/* AI Inbox Category Tabs */}
+          {selectedFolder === 'inbox' && (
+            <InboxCategoryTabs
+              activeCategory={activeInboxCategory}
+              onCategoryChange={setActiveInboxCategory}
+              counts={inboxCategoryCounts}
+            />
+          )}
 
           {/* Mail list */}
           <div className="flex-1 overflow-auto bg-white">
@@ -687,11 +761,21 @@ export default function GmailPage() {
         </div>
       )}
 
-      {/* Compose modal */}
+      {/* Compose modal — AI enhanced */}
       {showCompose && (
-        <ComposeModal
+        <AIComposeModal
+          threadMessages={selectedThread ? threadMessages : undefined}
           onClose={() => setShowCompose(false)}
           onSend={handleSend}
+        />
+      )}
+
+      {/* Unread Digest Modal */}
+      {showDigest && (
+        <UnreadDigestModal
+          messages={messages}
+          onClose={() => setShowDigest(false)}
+          onSelectEmail={(threadId) => { setSelectedThread(threadId); setShowDigest(false); }}
         />
       )}
     </div>
