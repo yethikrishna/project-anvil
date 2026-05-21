@@ -126,8 +126,8 @@
 - [x] Set up dependency scanning for container images
 
 ### Production Deployment
-- [ ] Evaluate edge function deployment for search and geocoding APIs
-- [ ] Plan production deployment strategy (edge vs. regional)
+- [x] Evaluate edge function deployment for search and geocoding APIs
+- [x] Plan production deployment strategy (edge vs. regional)
 - [x] Add observability and monitoring for distributed deployment
 
 ## Phase 10: Deployment & CI/CD
