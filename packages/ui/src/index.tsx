@@ -274,6 +274,10 @@ export type {EmbedConfig, EmbedMessage, EmbedAction} from './embed';
 export {useGamification, TrophyCase, ProductivityScoreRing, QuestCard} from './gamification';
 export type {Achievement, Quest, QuestStep, GamificationState} from './gamification';
 
+// ── Productivity Blocks ──
+export {SplitPane, CommandBar, Kbd, EmptyState, Skeleton as ProductivitySkeleton, ToastContainer, useToast} from './productivity/productivity-blocks';
+export type {SplitPaneProps, CommandItem, CommandBarProps, EmptyStateProps, Toast as ProductivityToast, ToastType as ProductivityToastType} from './productivity/productivity-blocks';
+
 // ── Dashboard ──
 export {useDashboard, Dashboard} from './dashboard';
 export type {DashboardWidget, DashboardLayout, WidgetType} from './dashboard';
