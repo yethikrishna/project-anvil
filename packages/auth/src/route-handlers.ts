@@ -4,6 +4,13 @@
  * Drop these into app/api/auth/ in any Anvil app.
  * Handles login (PKCE init), callback (code exchange), session,
  * refresh, logout, and silent-callback for iframe SSO.
+ *
+ * RFC 9700 hardening:
+ * - HMAC-SHA256 authenticated session cookies (tamper-proof)
+ * - Nonce validation on ID tokens (replay protection)
+ * - Cryptographically bound state + PKCE (mix-up prevention)
+ * - Single auth cookie (state + verifier + nonce bundled)
+ * - Origin-restricted postMessage for silent auth
  */
 
 import {
@@ -13,10 +20,37 @@ import {
   getLogoutUrl,
   getUserInfo,
 } from './index';
+import {createHmac} from 'crypto';
+
+// ── Session Cookie Auth (RFC 9700 §2.6: tamper-proof storage) ──
+
+const SESSION_SECRET = process.env.AUTH_SESSION_SECRET ?? process.env.KEYCLOAK_CLIENT_SECRET ?? '';
+
+function signSessionData(data: string): string {
+  const hmac = createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+  return `${hmac}.${data}`;
+}
+
+function verifyAndDecodeSession(signed: string): string | null {
+  const dotIndex = signed.indexOf('.');
+  if (dotIndex === -1) return null;
+  const signature = signed.slice(0, dotIndex);
+  const data = signed.slice(dotIndex + 1);
+  const expected = createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+  // Constant-time comparison
+  if (signature.length !== expected.length) return null;
+  let result = 0;
+  for (let i = 0; i < signature.length; i++) {
+    result |= signature.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return result === 0 ? data : null;
+}
 
 // ── Cookie helpers ──
 
 const SESSION_COOKIE = 'anvil-session';
+const AUTH_STATE_COOKIE = 'anvil-auth-state';
+
 const SESSION_COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -39,7 +73,7 @@ function clearCookie(headers: Headers, name: string) {
   headers.append('Set-Cookie', `${name}=; Path=/; Max-Age=0`);
 }
 
-// ── Session storage (simple encrypted cookie) ──
+// ── Session storage (HMAC-authenticated cookie) ──
 
 interface SessionData {
   user: {sub: string; email: string; name: string; picture?: string};
@@ -49,12 +83,41 @@ interface SessionData {
 }
 
 function encodeSession(data: SessionData): string {
-  return encodeURIComponent(btoa(JSON.stringify(data)));
+  const json = JSON.stringify(data);
+  const encoded = btoa(json);
+  return signSessionData(encoded);
 }
 
-function decodeSession(encoded: string): SessionData | null {
+function decodeSession(cookieValue: string): SessionData | null {
   try {
-    return JSON.parse(atob(decodeURIComponent(encoded)));
+    const data = verifyAndDecodeSession(cookieValue);
+    if (!data) return null;
+    return JSON.parse(atob(data));
+  } catch {
+    return null;
+  }
+}
+
+// ── Auth State (PKCE + state + nonce in single cookie) ──
+
+interface AuthState {
+  codeVerifier: string;
+  state: string;
+  nonce: string;
+  callbackUrl: string;
+}
+
+function encodeAuthState(authState: AuthState): string {
+  const json = JSON.stringify(authState);
+  const encoded = encodeURIComponent(btoa(json));
+  return signSessionData(encoded);
+}
+
+function decodeAuthState(cookieValue: string): AuthState | null {
+  try {
+    const data = verifyAndDecodeSession(cookieValue);
+    if (!data) return null;
+    return JSON.parse(atob(decodeURIComponent(data)));
   } catch {
     return null;
   }
@@ -69,13 +132,15 @@ export async function loginHandler(request: Request): Promise<Response> {
   const baseUrl = new URL(request.url).origin;
   const redirectUri = `${baseUrl}/api/auth/callback`;
 
-  const {url, state, codeVerifier} = await getAuthorizationUrl(redirectUri);
+  const {url, state, codeVerifier, nonce} = await getAuthorizationUrl(redirectUri);
 
-  // Store PKCE verifier + state in cookies (short-lived)
+  // Store all auth state in a single HMAC-signed cookie
+  const authState: AuthState = {codeVerifier, state, nonce, callbackUrl};
   const headers = new Headers();
-  setCookie(headers, 'anvil:pkce', codeVerifier, {...SESSION_COOKIE_OPTS, maxAge: 600}); // 10 min
-  setCookie(headers, 'anvil:state', state, {...SESSION_COOKIE_OPTS, maxAge: 600});
-  setCookie(headers, 'anvil:callback', callbackUrl, {...SESSION_COOKIE_OPTS, maxAge: 600});
+  setCookie(headers, AUTH_STATE_COOKIE, encodeAuthState(authState), {
+    ...SESSION_COOKIE_OPTS,
+    maxAge: 600, // 10 minutes
+  });
 
   headers.set('Location', url);
   return new Response(null, {status: 302, headers});
@@ -97,26 +162,33 @@ export async function callbackHandler(request: Request): Promise<Response> {
     return new Response('Missing code or state', {status: 400});
   }
 
-  // Get stored PKCE + state from cookies
+  // Get stored auth state from signed cookie
   const cookies = request.headers.get('cookie') ?? '';
   const getCookie = (name: string) => {
     const match = cookies.match(new RegExp(`${name}=([^;]+)`));
     return match ? decodeURIComponent(match[1]) : null;
   };
 
-  const codeVerifier = getCookie('anvil:pkce');
-  const storedState = getCookie('anvil:state');
-  const callbackUrl = getCookie('anvil:callback') ?? '/';
+  const authStateCookie = getCookie(AUTH_STATE_COOKIE);
+  if (!authStateCookie) {
+    return new Response('Missing auth state cookie', {status: 400});
+  }
 
-  if (!codeVerifier || storedState !== state) {
-    return new Response('PKCE verification failed', {status: 400});
+  const authState = decodeAuthState(authStateCookie);
+  if (!authState) {
+    return new Response('Invalid or tampered auth state', {status: 400});
+  }
+
+  // RFC 9700: Verify state matches (cryptographically bound to PKCE)
+  if (authState.state !== state) {
+    return new Response('State mismatch — possible CSRF attack', {status: 400});
   }
 
   const baseUrl = new URL(request.url).origin;
   const redirectUri = `${baseUrl}/api/auth/callback`;
 
-  // Exchange code for tokens
-  const tokens = await exchangeCode(code, codeVerifier, redirectUri);
+  // Exchange code for tokens, passing nonce for ID token validation
+  const tokens = await exchangeCode(code, authState.codeVerifier, redirectUri, authState.nonce);
   const userInfo = await getUserInfo(tokens.accessToken);
 
   const sessionData: SessionData = {
@@ -131,15 +203,13 @@ export async function callbackHandler(request: Request): Promise<Response> {
     idToken: tokens.idToken,
   };
 
-  // Set session cookie
+  // Set HMAC-authenticated session cookie
   const headers = new Headers();
   setCookie(headers, SESSION_COOKIE, encodeSession(sessionData), SESSION_COOKIE_OPTS);
-  // Clear PKCE cookies
-  clearCookie(headers, 'anvil:pkce');
-  clearCookie(headers, 'anvil:state');
-  clearCookie(headers, 'anvil:callback');
+  // Clear auth state cookie
+  clearCookie(headers, AUTH_STATE_COOKIE);
 
-  headers.set('Location', callbackUrl);
+  headers.set('Location', authState.callbackUrl);
   return new Response(null, {status: 302, headers});
 }
 
@@ -226,17 +296,19 @@ export async function logoutHandler(request: Request): Promise<Response> {
   return new Response(null, {status: 302, headers});
 }
 
-// ── Silent Callback (iframe) ──
+// ── Silent Callback (iframe) — RFC 9700: origin-restricted postMessage ──
 
-export async function silentCallbackHandler(_request: Request): Promise<Response> {
+export async function silentCallbackHandler(request: Request): Promise<Response> {
   // This endpoint is loaded in an iframe during silent auth check.
   // If we got here, the user has an active SSO session.
+  const origin = new URL(request.url).origin;
   const html = `<!DOCTYPE html>
 <html>
 <head><title>Silent Auth</title></head>
 <body>
 <script>
-  window.parent.postMessage({type: 'anvil:silent-auth', authenticated: true}, '*');
+  // RFC 9700: Restrict postMessage to same origin only
+  window.parent.postMessage({type: 'anvil-silent-auth', authenticated: true}, '${origin}');
 </script>
 </body>
 </html>`;

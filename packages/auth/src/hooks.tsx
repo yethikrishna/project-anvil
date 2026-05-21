@@ -249,6 +249,8 @@ export function useSilentAuth() {
         `client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=code&scope=openid&prompt=none`;
 
+      const currentOrigin = window.location.origin;
+
       return new Promise<boolean>((resolve) => {
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
@@ -260,7 +262,9 @@ export function useSilentAuth() {
         }, 5000);
 
         const handleMessage = (event: MessageEvent) => {
-          if (event.data?.type === 'anvil:silent-auth') {
+          // RFC 9700: Only accept messages from same origin
+          if (event.origin !== currentOrigin) return;
+          if (event.data?.type === 'anvil-silent-auth') {
             clearTimeout(timeout);
             document.body.removeChild(iframe);
             window.removeEventListener('message', handleMessage);

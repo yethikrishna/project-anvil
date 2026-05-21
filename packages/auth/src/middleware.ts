@@ -65,6 +65,11 @@ async function verifySessionToken(
       audience: config.clientId,
     });
 
+    // Defense in depth: explicit issuer check even though jwtVerify handles it
+    if (payload.iss && payload.iss !== `${config.keycloakUrl}/realms/${config.realm}`) {
+      return null;
+    }
+
     return {
       sub: payload.sub ?? '',
       email: (payload.email as string) ?? '',
