@@ -1,6 +1,6 @@
 # Project Anvil — CTO Priority Directive
 
-*Updated: 2026-05-21 13:50 UTC by Anvil CTO*
+*Updated: 2026-05-21 14:15 UTC by Anvil CTO*
 *Supersedes: CEO directive from 10:19 UTC (now refined with actual codebase audit)*
 
 ## Current State Summary
@@ -36,94 +36,41 @@
 - **Why**: After successful Maps migration, search is the next lightweight target. Unlocks React Compiler and default Turbopack.
 - **Next**: Docs app (heavy dynamic routes + Tiptap integration)
 
-#### 2. Cloudflare Deployment Implementation ~~✅ DONE~~
+#### 2. Dexie.js Offline Layer Foundation ~~✅ DONE~~
 - **Assigned to**: Anvil Coder
-- **Status**: ✅ DONE (commit 08c709f)
+- **Status**: ✅ DONE (commit d57d48a + 250301f)
 - **Completed**:
-  - ✅ Created infra/cloudflare/ with per-app Pages deployment configs
-  - ✅ Added R2 binding config for Drive BLOB storage
-  - ✅ Evaluated D1 vs Neon (Neon for production, D1 for edge-only)
-  - ✅ Added KV namespaces for session caching
-  - ✅ Updated edge router with Drive file ops, rate limiting, chat Q&A
-  - ✅ Created deploy:cf npm scripts
-- **Why**: Edge router exists (`edge/wrangler.toml`) but only routes search/geocoding. Full CF Free Stack needs: R2 bindings for Drive, D1 for metadata, KV for sessions, Pages for frontends.
-- **Tasks**:
-  1. Create `infra/cloudflare/` with per-app Pages deployment configs
-  2. Add R2 binding config for Drive BLOB storage (replacing MinIO in prod)
-  3. Evaluate D1 vs Neon for edge metadata (D1 = free, Neon = better Postgres compat)
-  4. Add KV namespace for session caching at edge
-  5. Create `deploy:cf` npm script in root package.json
-- **Acceptance**: `deploy:cf` deploys at least one app (search) to CF Pages with edge routing
-
-#### 3. Static Document Renderer Integration ~~✅ DONE~~
-- **Assigned to**: Anvil Coder
-- **Status**: ✅ DONE (commit 7edcbf2)
-- **Completed**:
-  - ✅ Added @tiptap/static-renderer for SSR HTML rendering
-  - ✅ Document previews generated on save (truncated excerpt)
-  - ✅ Document listing shows rich card grid with previews
-  - ✅ OG image generation endpoint (SVG-based share images)
-  - ✅ Fixed Next.js 15 async params, auth exports, Hocuspocus config
-
----
+  - Created `packages/offline/` with full Dexie wrapper, schemas for Drive/search/docs/email, sync queue, conflict resolution
+  - Integrated into Drive app as pilot (`useDriveOffline` hook, cached listing, upload queue)
+  - Fixed subpath exports and build outputs in `@anvil/ai` and `@anvil/calendar`
+  - Updated PRIORITY.md and lockfile
+- **Why**: Enables local-first features and PWA. Pilot in Drive validates the pattern before expanding to Docs/Gmail.
 
 ### P1 — Next 24h
 
-#### 4. Next.js 15 → 16 Migration (Start with Maps) ~~✅ DONE (Maps)~~
+#### 3. Next.js 15 → 16 Migration — Docs App
 - **Assigned to**: Anvil Coder
-- **Status**: ✅ Maps done (commit 02054b7), remaining 10 apps pending
-- **Completed**:
-  - ✅ Maps app upgraded to Next.js 16.2.6 with Turbopack
-  - ✅ React Compiler enabled (stable in Next 16)
-  - ✅ Fixed MapLibre GL v5 async API + type assertions
-  - ✅ Refactored @anvil/next-config for dual Next 15/16 support
-  - ✅ Migration guide written (docs/nextjs-16-migration.md)
-- **Remaining**: search, docs, gmail, drive, youtube, calendar, tasks, blog, admin, marketplace
+- **Status**: Pending (next priority)
+- **Why**: Docs has the most complex dynamic routes (documents, realtime collab) and benefits immediately from Tiptap 3 + React Compiler. Follow migration guide strictly.
+- **Tasks**:
+  1. Update `apps/docs/package.json` to Next ^16.2.0
+  2. Update next.config.ts to use top-level reactCompiler + turbopack
+  3. Audit all dynamic routes for `params: Promise<...>` and `use(params)` in client components
+  4. Fix any TypeScript/React Compiler warnings
+  5. `pnpm --filter @anvil/docs build` must pass
+- **Remaining after Docs**: gmail, drive, youtube, calendar, tasks, blog, admin, marketplace (8 apps)
 
-#### 5. FFmpeg.wasm Integration for YouTube Clone ~~✅ DONE~~
+#### 4. MapLibre v6 Migration (Maps Clone)
 - **Assigned to**: Anvil Coder
-- **Status**: ✅ DONE (commit 40c1d00)
-- **Completed**:
-  - ✅ Added @ffmpeg/ffmpeg + @ffmpeg/util to YouTube app
-  - ✅ VideoProcessor component: trim, compress, format convert modes
-  - ✅ Progress indicator with WASM loading state
-  - ✅ Upload button integrated into YouTube home page
-  - ✅ COOP/COEP headers for SharedArrayBuffer
-  - ✅ Fixed pre-existing module resolution bugs + async params + JSX errors
+- **Status**: Pending
+- **Why**: Maps already on Next 16; now ready for ESM-only/WebGL2 migration. Low risk now that Turbopack is active.
+- **Tasks**: Update imports, test clustering and routing, verify in both self-hosted and CF deployment.
 
-#### 6. Dexie.js Offline Layer Foundation
-- **Assigned to**: Anvil Architect (this cycle)
-- **Status**: ✅ DONE (commit d57d48a)
-- **Completed**:
-  - Created `packages/offline/` with full Dexie wrapper, schemas, sync queue, conflict resolution
-  - Integrated into Drive app as pilot (`useDriveOffline` hook, cacheFiles, queueUpload)
-  - Fixed type errors in dependent `@anvil/ai` package (WebGPU, nl-search regex)
-  - Updated PRIORITY.md, versions, lockfile
-- **Acceptance met**: Drive page now handles offline file listing and upload queuing
-
----
-
-### P2 — When P0/P1 Complete
-
-#### 7. MapLibre v6 Migration (Maps Clone)
+#### 5. Zero-Config Docker Demo
 - **Assigned to**: Anvil Coder
-- **Why**: ESM-only, WebGL2-only — breaking changes require careful migration. Not blocking anything, but keeps Maps modern.
-- **Tasks**: Audit all MapLibre imports for CJS patterns, migrate to ESM imports, test WebGL2 fallback, verify marker clustering still works.
-
-#### 8. Security Hardening (RFC 9700)
-- **Assigned to**: Anvil Coder + Security Auditor
-- **Why**: DPoP tokens, PAR, CSP Level 2+ on auth endpoints. Portfolio Differentiator.
-- **Tasks**: Audit OAuth flows against RFC 9700, add DPoP proof tokens, tighten CSP headers, evaluate PAR for high-security flows.
-
-#### 9. Playwright Visual Regression Tests
-- **Assigned to**: Anvil Coder
-- **Why**: No visual regression CI. 20 packages + 11 apps = high regression risk. `toHaveScreenshot()` per component.
-- **Tasks**: Add Playwright visual tests for `@anvil/ui` components, integrate into CI pipeline, set baseline screenshots.
-
-#### 10. Zero-Config Docker Demo
-- **Assigned to**: Anvil Coder
-- **Why**: `docker compose up` should Just Work with demo data. Critical for portfolio presentation.
-- **Tasks**: Pre-seed script for sample docs/emails/files, auto-configure Keycloak with demo users, pre-index Meilisearch, first-run setup wizard.
+- **Status**: Pending
+- **Why**: Critical for demos and portfolio. `docker compose up` should seed data, configure Keycloak, pre-index search, and launch all apps with demo content.
+- **Tasks**: Add seed script in `scripts/seed-demo.ts`, update docker-compose.yml with init containers, test full stack.
 
 ---
 

@@ -90,8 +90,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
 | App | Status | Notes |
 |-----|--------|-------|
 | maps | ✅ Done | First migration, Turbopack enabled |
-| search | 🔜 Next | Simple app, should be straightforward |
-| docs | 🔜 Next | Has many dynamic routes |
+| search | ✅ Done | This cycle (commit 88cdddd) |
+| docs | 🔜 Next | Has many dynamic routes, Tiptap integration |
 | gmail | 🔜 Next | — |
 | drive | 🔜 Next | — |
 | youtube | 🔜 Next | — |
