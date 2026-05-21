@@ -24,6 +24,7 @@ import {useAutoTitleSummary} from '../../../lib/ai/use-auto-title';
 import {AIAssistantPanel} from '../../../lib/ai/ai-assistant-panel';
 import {AIQuickActions} from '../../../lib/ai/ai-quick-actions';
 import {AIGrammarChecker} from '../../../lib/ai/grammar-checker';
+import {AIAutocorrect} from '../../../lib/ai/ai-autocorrect';
 import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
 import '../../../ai-styles.css';
 
@@ -271,6 +272,7 @@ export default function EditorPage({params}: EditorPageProps) {
       AISlashCommands,
       AIQuickActions,
       AIGrammarChecker,
+      AIAutocorrect,
       ...(provider ? [
         Collaboration.configure({document: provider.document}),
         CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
