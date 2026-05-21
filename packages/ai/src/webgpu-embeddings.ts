@@ -3,18 +3,22 @@
  *
  * Generates text embeddings directly in the browser using WebGPU compute shaders.
  * Falls back to WASM (ONNX Runtime Web) when WebGPU is unavailable.
- *
- * Use cases:
- * - Client-side semantic search without server round-trips
- * - Privacy-preserving local document indexing
- * - Instant similarity comparison in the browser
- * - Pre-filtering before server-side vector search
- *
- * Architecture:
- * 1. Check WebGPU availability → use GPU shader if available
- * 2. Fall back to ONNX Runtime Web (WASM) → CPU inference
- * 3. Fall back to trivial hash-based pseudo-embedding → approximate similarity
  */
+
+// WebGPU type declarations
+interface GPUDevice {}
+interface GPUAdapter {
+  requestDevice(options?: unknown): Promise<GPUDevice>;
+}
+
+declare global {
+  interface Navigator {
+    gpu?: {
+      requestAdapter(options?: unknown): Promise<GPUAdapter | null>;
+    };
+  }
+}
+
 
 export interface WebGPUEmbeddingConfig {
   /** Target embedding dimension (default: 384 for MiniLM) */
@@ -76,7 +80,7 @@ export class WebGPUEmbedding {
     // Try WebGPU first
     if (isWebGPUAvailable()) {
       try {
-        const adapter = await navigator.gpu.requestAdapter({
+        const adapter = await (navigator.gpu as any)?.requestAdapter({
           powerPreference: 'high-performance',
         });
 
@@ -157,8 +161,8 @@ export class WebGPUEmbedding {
    * Clean up GPU resources.
    */
   destroy(): void {
-    if (this.device) {
-      this.device.destroy();
+    if (this.device && typeof (this.device as any).destroy === 'function') {
+      (this.device as any).destroy();
       this.device = null;
     }
     this.initialized = false;

@@ -1,16 +1,21 @@
 /**
- * @anvil/offline — Client-side IndexedDB layer via Dexie.js patterns.
+ * @anvil/offline — Dexie.js-powered offline layer for Anvil apps.
  *
- * Provides offline-first data access for all Anvil apps.
- * Falls back to a minimal IndexedDB wrapper when Dexie isn't installed.
+ * Provides:
+ * - Per-app database namespaces (docs, email, drive, search)
+ * - Typed CRUD with offline-first writes
+ * - Sync queue (pending writes replay when online)
+ * - Storage quota tracking
+ * - Conflict resolution hooks
  *
- * Features:
- * - Per-app database namespaces
- * - CRUD operations with offline queue
- * - Automatic sync when online
- * - Conflict resolution strategies
- * - Storage quotas and eviction
+ * Usage:
+ *   import { offline } from '@anvil/offline';
+ *   await offline.init();
+ *   await offline.save('drive', 'files', { id: 'f1', name: 'doc.pdf', ... });
+ *   const files = await offline.list('drive', 'files');
  */
+
+import Dexie, { type Table } from 'dexie';
 
 // ── Types ──
 
@@ -27,7 +32,7 @@ export interface OfflineRecord {
 }
 
 export interface SyncQueueItem {
-  id: string;
+  id?: number;
   operation: 'create' | 'update' | 'delete';
   app: string;
   collection: string;
@@ -41,102 +46,24 @@ export interface SyncQueueItem {
 export type ConflictResolution = 'server-wins' | 'client-wins' | 'merge' | 'manual';
 
 export interface OfflineConfig {
-  dbName: string;
+  dbName?: string;
   maxStorageMB?: number;
   syncIntervalMs?: number;
   conflictResolution?: ConflictResolution;
   onSync?: (items: SyncQueueItem[]) => Promise<void>;
 }
 
-// ── IndexedDB Wrapper (zero-dependency) ──
+// ── Dexie Database ──
 
-class SimpleDB {
-  private db: IDBDatabase | null = null;
-  private dbName: string;
+class AnvilDB extends Dexie {
+  records!: Table<OfflineRecord, string>;
+  syncQueue!: Table<SyncQueueItem, number>;
 
   constructor(dbName: string) {
-    this.dbName = dbName;
-  }
-
-  async init(stores: string[]): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 2);
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        for (const store of stores) {
-          if (!db.objectStoreNames.contains(store)) {
-            db.createObjectStore(store, {keyPath: 'id'});
-          }
-        }
-      };
-
-      request.onsuccess = (event) => {
-        this.db = (event.target as IDBOpenDBRequest).result;
-        resolve();
-      };
-
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async put(storeName: string, record: any): Promise<void> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readwrite');
-      tx.objectStore(storeName).put(record);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  async get(storeName: string, id: string): Promise<any | null> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).get(id);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async getAll(storeName: string): Promise<any[]> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async delete(storeName: string, id: string): Promise<void> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readwrite');
-      tx.objectStore(storeName).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  async clear(storeName: string): Promise<void> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readwrite');
-      tx.objectStore(storeName).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  async count(storeName: string): Promise<number> {
-    if (!this.db) throw new Error('DB not initialized');
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).count();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+    super(dbName);
+    this.version(1).stores({
+      records: 'id, app, collection, [app+collection], syncStatus, updatedAt',
+      syncQueue: '++id, app, collection, recordId, timestamp',
     });
   }
 }
@@ -144,42 +71,39 @@ class SimpleDB {
 // ── Offline Manager ──
 
 export class OfflineManager {
-  private db: SimpleDB;
+  private db: AnvilDB;
   private config: Required<Pick<OfflineConfig, 'maxStorageMB' | 'syncIntervalMs' | 'conflictResolution'>> & OfflineConfig;
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private initialized = false;
 
-  constructor(config: OfflineConfig) {
+  constructor(config: OfflineConfig = {}) {
     this.config = {
+      dbName: 'anvil-offline',
       maxStorageMB: 50,
       syncIntervalMs: 30000,
       conflictResolution: 'server-wins',
       ...config,
     };
-    this.db = new SimpleDB(config.dbName);
+    this.db = new AnvilDB(this.config.dbName!);
   }
 
-  /**
-   * Initialize the offline database.
-   */
+  /** Initialize the offline layer and start auto-sync. */
   async init(): Promise<void> {
     if (this.initialized) return;
-    await this.db.init(['records', 'syncQueue']);
+    // Dexie opens lazily, but we force-open to verify schema
+    await this.db.open();
     this.initialized = true;
 
-    // Auto-sync when online
-    if (this.config.syncIntervalMs > 0) {
+    if (this.config.syncIntervalMs > 0 && typeof window !== 'undefined') {
       this.syncTimer = setInterval(() => this.trySync(), this.config.syncIntervalMs);
       window.addEventListener('online', () => this.trySync());
     }
   }
 
-  /**
-   * Save a record offline.
-   */
+  /** Save a new record offline. */
   async save(app: string, collection: string, data: Record<string, unknown>): Promise<OfflineRecord> {
     const now = new Date().toISOString();
-    const id = data.id as string || `${app}_${collection}_${Date.now()}`;
+    const id = (data.id as string) || `${app}_${collection}_${Date.now()}`;
 
     const record: OfflineRecord = {
       id,
@@ -192,181 +116,216 @@ export class OfflineManager {
       version: 1,
     };
 
-    await this.db.put('records', record);
-
-    // Add to sync queue
-    await this.db.put('syncQueue', {
-      id: `sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      operation: 'create',
-      app,
-      collection,
-      recordId: id,
-      data,
-      timestamp: now,
-      retryCount: 0,
-    } satisfies SyncQueueItem);
-
+    await this.db.records.put(record);
+    await this.enqueue('create', app, collection, id, data, now);
     return record;
   }
 
-  /**
-   * Update a record offline.
-   */
+  /** Update an existing record offline. */
   async update(app: string, collection: string, id: string, data: Partial<Record<string, unknown>>): Promise<OfflineRecord | null> {
-    const existing = await this.db.get('records', id) as OfflineRecord | null;
+    const existing = await this.db.records.get(id);
     if (!existing) return null;
 
     const now = new Date().toISOString();
     const updated: OfflineRecord = {
       ...existing,
-      data: {...existing.data, ...data},
+      data: { ...existing.data, ...data },
       updatedAt: now,
       syncStatus: 'pending',
       version: existing.version + 1,
     };
 
-    await this.db.put('records', updated);
-
-    await this.db.put('syncQueue', {
-      id: `sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      operation: 'update',
-      app,
-      collection,
-      recordId: id,
-      data: updated.data,
-      timestamp: now,
-      retryCount: 0,
-    } satisfies SyncQueueItem);
-
+    await this.db.records.put(updated);
+    await this.enqueue('update', app, collection, id, updated.data, now);
     return updated;
   }
 
-  /**
-   * Get a record by ID.
-   */
+  /** Get a single record by ID. */
   async get(app: string, collection: string, id: string): Promise<OfflineRecord | null> {
-    const record = await this.db.get('records', id) as OfflineRecord | null;
+    const record = await this.db.records.get(id);
     if (record && record.app === app && record.collection === collection) {
       return record;
     }
     return null;
   }
 
-  /**
-   * Get all records for an app + collection.
-   */
+  /** List all records for an app + collection. */
   async list(app: string, collection: string): Promise<OfflineRecord[]> {
-    const all = await this.db.getAll('records') as OfflineRecord[];
-    return all.filter(r => r.app === app && r.collection === collection);
+    return this.db.records
+      .where('[app+collection]')
+      .equals([app, collection])
+      .toArray();
   }
 
-  /**
-   * Delete a record offline.
-   */
+  /** Delete a record offline. */
   async remove(app: string, collection: string, id: string): Promise<void> {
-    await this.db.delete('records', id);
-
-    await this.db.put('syncQueue', {
-      id: `sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      operation: 'delete',
-      app,
-      collection,
-      recordId: id,
-      timestamp: new Date().toISOString(),
-      retryCount: 0,
-    } satisfies SyncQueueItem);
+    await this.db.records.delete(id);
+    await this.enqueue('delete', app, collection, id, undefined, new Date().toISOString());
   }
 
-  /**
-   * Get pending sync items.
-   */
+  /** Count records for an app + collection. */
+  async count(app: string, collection: string): Promise<number> {
+    return this.db.records
+      .where('[app+collection]')
+      .equals([app, collection])
+      .count();
+  }
+
+  /** Get all pending sync items, ordered by timestamp. */
   async getPendingSync(): Promise<SyncQueueItem[]> {
-    const all = await this.db.getAll('syncQueue') as SyncQueueItem[];
-    return all.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return this.db.syncQueue.orderBy('timestamp').toArray();
   }
 
-  /**
-   * Try to sync pending items.
-   */
-  async trySync(): Promise<{synced: number; failed: number}> {
+  /** Try to sync pending items. */
+  async trySync(): Promise<{ synced: number; failed: number }> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return {synced: 0, failed: 0};
+      return { synced: 0, failed: 0 };
     }
 
     const pending = await this.getPendingSync();
-    if (pending.length === 0) return {synced: 0, failed: 0};
+    if (pending.length === 0) return { synced: 0, failed: 0 };
 
-    if (this.config.onSync) {
-      try {
-        await this.config.onSync(pending);
+    if (!this.config.onSync) return { synced: 0, failed: 0 };
 
-        // Mark all as synced
-        for (const item of pending) {
-          await this.db.delete('syncQueue', item.id);
+    try {
+      await this.config.onSync(pending);
+      // Mark records as synced and remove queue items
+      const ids = pending.map(p => p.recordId);
+      await this.db.transaction('rw', [this.db.records, this.db.syncQueue], async () => {
+        for (const id of ids) {
+          const r = await this.db.records.get(id);
+          if (r) {
+            r.syncStatus = 'synced';
+            r.syncedAt = new Date().toISOString();
+            await this.db.records.put(r);
+          }
         }
-
-        return {synced: pending.length, failed: 0};
-      } catch (err) {
-        // Increment retry count
+        for (const item of pending) {
+          if (item.id) await this.db.syncQueue.delete(item.id);
+        }
+      });
+      return { synced: pending.length, failed: 0 };
+    } catch (err) {
+      // Increment retry counts
+      await this.db.transaction('rw', this.db.syncQueue, async () => {
         for (const item of pending) {
           item.retryCount++;
           item.lastError = (err as Error).message;
-          if (item.retryCount < 5) {
-            await this.db.put('syncQueue', item);
-          } else {
-            await this.db.delete('syncQueue', item.id);
+          if (item.id) {
+            if (item.retryCount < 5) {
+              await this.db.syncQueue.put(item);
+            } else {
+              await this.db.syncQueue.delete(item.id);
+            }
           }
         }
-        return {synced: 0, failed: pending.length};
-      }
+      });
+      return { synced: 0, failed: pending.length };
     }
-
-    return {synced: 0, failed: 0};
   }
 
-  /**
-   * Get storage stats.
-   */
+  /** Mark records from server as synced (for seeding / initial fetch). */
+  async upsertFromServer(app: string, collection: string, records: Record<string, unknown>[]): Promise<number> {
+    const now = new Date().toISOString();
+    let count = 0;
+    await this.db.transaction('rw', this.db.records, async () => {
+      for (const data of records) {
+        const id = (data.id as string) || `${app}_${collection}_${Date.now()}_${count}`;
+        const existing = await this.db.records.get(id);
+        if (existing) {
+          // Server-wins: update local with server data
+          if (this.config.conflictResolution === 'server-wins' || existing.syncStatus === 'synced') {
+            await this.db.records.put({
+              ...existing,
+              data: { ...existing.data, ...data },
+              updatedAt: now,
+              syncedAt: now,
+              syncStatus: 'synced',
+            });
+          }
+          // client-wins: keep local if pending
+        } else {
+          await this.db.records.put({
+            id,
+            app,
+            collection,
+            data,
+            createdAt: now,
+            updatedAt: now,
+            syncedAt: now,
+            syncStatus: 'synced',
+            version: 1,
+          });
+        }
+        count++;
+      }
+    });
+    return count;
+  }
+
+  /** Get storage stats. */
   async getStats(): Promise<{
     totalRecords: number;
     pendingSync: number;
     byApp: Record<string, number>;
-    storageEstimate?: {usage: number; quota: number};
+    storageEstimate?: { usage: number; quota: number };
   }> {
-    const records = await this.db.getAll('records') as OfflineRecord[];
+    const allRecords = await this.db.records.toArray();
     const pending = await this.getPendingSync();
     const byApp: Record<string, number> = {};
-
-    for (const r of records) {
+    for (const r of allRecords) {
       byApp[r.app] = (byApp[r.app] || 0) + 1;
     }
 
     let storageEstimate;
-    if (navigator.storage?.estimate) {
+    if (typeof navigator !== 'undefined' && navigator.storage?.estimate) {
       const est = await navigator.storage.estimate();
-      storageEstimate = {usage: est.usage ?? 0, quota: est.quota ?? 0};
+      storageEstimate = { usage: est.usage ?? 0, quota: est.quota ?? 0 };
     }
 
     return {
-      totalRecords: records.length,
+      totalRecords: allRecords.length,
       pendingSync: pending.length,
       byApp,
       storageEstimate,
     };
   }
 
-  /**
-   * Clear all offline data.
-   */
+  /** Clear all offline data. */
   async clear(): Promise<void> {
-    await this.db.clear('records');
-    await this.db.clear('syncQueue');
+    await this.db.records.clear();
+    await this.db.syncQueue.clear();
   }
 
-  /**
-   * Destroy the manager.
-   */
+  /** Destroy the manager (stop sync). */
   destroy(): void {
     if (this.syncTimer) clearInterval(this.syncTimer);
+    this.db.close();
+    this.initialized = false;
+  }
+
+  // ── Internals ──
+
+  private async enqueue(
+    operation: SyncQueueItem['operation'],
+    app: string,
+    collection: string,
+    recordId: string,
+    data: Record<string, unknown> | undefined,
+    timestamp: string,
+  ): Promise<void> {
+    await this.db.syncQueue.add({
+      operation,
+      app,
+      collection,
+      recordId,
+      data,
+      timestamp,
+      retryCount: 0,
+    });
   }
 }
+
+// ── Default singleton ──
+
+export const offline = new OfflineManager();

@@ -97,9 +97,8 @@ const DATE_PATTERNS: [RegExp, () => {from: string; to: string}][] = [
     const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
     return {from: start, to: end};
   }],
-  [/last (\d+) days?/i, (match) => {
-    // This is a simplified handler — in production you'd use the captured group
-    const days = 7; // Default
+  [/last (\d+) days?/i, (match?: RegExpMatchArray) => {
+    const days = parseInt(match?.[1] || '7') || 7;
     const now = new Date();
     const from = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
     return {from, to: now.toISOString().split('T')[0]};

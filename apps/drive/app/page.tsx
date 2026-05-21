@@ -13,6 +13,7 @@ import { AppShell, ThemeProvider, ThemeToggle, cn } from '@anvil/ui';
 import { NotificationBell } from '@anvil/notifications';
 import { NotificationProvider } from '@anvil/notifications';
 import { tagFile, TAG_CONFIG } from './lib/ai-tagger';
+import { useDriveOffline } from './lib/use-offline';
 
 interface FileEntry {
   id: string;
@@ -39,10 +40,17 @@ export default function DrivePage() {
   } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu();
+  const { isOnline, cacheFiles, getCachedFiles, ready: offlineReady } = useDriveOffline();
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
     try {
+      if (!isOnline && offlineReady) {
+        // Offline: serve from IndexedDB cache
+        const cached = await getCachedFiles();
+        setFiles(cached);
+        return;
+      }
       const token = sessionStorage.getItem('anvil_access_token');
       const res = await fetch(
         `${API_BASE}/files?path=${encodeURIComponent(currentPath)}`,
@@ -50,13 +58,23 @@ export default function DrivePage() {
       );
       if (!res.ok) throw new Error('Failed to fetch files');
       const data = await res.json();
-      setFiles(data.data ?? []);
+      const fileList = data.data ?? [];
+      setFiles(fileList);
+      // Cache for offline access
+      if (offlineReady) {
+        cacheFiles(fileList);
+      }
     } catch (err) {
       console.error('Failed to fetch files:', err);
+      // Fallback to cache on error
+      if (offlineReady) {
+        const cached = await getCachedFiles();
+        if (cached.length > 0) setFiles(cached);
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentPath]);
+  }, [currentPath, isOnline, offlineReady, cacheFiles, getCachedFiles]);
 
   useEffect(() => {
     fetchFiles();
@@ -218,6 +236,11 @@ export default function DrivePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {!isOnline && (
+            <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+              Offline — cached files
+            </span>
+          )}
           <FileSystemAccessPanel
             apiBaseUrl={API_BASE}
             currentPath={currentPath}
