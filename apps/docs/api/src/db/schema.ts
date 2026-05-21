@@ -12,6 +12,8 @@ export const documents = pgTable('documents', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull().default('Untitled Document'),
   content: text('content'), // HTML snapshot for search/display
+  preview: text('preview'), // Rendered HTML preview for listing
+  ogImageUrl: text('og_image_url'), // OG share image URL
   ydocState: text('ydoc_state'), // Base64-encoded Yjs document state
   ownerId: text('owner_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

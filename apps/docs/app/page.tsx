@@ -10,6 +10,7 @@ import {type DocumentTemplate} from './templates/definitions';
 interface DocumentItem {
   id: string;
   title: string;
+  preview?: string;
   updatedAt: string;
   collaborators: {id: string; name: string; color: string}[];
   ownerId: string;
@@ -147,44 +148,61 @@ export default function DocsPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredDocs.map(doc => (
-              <Card key={doc.id} onClick={() => window.location.href = `/editor/${doc.id}`}>
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl">📝</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
-                    <p className="text-xs text-gray-500">
-                      Last edited {formatTime(doc.updatedAt)}
-                      {doc.collaborators?.length > 0 &&
-                        ` • ${doc.collaborators.length} collaborator${doc.collaborators.length > 1 ? 's' : ''}`}
-                    </p>
+              <div
+                key={doc.id}
+                onClick={() => window.location.href = `/editor/${doc.id}`}
+                className="group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+              >
+                {/* Preview area */}
+                <div className="h-32 bg-gray-50 dark:bg-gray-800 p-3 overflow-hidden relative">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-5">
+                    {doc.preview || 'Empty document — click to start editing'}
                   </div>
-                  {/* Collaborator avatars */}
-                  {doc.collaborators?.length > 0 && (
-                    <div className="flex -space-x-1">
-                      {doc.collaborators.slice(0, 3).map((c, i) => (
-                        <div
-                          key={i}
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-medium border border-white"
-                          style={{backgroundColor: c.color}}
-                          title={c.name}
-                        >
-                          {c.name.charAt(0).toUpperCase()}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Button variant="ghost" size="sm">Open</Button>
-                  <button
-                    onClick={e => deleteDocument(doc.id, e)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                    title="Delete"
-                  >
-                    ✕
-                  </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-gray-900 via-transparent to-transparent" />
                 </div>
-              </Card>
+
+                {/* Card info */}
+                <div className="p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📝</span>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex-1">{doc.title}</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[11px] text-gray-500">
+                      {formatTime(doc.updatedAt)}
+                      {doc.collaborators?.length > 0 && ` · ${doc.collaborators.length} collaborator${doc.collaborators.length > 1 ? 's' : ''}`}
+                    </p>
+                    {/* Collaborator avatars */}
+                    {doc.collaborators?.length > 0 && (
+                      <div className="flex -space-x-1">
+                        {doc.collaborators.slice(0, 3).map((c, i) => (
+                          <div
+                            key={i}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] text-white font-medium border-2 border-white dark:border-gray-900"
+                            style={{backgroundColor: c.color}}
+                            title={c.name}
+                          >
+                            {c.name.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div className="flex items-center justify-between mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); window.location.href = `/editor/${doc.id}`; }}>Open</Button>
+                    <button
+                      onClick={e => deleteDocument(doc.id, e)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                      title="Delete"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}

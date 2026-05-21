@@ -121,7 +121,7 @@ export async function registerPasskey(options: RegistrationOptions): Promise<Pas
     }
 
     const response = credential.response as AuthenticatorAttestationResponse;
-    const transports = response.getTransports?.() ?? [];
+    const transports = (response.getTransports?.() ?? []) as AuthenticatorTransport[];
 
     const passkey: PasskeyCredential = {
       id: `pk_${Date.now()}`,

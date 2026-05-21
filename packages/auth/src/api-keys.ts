@@ -226,7 +226,7 @@ export class APIKeyManager {
     // Revoke old key
     keyStore.delete(keyId);
 
-    return result;
+    return {newKey: result.key, fullKey: result.fullKey};
   }
 }
 

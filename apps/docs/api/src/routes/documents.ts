@@ -6,6 +6,7 @@ import {FastifyInstance} from 'fastify';
 import {db} from '../db/index.js';
 import {documents} from '../db/schema.js';
 import {eq, desc, like} from 'drizzle-orm';
+import {generatePreview, generateOgImage} from '../lib/tiptap-renderer.js';
 
 // ── Template definitions (shared with frontend) ──
 
@@ -78,6 +79,7 @@ export async function documentRoutes(app: FastifyInstance) {
       .select({
         id: documents.id,
         title: documents.title,
+        preview: documents.preview,
         updatedAt: documents.updatedAt,
         collaborators: documents.collaborators,
         ownerId: documents.ownerId,
@@ -132,12 +134,19 @@ export async function documentRoutes(app: FastifyInstance) {
       ydocState?: string;
     };
 
+    const updateData: Record<string, unknown> = {
+      ...body,
+      updatedAt: new Date(),
+    };
+
+    // Generate preview from content if content is being updated
+    if (body.content) {
+      updateData.preview = generatePreview(body.content);
+    }
+
     const result = await db
       .update(documents)
-      .set({
-        ...body,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(documents.id, id))
       .returning();
 

@@ -391,7 +391,7 @@ export class SyncEngine {
       if (handle.status === 'conflict') continue; // skip conflicted until resolved
       const result = await syncOne(handle, this.config);
       if (result.status !== 'no-change') {
-        this.onStatusChange?.(handle.id, result.status === 'success' ? 'idle' : result.status, result.message);
+        this.onStatusChange?.(handle.id, (result.status === 'success' ? 'idle' : result.status === 'conflict' ? 'conflict' : 'error') as SyncedFileHandle['status'], result.message);
       }
       results.push(result);
     }
@@ -404,7 +404,10 @@ export class SyncEngine {
     const handle = await getSyncedHandle(handleId);
     if (!handle) return { direction: 'none', status: 'error', message: 'Handle not found' };
     const result = await syncOne(handle, this.config);
-    this.onStatusChange?.(handle.id, result.status === 'success' ? 'idle' : result.status, result.message);
+    const singleStatus: SyncedFileHandle['status'] =
+      result.status === 'success' || result.status === 'no-change' ? 'idle' :
+      result.status === 'conflict' ? 'conflict' : 'error';
+    this.onStatusChange?.(handle.id, singleStatus, result.message);
     return result;
   }
 

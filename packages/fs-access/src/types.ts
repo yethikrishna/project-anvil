@@ -11,6 +11,8 @@ export interface FileSystemFileHandle extends globalThis.FileSystemFileHandle {
   kind: 'file';
   getFile(): Promise<File>;
   createWritable(): Promise<FileSystemWritableFileStream>;
+  queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
 }
 
 export interface FileSystemDirectoryHandle extends globalThis.FileSystemDirectoryHandle {

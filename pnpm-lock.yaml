@@ -212,6 +212,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.0.0
         version: 3.23.5
+      '@tiptap/static-renderer':
+        specifier: ^3.0.0
+        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
@@ -637,6 +640,12 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.15
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -2608,6 +2617,14 @@ packages:
 
   '@tiptap/starter-kit@3.23.5':
     resolution: {integrity: sha512-ac0edQ1a1nYkNAzOgdqIBKGdrOlNQpPP9wGAG3Q9EgTq4+C4/EftJZZJmUn3KzaSOUv4cLEDo0z0jurJvZPkaw==}
+
+  '@tiptap/static-renderer@3.23.5':
+    resolution: {integrity: sha512-0UnvmwUoYn3QnKOcZdVni7hvftu/zQD8QuuHcWhzQd6KVxTjwVZhI4bOPNlJwb8uSMiQ82wDoerMCqvuc/tIUw==}
+    peerDependencies:
+      '@tiptap/core': 3.23.5
+      '@tiptap/pm': 3.23.5
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
 
   '@tiptap/suggestion@3.23.5':
     resolution: {integrity: sha512-m5QoCs4IZqxTnDTJkNYm14Y3UFpJPZzUjS2APXpx9+wxaoo1q0SZ6fXardUgQET1wCJeUrsu73mvEnlK8mmuog==}
@@ -5729,6 +5746,13 @@ snapshots:
       '@tiptap/extension-underline': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extensions': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/pm': 3.23.5
+
+  '@tiptap/static-renderer@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
+      '@tiptap/pm': 3.23.5
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
 
   '@tiptap/suggestion@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)':
     dependencies:
