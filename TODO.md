@@ -78,6 +78,57 @@
 - [x] Mobile responsive layouts
 - [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
+## Phase Next: Trend-Informed Upgrades (2026-05-21)
+
+### Editor Modernization
+- [ ] Upgrade Tiptap 2 → 3 across Docs Clone (Phase 4)
+- [ ] Add @tiptap/static-renderer for server-side document previews
+- [ ] Evaluate Hocuspocus 4 migration for collaboration server
+- [ ] Enable JSX renderHTML support for custom nodes
+- [ ] Add previously-pro extensions now OSS: Drag Handle, Emoji, Math
+
+### AI-Enhanced Search
+- [ ] Upgrade Meilisearch to 1.16+ for multi-modal embeddings
+- [ ] Implement Conversational Search (Chats API) for document Q&A
+- [ ] Add reranking stage to hybrid search pipeline
+- [ ] Evaluate multi-modal Fragments API for image+text search
+- [ ] Add "Did you mean" semantic suggestions via LLM
+
+### Local-First AI
+- [ ] Add optional local embedding generation (Nomic/BGE-M3 via Ollama)
+- [ ] Implement on-device document summarization
+- [ ] Add WebGPU-based client-side embedding for search
+- [ ] Create local RAG pipeline for private document search
+
+### Framework Upgrades
+- [ ] Plan Next.js 15 → 16 migration (Turbopack, React Compiler)
+- [ ] Evaluate React 19.1 new features across all apps
+- [ ] Plan MapLibre v6 migration (ESM-only, WebGL2)
+
+### UI Polish
+- [ ] Add View Transitions API for app-to-app navigation
+- [ ] Implement same-document view transitions in page navigation
+- [ ] Add cross-document transitions for multi-app flows
+
+### Security Hardening (RFC 9700)
+- [ ] Audit OAuth 2.0 flows against RFC 9700 best practices
+- [ ] Add DPoP (RFC 9449) sender-constrained tokens
+- [ ] Tighten CSP to Level 2+ on all auth endpoints
+- [ ] Evaluate PAR (RFC 9126) for high-security scenarios
+- [ ] Add exact redirect URI matching enforcement
+
+### Supply Chain & CI/CD
+- [ ] Add automated npm audit to CI pipeline
+- [ ] Generate SBOMs for all packages
+- [ ] Pin all dependency versions with lockfile
+- [ ] Add OIDC federation for CI/CD (no stored secrets)
+- [ ] Set up dependency scanning for container images
+
+### Production Deployment
+- [ ] Evaluate edge function deployment for search and geocoding APIs
+- [ ] Plan production deployment strategy (edge vs. regional)
+- [ ] Add observability and monitoring for distributed deployment
+
 ## Phase 10: Deployment & CI/CD
 - [x] Vercel frontend deployment config
 - [x] Render backend deployment (with keep-warm cron)
