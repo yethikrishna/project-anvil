@@ -89,10 +89,10 @@
 - [x] Add previously-pro extensions now OSS: Drag Handle, Emoji, Math
 
 ### AI-Enhanced Search
-- [ ] Upgrade Meilisearch to 1.16+ for multi-modal embeddings
+- [x] Upgrade Meilisearch to 1.16+ for multi-modal embeddings
 - [x] Implement Conversational Search (Chats API) for document Q&A
-- [ ] Add reranking stage to hybrid search pipeline
-- [ ] Evaluate multi-modal Fragments API for image+text search
+- [x] Add reranking stage to hybrid search pipeline
+- [x] Evaluate multi-modal Fragments API for image+text search
 - [x] Add "Did you mean" semantic suggestions via LLM
 
 ### Local-First AI
@@ -148,7 +148,7 @@
 
 ## Phase 12: Research-Driven Enhancements (2026-05-20)
 - [x] Evaluate **Loro 1.0** CRDT as Yjs alternative for Docs clone (richer merging, built-in versioning, 10-100× faster imports)
-- [ ] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
+- [x] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
 - [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
 - [ ] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
 - [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
