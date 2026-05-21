@@ -261,3 +261,15 @@ export type {EmailAnalyticsData, DriveAnalyticsData, CollaborationAnalyticsData}
 
 // ── Performance Budget ──
 export {usePerformanceBudget, PerformanceBudgetPanel} from './perf-budget';
+
+// ── View Transitions (Enhanced) ──
+export {startViewTransition, isViewTransitionSupported, useAppTransition, useDocumentTransition, useCrossDocumentTransition, VIEW_TRANSITION_CSS} from './view-transitions';
+export type {TransitionAnimation, ViewTransitionOptions} from './view-transitions';
+
+// ── Embed ──
+export {EmbeddedApp, useEmbeddedApp, buildEmbedUrl, buildFrameAncestorsHeader, EMBED_CSP_HEADER} from './embed';
+export type {EmbedConfig, EmbedMessage, EmbedAction} from './embed';
+
+// ── Gamification ──
+export {useGamification, TrophyCase, ProductivityScoreRing, QuestCard} from './gamification';
+export type {Achievement, Quest, QuestStep, GamificationState} from './gamification';

@@ -127,7 +127,7 @@
 ### Production Deployment
 - [ ] Evaluate edge function deployment for search and geocoding APIs
 - [ ] Plan production deployment strategy (edge vs. regional)
-- [ ] Add observability and monitoring for distributed deployment
+- [x] Add observability and monitoring for distributed deployment
 
 ## Phase 10: Deployment & CI/CD
 - [x] Vercel frontend deployment config
@@ -313,10 +313,10 @@
 - [ ] Pattern library: pre-built page patterns with copy-paste code
 
 ## Phase 28: Gamification & Engagement
-- [ ] Productivity score (daily activity across apps)
-- [ ] Achievement/badge system ("Inbox Zero", "Power User", "Collaborator")
-- [ ] Onboarding quests as guided tutorials
-- [ ] Trophy case on profile page
+- [x] Productivity score (daily activity across apps)
+- [x] Achievement/badge system ("Inbox Zero", "Power User", "Collaborator")
+- [x] Onboarding quests as guided tutorials
+- [x] Trophy case on profile page
 
 ## Phase 29: Ambient UX & Widgets
 - [ ] Customizable dashboard with drag-and-drop widgets
@@ -364,11 +364,11 @@
 - [ ] Documented architecture diagram as portfolio artifact
 
 ## Phase 35: White-Label / Embed Mode
-- [ ] Embeddable app iframes with custom branding
-- [ ] Dynamic theming via query params (?brand=acme&primary=#3b82f6)
-- [ ] SSO passthrough for embedded sessions
-- [ ] postMessage API for parent-child communication
-- [ ] CSP frame-ancestors configuration
+- [x] Embeddable app iframes with custom branding
+- [x] Dynamic theming via query params (?brand=acme&primary=#3b82f6)
+- [x] SSO passthrough for embedded sessions
+- [x] postMessage API for parent-child communication
+- [x] CSP frame-ancestors configuration
 
 ## Phase 36: Google Sheets Clone
 - [ ] Virtual-scroll grid rendering (millions of cells)
