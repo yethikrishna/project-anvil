@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Chat message streaming cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-cursor::after {
+  content: "▊";
+  animation: blink 1s step-end infinite;
+  color: #3b82f6;
+}
+
+/* Prose styles for AI messages */
+.prose-chat {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.prose-chat p { margin-bottom: 0.5em; }
+
+.prose-chat p:last-child { margin-bottom: 0; }
+
+.prose-chat ul {
+  list-style: disc;
+  padding-left: 1.25em;
+  margin: 0.5em 0;
+}
+
+.prose-chat ol {
+  list-style: decimal;
+  padding-left: 1.25em;
+  margin: 0.5em 0;
+}
+
+.prose-chat code {
+  background: #f3f4f6;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.dark .prose-chat code {
+  background: #374151;
+}
+
+.prose-chat pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 13px;
+}
+
+.prose-chat pre code {
+  background: none;
+  padding: 0;
+}
+
+.prose-chat blockquote {
+  border-left: 3px solid #6366f1;
+  padding-left: 12px;
+  color: #6b7280;
+  margin: 0.5em 0;
+}
+
+.prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+
+.prose-chat th, .prose-chat td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.dark .prose-chat th, .dark .prose-chat td {
+  border-color: #4b5563;
+}
+
+.prose-chat th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.dark .prose-chat th {
+  background: #1f2937;
+}
+
+/* Scrollbar */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.dark .chat-scroll::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+/* Tool call card animation */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tool-card-enter {
+  animation: slideIn 0.2s ease-out;
+}
+
+/* Voice recording pulse */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.voice-pulse::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse-ring 1.5s ease-out infinite;
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@anvil/chat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3010",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@anvil/ai": "workspace:*",
+    "@anvil/auth": "workspace:*",
+    "@anvil/next-config": "workspace:^",
+    "@anvil/notifications": "workspace:*",
+    "@anvil/ui": "workspace:*",
+    "idb-keyval": "^6.2.1",
+    "lucide-react": "^0.469.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
