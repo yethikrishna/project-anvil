@@ -102,8 +102,8 @@
 - [x] Create local RAG pipeline for private document search
 
 ### Framework Upgrades
-- [ ] Plan Next.js 15 → 16 migration (Turbopack, React Compiler)
-- [ ] Evaluate React 19.1 new features across all apps
+- [x] Plan Next.js 15 → 16 migration (Turbopack, React Compiler)
+- [x] Evaluate React 19.1 new features across all apps
 - [ ] Plan MapLibre v6 migration (ESM-only, WebGL2)
 
 ### UI Polish

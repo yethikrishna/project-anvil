@@ -1,7 +1,4 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  transpilePackages: ['@anvil/auth', '@anvil/ui', '@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-placeholder', '@tiptap/pm', '@tiptap/core'],
-};
-
-export default nextConfig;
+import {createAnvilNextConfig} from '@anvil/next-config';
+export default createAnvilNextConfig({
+  transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-placeholder', '@tiptap/pm', '@tiptap/core'],
+});
