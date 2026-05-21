@@ -171,3 +171,4 @@ export async function getLogoutUrl(
 export * from './hooks';
 export * from './route-handlers';
 export * from './middleware';
+export * from './security';

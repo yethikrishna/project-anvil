@@ -89,7 +89,7 @@
 
 ### AI-Enhanced Search
 - [ ] Upgrade Meilisearch to 1.16+ for multi-modal embeddings
-- [ ] Implement Conversational Search (Chats API) for document Q&A
+- [x] Implement Conversational Search (Chats API) for document Q&A
 - [ ] Add reranking stage to hybrid search pipeline
 - [ ] Evaluate multi-modal Fragments API for image+text search
 - [ ] Add "Did you mean" semantic suggestions via LLM
@@ -245,7 +245,7 @@
 - [ ] Visual regression testing in CI (Playwright screenshots)
 - [x] k6 load testing scripts with performance baselines
 - [x] OpenTelemetry distributed tracing (frontend → API → DB → S3)
-- [ ] Real-time error tracking (custom Sentry-lite)
+- [x] Real-time error tracking (custom Sentry-lite)
 - [ ] Performance budget enforcement in CI (Lighthouse CI)
 - [ ] Developer playground (API explorer, CRDT debug visualizer)
 - [ ] Contract testing between services (Pact-style)
@@ -261,7 +261,7 @@
 - [ ] Collaboration analytics (edit heatmap, timezone visualization)
 
 ## Phase 22: Security Hardening
-- [ ] Security headers + CSP nonce policy on all apps (target A+ on SecurityHeaders.com)
+- [x] Security headers + CSP nonce policy on all apps (target A+ on SecurityHeaders.com)
 - [ ] OWASP Top 10 audit document with per-risk mitigation proof
 - [ ] Session security: device fingerprinting, revocation, login history
 - [ ] API key management with scoped permissions + request signing

@@ -238,3 +238,7 @@ export type {A11yPreferences, VoiceCommand} from './a11y';
 // ── Smart Clipboard ──
 export {useSmartClipboard, handleFilePaste, handleLocationPaste, handleContactPaste, handleLinkPaste, PasteSuggestion} from './clipboard';
 export type {ClipboardItem} from './clipboard';
+
+// ── Conversational Search ──
+export {useConversationalSearch, ConversationalSearchPanel} from './convo-search';
+export type {ConversationMessage, SearchResult, ConversationalSearchState} from './convo-search';
