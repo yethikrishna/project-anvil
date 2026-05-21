@@ -91,7 +91,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
 |-----|--------|-------|
 | maps | ✅ Done | First migration, Turbopack enabled |
 | search | ✅ Done | This cycle (commit 88cdddd) |
-| docs | 🔜 Next | Has many dynamic routes, Tiptap integration |
+| docs | ✅ Done | This cycle — async params fixed, build passes with Turbopack (commit pending) |
 | gmail | 🔜 Next | — |
 | drive | 🔜 Next | — |
 | youtube | 🔜 Next | — |
