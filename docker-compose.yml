@@ -127,3 +127,40 @@ volumes:
 networks:
   anvil-net:
     driver: bridge
+
+  # ── Demo Seeder (runs once, seeds all services with demo data) ──
+  demo-seeder:
+    image: node:22-alpine
+    working_dir: /app
+    command: >
+      sh -c "
+        apk add --no-cache postgresql-client curl &&
+        npm install -g tsx &&
+        tsx /app/scripts/seed-demo.ts
+      "
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      POSTGRES_URL: postgresql://anvil:anvil_secret@postgres:5432
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: anvil_meili_secret
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: anvil_minio
+      MINIO_ROOT_PASSWORD: anvil_minio_secret
+    volumes:
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - anvil-net
+    profiles:
+      - demo
+    restart: "no"

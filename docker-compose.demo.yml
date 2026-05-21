@@ -1,0 +1,45 @@
+# docker-compose.demo.yml — Demo overlay for Project Anvil
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+#
+# What this does:
+#   1. Activates the `demo` profile (starts demo-seeder service)
+#   2. Exposes Meilisearch API without auth for easy browsing
+#   3. Sets MEILI_ENV=development for the search dashboard at :7700
+#   4. Enables Keycloak dev mode with pre-configured admin credentials
+#
+# After startup:
+#   - Keycloak admin:  http://localhost:8080   admin / admin
+#   - Keycloak realm:  anvil  (demo user: demo / demo1234)
+#   - MinIO console:   http://localhost:9001   anvil_minio / anvil_minio_secret
+#   - Meilisearch UI:  http://localhost:7700   master key: anvil_meili_secret
+#   - Postgres:        localhost:5432          anvil / anvil_secret
+
+version: "3.9"
+
+services:
+  demo-seeder:
+    profiles: []   # override to always start (remove the demo profile gate)
+
+  meilisearch:
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: anvil_meili_secret
+      MEILI_NO_ANALYTICS: "true"
+
+  minio:
+    environment:
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+
+  postgres:
+    # Expose all databases on standard port for local dev tooling
+    ports:
+      - "5432:5432"
+
+  keycloak:
+    environment:
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY: "none"

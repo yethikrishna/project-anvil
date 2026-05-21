@@ -21,10 +21,15 @@
     "deploy:cf:router": "cd edge && npx wrangler deploy",
     "deploy:cf:search": "pnpm --filter @anvil/search build && cd apps/search && npx wrangler pages deploy .next/static --project-name anvil-search",
     "deploy:cf:drive": "pnpm --filter @anvil/drive build && cd apps/drive && npx wrangler pages deploy .next/static --project-name anvil-drive",
-    "cf:dev": "cd edge && npx wrangler dev"
+    "cf:dev": "cd edge && npx wrangler dev",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "docker:demo": "docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build",
+    "docker:demo:seed": "docker compose -f docker-compose.yml -f docker-compose.demo.yml up demo-seeder"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "babel-plugin-react-compiler": "^1.0.0",
+    "tsx": "^4.19.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"

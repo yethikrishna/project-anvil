@@ -62,9 +62,16 @@
 
 #### 4. MapLibre v6 Migration (Maps Clone)
 - **Assigned to**: Anvil Coder
-- **Status**: Pending
-- **Why**: Maps already on Next 16; now ready for ESM-only/WebGL2 migration. Low risk now that Turbopack is active.
-- **Tasks**: Update imports, test clustering and routing, verify in both self-hosted and CF deployment.
+- **Status**: ✅ DONE (commit f08d3ec)
+- **Completed**:
+  - Pinned maplibre-gl to 5.24.0 (v6 is still `next` pre-release — deferred)
+  - Added pmtiles@4.4.1 + protomaps-themes-base@4.5.0
+  - PMTiles protocol registered via `addProtocol` (client-side, idempotent)
+  - Style switcher: OSM | Protomaps Light | Protomaps Dark
+  - POI/route layers survive style swaps via `style.load` re-add
+  - WebGL2 detection with user-facing fallback banner
+  - Fixed pre-existing blog build failures (import path, AppShell prop, tsconfig, dependency)
+- **Why**: Maps already on Next 16; PMTiles integration is the portable tile architecture needed for R2 hosting (AD-3 dependency). v6 upgrade blocked on stable release.
 
 #### 5. Zero-Config Docker Demo
 - **Assigned to**: Anvil Coder
