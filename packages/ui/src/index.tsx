@@ -219,3 +219,7 @@ export type {DragItem, DragItemType, DropTarget} from './dnd';
 // ── Presence ──
 export {PresenceIndicator, GlobalPresenceBar, usePresence} from './presence';
 export type {PresenceUser} from './presence';
+
+// ── Mobile Gestures ──
+export {useSwipeGesture, SwipeableListItem, useLongPress, usePinchZoom, usePullToRefresh, useMultiSelect} from './gestures';
+export type {SwipeGestureState, GestureHandlers, SwipeableListItemProps} from './gestures';

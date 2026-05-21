@@ -132,10 +132,10 @@
 - [x] `@anvil/ai` package with provider abstraction (OpenAI, Ollama, local)
 - [x] Semantic file search with pgvector + HNSW index
 - [x] Cross-app AI Copilot sidebar (context-aware across all apps)
-- [ ] Client-side ML inference via ONNX/Wasm (email triage, doc autocomplete)
+- [x] Client-side ML inference via ONNX/Wasm (email triage, doc autocomplete)
 - [x] Natural language file search: "find the contract I sent to Acme Corp"
 - [x] Document intelligence: auto TOC, style matching, version diff summary
-- [ ] Email thread summarization + sentiment analysis
+- [x] Email thread summarization + sentiment analysis
 
 ## Phase 14: Power User Experience
 - [x] Unified Command Palette (Cmd+K) across all apps
@@ -143,7 +143,7 @@
 - [x] Real-time presence indicators across the workspace shell
 - [x] Keyboard shortcuts system (Vim-like for Docs, Gmail-style for Mail)
 - [x] Global shortcuts: Cmd+1–6 for app switching
-- [ ] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
+- [x] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
 
 ## Phase 15: Technical Showcase
 - [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
