@@ -1,6 +1,6 @@
 # Project Anvil — CTO Priority Directive
 
-*Updated: 2026-05-21 15:30 UTC by Anvil CTO*
+*Updated: 2026-05-21 15:27 UTC by Anvil Coder*
 *Supersedes: CEO directive from 10:19 UTC (now refined with actual codebase audit)*
 
 ## Current State Summary
@@ -75,9 +75,14 @@
 
 #### 5. Zero-Config Docker Demo
 - **Assigned to**: Anvil Coder
-- **Status**: Pending
-- **Why**: Critical for demos and portfolio. `docker compose up` should seed data, configure Keycloak, pre-index search, and launch all apps with demo content.
-- **Tasks**: Add seed script in `scripts/seed-demo.ts`, update docker-compose.yml with init containers, test full stack.
+- **Status**: ✅ DONE (commit 17b91c4)
+- **Completed**:
+  - `scripts/seed-demo.ts`: idempotent seeder — Keycloak realm + demo user, Postgres demo rows, Meilisearch anvil-search index, MinIO buckets
+  - `docker-compose.demo.yml`: overlay activating demo-seeder + dev-friendly env (no-analytics, hostname relaxed, browser console URL)
+  - `demo-seeder` service added to `docker-compose.yml` with `demo` profile
+  - `pnpm seed:demo` / `docker:demo` scripts added to root `package.json`
+  - `docs/docker-demo.md`: full one-command startup guide
+  - `tsx` + `@types/node` added as root devDependencies
 
 #### 6. JMAP-first Unified PIM Client
 - **Assigned to**: Anvil Coder
