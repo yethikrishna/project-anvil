@@ -112,7 +112,7 @@
 - [x] Add cross-document transitions for multi-app flows
 
 ### Security Hardening (RFC 9700)
-- [ ] Audit OAuth 2.0 flows against RFC 9700 best practices
+- [x] Audit OAuth 2.0 flows against RFC 9700 best practices
 - [x] Add DPoP (RFC 9449) sender-constrained tokens
 - [x] Tighten CSP to Level 2+ on all auth endpoints
 - [ ] Evaluate PAR (RFC 9126) for high-security scenarios
