@@ -7,6 +7,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { AppShell, ThemeProvider, ThemeToggle, cn, Badge } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
 import { classifyEmail, CATEGORY_CONFIG, type EmailCategory } from './lib/ai-categorizer';
+import CalendarView from './components/calendar-view';
+import ContactsView from './components/contacts-view';
 
 // ─── Types ───
 
@@ -27,6 +29,7 @@ interface MailMessage {
 }
 
 type MailFolder = 'inbox' | 'starred' | 'sent' | 'drafts' | 'archive' | 'spam' | 'trash';
+type AppView = 'mail' | 'calendar' | 'contacts';
 
 // ─── Mock Data ───
 
@@ -379,6 +382,7 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
 
 export default function GmailPage() {
   const [messages, setMessages] = useState<MailMessage[]>(ALL_MESSAGES);
+  const [appView, setAppView] = useState<AppView>('mail');
   const [selectedFolder, setSelectedFolder] = useState<MailFolder>('inbox');
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
@@ -511,7 +515,7 @@ export default function GmailPage() {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setSelectedFolder(item.id); setSelectedThread(null); }}
+              onClick={() => { setSelectedFolder(item.id); setSelectedThread(null); setAppView('mail'); }}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                 selectedFolder === item.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -524,6 +528,30 @@ export default function GmailPage() {
               )}
             </button>
           ))}
+          {/* Calendar & Contacts shortcuts */}
+          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+            <button
+              onClick={() => setAppView('calendar')}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                appView === 'calendar' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              )}
+            >
+              <span className="text-sm">📅</span>
+              <span className="flex-1 text-left">Calendar</span>
+            </button>
+            <button
+              onClick={() => setAppView('contacts')}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                appView === 'contacts' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              )}
+            >
+              <span className="text-sm">👥</span>
+              <span className="flex-1 text-left">Contacts</span>
+            </button>
+          </div>
+
           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
             <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-3">Labels</p>
             {['work', 'github', 'newsletter', 'deploy', 'important'].map((label) => (
@@ -538,8 +566,12 @@ export default function GmailPage() {
       notifications={<><ThemeToggle /><NotificationBell /></>}
     >
     <div className="flex h-full">
-      {/* Main content */}
-      {selectedThread ? (
+      {/* Calendar & Contacts views */}
+      {appView === 'calendar' ? (
+        <CalendarView />
+      ) : appView === 'contacts' ? (
+        <ContactsView />
+      ) : selectedThread ? (
         <ThreadView
           messages={threadMessages}
           onBack={() => setSelectedThread(null)}
