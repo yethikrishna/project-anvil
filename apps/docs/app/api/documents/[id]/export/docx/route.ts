@@ -2,9 +2,10 @@ const DOCS_API = process.env.DOCS_API_URL ?? 'http://localhost:3102';
 
 export async function GET(
   _request: Request,
-  {params}: {params: {id: string}}
+  {params}: {params: Promise<{id: string}>}
 ) {
-  const resp = await fetch(`${DOCS_API}/api/documents/${params.id}/export/docx`);
+  const {id} = await params;
+  const resp = await fetch(`${DOCS_API}/api/documents/${id}/export/docx`);
 
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({error: 'Export failed'}));

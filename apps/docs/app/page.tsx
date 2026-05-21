@@ -112,7 +112,7 @@ export default function DocsPage() {
 
   return (
     <>
-    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>>
+    <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="docs" notifications={<><ThemeToggle/><NotificationBell/></>}>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Documents</h2>
@@ -208,7 +208,6 @@ export default function DocsPage() {
         )}
       </div>
     </AppShell></NotificationProvider></ThemeProvider>
-
     {/* Template Picker Modal — rendered outside AppShell */}
     <TemplatePicker
       open={showTemplates}

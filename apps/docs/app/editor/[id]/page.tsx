@@ -14,7 +14,7 @@ import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
 import * as Y from 'yjs';
 import {HocuspocusProvider} from '@hocuspocus/provider';
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useCallback, use} from 'react';
 import {useAuth} from '@anvil/auth';
 import {Button} from '@anvil/ui';
 import {AnalyticsPanel} from './AnalyticsPanel';
@@ -257,10 +257,11 @@ function PresenceIndicator({provider}: {provider: HocuspocusProvider | null}) {
 // ── Editor Page ──
 
 interface EditorPageProps {
-  params: {id: string};
+  params: Promise<{id: string}>;
 }
 
 export default function EditorPage({params}: EditorPageProps) {
+  const {id: paramsId} = use(params);
   const {user, isAuthenticated} = useAuth();
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [docTitle, setDocTitle] = useState('Loading...');
@@ -269,22 +270,22 @@ export default function EditorPage({params}: EditorPageProps) {
 
   // Fetch document metadata
   useEffect(() => {
-    fetch(`/api/documents/${params.id}`)
+    fetch(`/api/documents/${paramsId}`)
       .then(r => r.json())
       .then(data => setDocTitle(data.title ?? 'Untitled'))
       .catch(() => setDocTitle('Untitled'));
-  }, [params.id]);
+  }, [paramsId]);
 
   // Report join/leave to analytics
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.sub) return;
 
     fetch('/api/analytics/join', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        documentId: params.id,
-        userId: user.id,
+        documentId: paramsId,
+        userId: user.sub,
         userName: user.name ?? 'Anonymous',
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       }),
@@ -294,10 +295,10 @@ export default function EditorPage({params}: EditorPageProps) {
       fetch('/api/analytics/leave', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({documentId: params.id, userId: user.id}),
+        body: JSON.stringify({documentId: paramsId, userId: user.sub}),
       }).catch(() => {});
     };
-  }, [params.id, user?.id]);
+  }, [paramsId, user?.sub]);
 
   // Create Yjs document + Hocuspocus provider
   useEffect(() => {
@@ -305,9 +306,8 @@ export default function EditorPage({params}: EditorPageProps) {
 
     const hocuspocusProvider = new HocuspocusProvider({
       url: process.env.NEXT_PUBLIC_HOCUSPOCUS_URL ?? 'ws://localhost:3102/hocuspocus',
-      name: `doc-${params.id}`,
+      name: `doc-${paramsId}`,
       document: ydoc,
-      connect: true,
       onAuthenticated() {
         console.log('Connected to Hocuspocus');
       },
@@ -328,14 +328,14 @@ export default function EditorPage({params}: EditorPageProps) {
       hocuspocusProvider.destroy();
       ydoc.destroy();
     };
-  }, [params.id, user?.name]);
+  }, [paramsId, user?.name]);
 
   // Auto-save debounce
   const saveTimeout = useState<ReturnType<typeof setTimeout> | null>(null)[0];
   const saveDocument = useCallback(async (html: string) => {
     setIsSaving(true);
     try {
-      await fetch(`/api/documents/${params.id}`, {
+      await fetch(`/api/documents/${paramsId}`, {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({content: html}),
@@ -343,7 +343,7 @@ export default function EditorPage({params}: EditorPageProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [params.id]);
+  }, [paramsId]);
 
   // Create editor
   const editor = useEditor({
@@ -391,7 +391,7 @@ export default function EditorPage({params}: EditorPageProps) {
       fetch('/api/analytics/edit', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({documentId: params.id, userId: user?.id ?? 'anonymous'}),
+        body: JSON.stringify({documentId: paramsId, userId: user?.sub ?? 'anonymous'}),
       }).catch(() => {});
     },
     editorProps: {
@@ -404,7 +404,7 @@ export default function EditorPage({params}: EditorPageProps) {
   // Update title
   const handleTitleChange = async (newTitle: string) => {
     setDocTitle(newTitle);
-    await fetch(`/api/documents/${params.id}`, {
+    await fetch(`/api/documents/${paramsId}`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({title: newTitle}),
@@ -438,7 +438,7 @@ export default function EditorPage({params}: EditorPageProps) {
       </div>
 
       {/* Toolbar */}
-      <Toolbar editor={editor} docId={params.id} />
+      <Toolbar editor={editor} docId={paramsId} />
 
       {/* Editor */}
       <div className="flex-1 overflow-auto">
@@ -449,7 +449,7 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* Analytics Side Panel */}
       <AnalyticsPanel
-        documentId={params.id}
+        documentId={paramsId}
         open={showAnalytics}
         onClose={() => setShowAnalytics(false)}
       />

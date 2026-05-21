@@ -143,6 +143,9 @@ importers:
       '@anvil/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@anvil/next-config':
+        specifier: workspace:*
+        version: link:../../packages/next-config
       '@anvil/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
