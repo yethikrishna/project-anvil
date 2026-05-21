@@ -151,7 +151,7 @@
 - [x] Upgrade Meilisearch to **v1.13+** for production-stable hybrid/vector search
 - [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
 - [x] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
-- [ ] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
+- [x] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
 - [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
 - [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
 - [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
