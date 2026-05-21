@@ -1,11 +1,18 @@
 /**
  * ChatInput — message input with voice recording, send button, and command hints.
+ *
+ * Features:
+ * - Auto-resizing textarea
+ * - Push-to-talk voice input with audio visualization
+ * - Quick command suggestions
+ * - Keyboard shortcuts (Enter to send, Shift+Enter for new line)
  */
 
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@anvil/ui';
+import { useVoiceInput } from '@/lib/use-voice-input';
 
 interface Props {
   onSend: (text: string) => void;
@@ -13,10 +20,9 @@ interface Props {
   disabled?: boolean;
 }
 
-// Quick command suggestions
 const SUGGESTIONS = [
   'What needs my attention?',
-  'Draft a reply to Sarah',
+  'Draft a reply to my latest email',
   'Find the Q3 report on Drive',
   'Schedule a meeting with the team',
   'Give me a weekly summary',
@@ -25,11 +31,18 @@ const SUGGESTIONS = [
 
 export default function ChatInput({ onSend, isLoading, disabled }: Props) {
   const [input, setInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+
+  // Voice input
+  const { isRecording, isProcessing, audioLevel, startRecording, stopRecording } =
+    useVoiceInput({
+      onTranscript: (text) => {
+        setInput(prev => prev + (prev ? ' ' : '') + text);
+        textareaRef.current?.focus();
+      },
+      silenceTimeoutMs: 4000,
+    });
 
   // Auto-resize textarea
   useEffect(() => {
@@ -56,51 +69,6 @@ export default function ChatInput({ onSend, isLoading, disabled }: Props) {
     }
   };
 
-  // ── Voice Recording ──
-
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-
-        // Send to STT API
-        try {
-          const formData = new FormData();
-          formData.append('audio', blob, 'recording.webm');
-          const res = await fetch('/api/voice/stt', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (data.text) {
-            setInput(prev => prev + (prev ? ' ' : '') + data.text);
-          }
-        } catch {
-          // STT failed, ignore
-        }
-      };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch {
-      // No mic access
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-  }, []);
-
   return (
     <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
       {/* Quick suggestions */}
@@ -126,7 +94,7 @@ export default function ChatInput({ onSend, isLoading, disabled }: Props) {
             'w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-colors shrink-0',
             showSuggestions
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300'
-              : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
           )}
           title="Quick commands"
         >
@@ -140,13 +108,14 @@ export default function ChatInput({ onSend, isLoading, disabled }: Props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Anvil AI anything..."
+            placeholder={isProcessing ? 'Processing voice...' : 'Ask Anvil AI anything...'}
             className={cn(
               'w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700',
               'bg-gray-50 dark:bg-gray-900 px-4 py-2.5 text-sm',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
               'placeholder:text-gray-400',
               'max-h-40',
+              isRecording && 'ring-2 ring-red-400',
             )}
             rows={1}
             disabled={disabled || isLoading}
@@ -154,20 +123,42 @@ export default function ChatInput({ onSend, isLoading, disabled }: Props) {
         </div>
 
         {/* Voice button */}
-        <button
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          onMouseLeave={() => isRecording && stopRecording()}
-          className={cn(
-            'w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 transition-all relative',
-            isRecording
-              ? 'bg-red-500 text-white voice-pulse'
-              : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
+        <div className="relative">
+          <button
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            onMouseLeave={() => isRecording && stopRecording()}
+            onTouchStart={startRecording}
+            onTouchEnd={stopRecording}
+            disabled={disabled || isProcessing}
+            className={cn(
+              'w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 transition-all',
+              isRecording
+                ? 'bg-red-500 text-white voice-pulse'
+                : isProcessing
+                  ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 animate-pulse'
+                  : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
+            )}
+            title={isRecording ? 'Release to stop' : isProcessing ? 'Processing...' : 'Hold to record voice'}
+          >
+            {isProcessing ? '⏳' : '🎤'}
+          </button>
+
+          {/* Audio level ring */}
+          {isRecording && (
+            <div className="absolute inset-0 pointer-events-none">
+              <svg viewBox="0 0 32 32" className="w-full h-full">
+                <circle
+                  cx="16" cy="16" r={12 + audioLevel * 6}
+                  fill="none"
+                  stroke="rgba(239, 68, 68, 0.3)"
+                  strokeWidth="2"
+                  className="transition-all duration-75"
+                />
+              </svg>
+            </div>
           )}
-          title={isRecording ? 'Release to stop' : 'Hold to record voice'}
-        >
-          🎤
-        </button>
+        </div>
 
         {/* Send button */}
         <button
@@ -188,8 +179,15 @@ export default function ChatInput({ onSend, isLoading, disabled }: Props) {
         </button>
       </div>
 
-      <div className="px-4 pb-2 text-[10px] text-gray-400">
-        Anvil AI can search your mail, files, calendar, and docs. Shift+Enter for new line.
+      <div className="px-4 pb-2 text-[10px] text-gray-400 flex justify-between">
+        <span>
+          Anvil AI can search your mail, files, calendar, and docs. Shift+Enter for new line.
+        </span>
+        {isRecording && (
+          <span className="text-red-500 font-medium animate-pulse">
+            Recording...
+          </span>
+        )}
       </div>
     </div>
   );
