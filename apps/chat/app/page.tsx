@@ -14,6 +14,8 @@ import MessageBubble from '@/components/MessageBubble';
 import ChatInput from '@/components/ChatInput';
 import AttentionPanel from '@/components/AttentionPanel';
 import VoiceOutput from '@/components/VoiceOutput';
+import SearchModal from '@/components/SearchModal';
+import ConversationActions from '@/components/ConversationActions';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
@@ -33,8 +35,21 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // ── Load conversations on mount ──
   useEffect(() => {
@@ -82,6 +97,26 @@ export default function ChatPage() {
     setConversations(prev => prev.filter(c => c.id !== id));
     if (activeConv?.id === id) {
       setActiveConv(null);
+    }
+  }, [activeConv]);
+
+  const handleRenameConversation = useCallback(async (id: string, title: string) => {
+    const conv = await getConversation(id);
+    if (conv) {
+      conv.title = title;
+      await saveConversation(conv);
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c));
+      if (activeConv?.id === id) setActiveConv({ ...activeConv, title });
+    }
+  }, [activeConv]);
+
+  const handleClearConversation = useCallback(async (id: string) => {
+    const conv = await getConversation(id);
+    if (conv) {
+      conv.messages = [];
+      await saveConversation(conv);
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, messages: [] } : c));
+      if (activeConv?.id === id) setActiveConv({ ...activeConv, messages: [] });
     }
   }, [activeConv]);
 
@@ -273,6 +308,21 @@ export default function ChatPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {activeConv && (
+                <ConversationActions
+                  conversation={activeConv}
+                  onRename={handleRenameConversation}
+                  onClear={handleClearConversation}
+                  onClose={() => {}}
+                />
+              )}
+              <button
+                onClick={() => setShowSearch(true)}
+                className="text-xs px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                title="Search conversations (Ctrl+K)"
+              >
+                🔍
+              </button>
               <button
                 onClick={() => setShowAttention(!showAttention)}
                 className={showAttention
@@ -375,6 +425,15 @@ export default function ChatPage() {
           {/* Input */}
           <ChatInput onSend={handleSend} isLoading={isLoading} />
         </div>
+
+        {/* Search modal */}
+        {showSearch && (
+          <SearchModal
+            conversations={conversations}
+            onSelect={handleSelectConversation}
+            onClose={() => setShowSearch(false)}
+          />
+        )}
 
         {/* Attention panel */}
         {showAttention && (
