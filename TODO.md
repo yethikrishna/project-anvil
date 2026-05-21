@@ -366,6 +366,52 @@
 - [ ] postMessage API for parent-child communication
 - [ ] CSP frame-ancestors configuration
 
+## Phase 36: Google Sheets Clone
+- [ ] Virtual-scroll grid rendering (millions of cells)
+- [ ] Formula engine via Formualizer (Rust → WASM, 400+ Excel functions)
+- [ ] Dependency graph with incremental recalculation
+- [ ] Real-time CRDT co-editing via Yjs (cell-level locking)
+- [ ] Cell formatting, conditional formatting, data validation
+- [ ] Charts: bar, line, pie, scatter, area (canvas/SVG)
+- [ ] Pivot table builder
+- [ ] Import .xlsx/.csv/.tsv, export .xlsx/.csv/.pdf
+- [ ] Cross-sheet references, named ranges, freeze panes
+- [ ] Comment threads on cells + version history
+
+## Phase 37: Google Slides Clone
+- [ ] Canvas-based slide editor (Fabric.js / Konva.js)
+- [ ] Text boxes, images, shapes, lines, tables
+- [ ] Master slides & layout templates
+- [ ] Slide transitions + presentation mode (fullscreen)
+- [ ] Speaker notes pane + slide sorter view
+- [ ] Real-time CRDT co-editing + element-level locking
+- [ ] Export to PDF
+- [ ] Template gallery (pitch deck, report, photo album)
+
+## Phase 38: Google Forms Clone
+- [ ] Drag-and-drop question builder
+- [ ] Question types: text, choice, dropdown, scale, date, file upload
+- [ ] Conditional logic (section branching based on answer)
+- [ ] Responses auto-populate Sheets clone
+- [ ] Response summary with auto-generated charts
+- [ ] Public link sharing + embed code + QR code
+- [ ] Required field validation, response limits
+- [ ] CSV/JSON export
+
+## Phase 39: Deep Linking & URL State
+- [ ] Universal URL scheme across all apps (every state = URL)
+- [ ] Shareable deep links with permission scoping
+- [ ] Link expiration + password protection + one-time view
+- [ ] Cross-app deep linking (email → doc, calendar → drive)
+- [ ] `@anvil/deep-link` package + shell router integration
+
+## Phase 40: Portfolio Showcase Site
+- [ ] Landing page with animated app previews + architecture diagram
+- [ ] Case study pages per app (system design interview format)
+- [ ] Interactive `/resume` route with skills matrix + timeline
+- [ ] Performance benchmarks + side-by-side with Google
+- [ ] ATS-optimized PDF resume export
+
 ## Backlog (Architecture)
 - [ ] Micro-frontend shell with Module Federation
 - [ ] Edge computing (Cloudflare Workers / Vercel Edge) for auth + caching
