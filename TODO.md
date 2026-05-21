@@ -154,7 +154,7 @@
 - [x] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
 - [x] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
 - [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
-- [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
+- [x] Study **PeerTube** architecture for self-hosted video in YouTube clone
 - [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
 - [ ] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
 - [ ] Upgrade **Hocuspocus to v4** (cross-runtime, memory optimization, edge deploy on CF Workers)
