@@ -186,6 +186,21 @@
 - [ ] Create **Cloudflare Free Stack** deployment guide (Workers + R2 + D1 + KV + Pages = $0/mo)
 - [ ] Evaluate **React Aria Components** for accessibility layer in @anvil/ui (50+ ARIA-compliant components)
 
+## Phase 12c: Research-Driven Enhancements (2026-05-21 Session 7)
+- [ ] Build **JMAP-first unified PIM client** — extend Gmail clone with Calendar (JSCalendar), Contacts (JSContact), File Storage via Stalwart v0.16 APIs
+- [ ] Upgrade Stalwart Docker image to **v0.16.6** and configure external OIDC login
+- [ ] Create **Cloudflare Free Stack** deployment guide — Pages + Workers + R2 + D1 + KV = $0/mo demo
+- [ ] Evaluate **PGlite** as universal offline layer — WASM Postgres with pgvector + PostGIS for offline Drive/Docs/Mail/Maps
+- [ ] Replace Maps tile server with **PMTiles + Protomaps** static tiles (hosted on R2, no tile server)
+- [ ] Evaluate **Loro CRDT** for Docs version timeline — visual history slider, branch/merge, semantic diff
+- [ ] Ship **Authentik alternative Docker Compose** config alongside Keycloak (no Redis, MIT license, visual flow editor)
+- [ ] Plan **Next.js 15 → 16 upgrade** across all apps — Turbopack default, "use cache", React Compiler
+- [ ] Evaluate **Base UI** (MUI team) as Radix replacement in @anvil/ui
+- [ ] Add **Hono edge gateway** on CF Workers for unified API routing, auth, rate limiting
+- [ ] Build **CRDT Debug Visualizer** — Yjs ops DAG, concurrent edit colors, conflict replay, perf metrics
+- [ ] Implement **event-driven cross-app bus** — file upload → index → tag → notify pipeline
+- [ ] Create **zero-config Docker demo** — pre-seeded data, auto-configured auth, pre-indexed search
+
 ## Phase 12b: Research-Driven Enhancements (2026-05-21 Session 6)
 - [ ] Upgrade Meilisearch to **v1.44** (HNSW default, faster embeddings, embedder timeouts, performance observability)
 - [ ] Integrate Stalwart **JMAP Calendar + Contacts + File Storage** APIs (now available in v0.16.x) into Gmail clone
