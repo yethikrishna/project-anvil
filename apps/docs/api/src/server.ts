@@ -16,6 +16,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import {documentRoutes} from './routes/documents.js';
 import {exportRoutes} from './routes/export.js';
+import {previewRoutes} from './routes/preview.js';
 import {analyticsRoutes} from './routes/analytics-routes.js';
 import {db} from './db/index.js';
 import {documents} from './db/schema.js';
@@ -131,6 +132,9 @@ async function main() {
 
   // Document export (PDF / DOCX)
   await app.register(exportRoutes);
+
+  // Document preview (static rendering)
+  await app.register(previewRoutes);
 
   // Collaboration analytics
   await app.register(analyticsRoutes);

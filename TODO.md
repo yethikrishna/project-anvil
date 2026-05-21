@@ -82,8 +82,8 @@
 ## Phase Next: Trend-Informed Upgrades (2026-05-21)
 
 ### Editor Modernization
-- [ ] Upgrade Tiptap 2 → 3 across Docs Clone (Phase 4)
-- [ ] Add @tiptap/static-renderer for server-side document previews
+- [x] Upgrade Tiptap 2 → 3 across Docs Clone (Phase 4)
+- [x] Add @tiptap/static-renderer for server-side document previews
 - [ ] Evaluate Hocuspocus 4 migration for collaboration server
 - [ ] Enable JSX renderHTML support for custom nodes
 - [ ] Add previously-pro extensions now OSS: Drag Handle, Emoji, Math

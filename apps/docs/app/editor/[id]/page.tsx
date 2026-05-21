@@ -4,13 +4,14 @@ import {useEditor, EditorContent} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
 import Typography from '@tiptap/extension-typography';
 import Image from '@tiptap/extension-image';
+import CharacterCount from '@tiptap/extension-character-count';
 import * as Y from 'yjs';
 import {HocuspocusProvider} from '@hocuspocus/provider';
 import {useState, useEffect, useCallback} from 'react';
@@ -348,7 +349,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        history: false, // Collaboration handles history
+        undoRedo: false, // Collaboration handles history via UndoRedo (renamed from history)
       }),
       Placeholder.configure({
         placeholder: 'Start writing...',
@@ -363,12 +364,13 @@ export default function EditorPage({params}: EditorPageProps) {
       }),
       Typography,
       Image,
+      CharacterCount,
       ...(provider
         ? [
             Collaboration.configure({
               document: provider.document,
             }),
-            CollaborationCursor.configure({
+            CollaborationCaret.configure({
               provider,
               user: {
                 name: user?.name ?? 'Anonymous',
@@ -378,6 +380,7 @@ export default function EditorPage({params}: EditorPageProps) {
           ]
         : []),
     ],
+    shouldRerenderOnTransaction: false,
     onUpdate: ({editor}) => {
       // Debounced auto-save
       const html = editor.getHTML();
