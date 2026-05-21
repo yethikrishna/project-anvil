@@ -172,3 +172,4 @@ export * from './hooks';
 export * from './route-handlers';
 export * from './middleware';
 export * from './security';
+export * from './session-security';

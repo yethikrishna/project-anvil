@@ -234,7 +234,7 @@
 
 ## Phase 19: Accessibility & Internationalization
 - [ ] WCAG 2.2 AA compliance with axe-core CI integration
-- [ ] Accessibility score dashboard per app
+- [x] Accessibility score dashboard per app
 - [ ] Screen reader-optimized mode (ARIA live regions, landmark nav)
 - [x] Voice control interface via Web Speech API
 - [x] `@anvil/i18n` package with type-safe keys + RTL support
@@ -253,7 +253,7 @@
 ## Phase 21: Novel Interactions & Analytics
 - [x] Smart Clipboard (copy file from Drive → paste into Gmail as attachment)
 - [x] Focus modes: Zen (Docs), Inbox Zero (Gmail), Deep Work (cross-app)
-- [ ] Smart bookmarks/pins across all apps + AI-suggested pins
+- [x] Smart bookmarks/pins across all apps + AI-suggested pins
 - [x] Spatial navigation for grids and lists (keyboard-driven)
 - [x] Activity timeline across all apps ("12 emails, 3 docs, 1 upload today")
 - [ ] Email analytics (response time, volume heatmap, top correspondents)
@@ -263,7 +263,7 @@
 ## Phase 22: Security Hardening
 - [x] Security headers + CSP nonce policy on all apps (target A+ on SecurityHeaders.com)
 - [ ] OWASP Top 10 audit document with per-risk mitigation proof
-- [ ] Session security: device fingerprinting, revocation, login history
+- [x] Session security: device fingerprinting, revocation, login history
 - [ ] API key management with scoped permissions + request signing
 - [ ] Dependency audit pipeline (npm audit + trivy + SBOM in CI)
 - [x] Rate limiting on all endpoints (token bucket rate limiter)

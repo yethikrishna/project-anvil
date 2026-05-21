@@ -246,3 +246,11 @@ export type {ConversationMessage, SearchResult, ConversationalSearchState} from 
 // ── Did You Mean ──
 export {suggestCorrections, useDidYouMean, DidYouMeanSuggestion} from './dym';
 export type {SuggestionResult} from './dym';
+
+// ── Accessibility Dashboard ──
+export {useA11yAudit, A11yScoreDashboard} from './a11y-dashboard';
+export type {A11yAuditResult, A11yAppScore} from './a11y-dashboard';
+
+// ── Smart Bookmarks ──
+export {useBookmarks, BookmarkButton, QuickAccessPanel} from './bookmarks';
+export type {Bookmark, BookmarkGroup} from './bookmarks';
