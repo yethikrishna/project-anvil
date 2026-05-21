@@ -242,3 +242,7 @@ export type {ClipboardItem} from './clipboard';
 // ── Conversational Search ──
 export {useConversationalSearch, ConversationalSearchPanel} from './convo-search';
 export type {ConversationMessage, SearchResult, ConversationalSearchState} from './convo-search';
+
+// ── Did You Mean ──
+export {suggestCorrections, useDidYouMean, DidYouMeanSuggestion} from './dym';
+export type {SuggestionResult} from './dym';

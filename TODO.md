@@ -92,7 +92,7 @@
 - [x] Implement Conversational Search (Chats API) for document Q&A
 - [ ] Add reranking stage to hybrid search pipeline
 - [ ] Evaluate multi-modal Fragments API for image+text search
-- [ ] Add "Did you mean" semantic suggestions via LLM
+- [x] Add "Did you mean" semantic suggestions via LLM
 
 ### Local-First AI
 - [ ] Add optional local embedding generation (Nomic/BGE-M3 via Ollama)
@@ -223,7 +223,7 @@
 - [x] Admin console: team management, usage analytics, audit logs
 - [x] Stripe billing integration with usage-based tiers
 - [ ] GraphQL Federation gateway (federated subgraphs per app)
-- [ ] MDX-powered blog + auto-generated changelog
+- [x] MDX-powered blog + auto-generated changelog
 
 ## Phase 18: Modern Web Platform (Polish)
 - [x] View Transitions API for cross-app navigation animations
@@ -266,7 +266,7 @@
 - [ ] Session security: device fingerprinting, revocation, login history
 - [ ] API key management with scoped permissions + request signing
 - [ ] Dependency audit pipeline (npm audit + trivy + SBOM in CI)
-- [ ] Rate limiting on all endpoints (express-rate-limit + Redis)
+- [x] Rate limiting on all endpoints (token bucket rate limiter)
 
 ## Phase 23: Google Photos Clone
 - [ ] Timeline view with virtualized infinite scroll
