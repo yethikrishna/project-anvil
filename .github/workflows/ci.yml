@@ -84,6 +84,31 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: 0
 
+  # Container image vulnerability scanning
+  container-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull and scan container images
+        run: |
+          # Install trivy
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+          # Scan each image from docker-compose
+          IMAGES=$(grep -oP 'image:\s*\K.*' docker-compose.yml | sed "s/['\"]//g" | sort -u)
+          echo "Scanning images: $IMAGES"
+          echo "$IMAGES" | while read -r image; do
+            echo "=== Scanning: $image ==="
+            trivy image --severity HIGH,CRITICAL --format table "$image" || true
+            echo ""
+          done
+
   # OIDC-federated deployment (no stored secrets)
   deploy:
     name: Deploy (OIDC)
