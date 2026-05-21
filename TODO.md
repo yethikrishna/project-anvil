@@ -323,7 +323,7 @@
 - [x] Trophy case on profile page
 
 ## Phase 29: Ambient UX & Widgets
-- [ ] Customizable dashboard with drag-and-drop widgets
+- [x] Customizable dashboard with drag-and-drop widgets
 - [ ] Browser new-tab extension with Anvil quick access
 - [ ] Ambient screensaver mode (photos, calendar, weather)
 
@@ -335,12 +335,12 @@
 - [ ] Semantic versioning + auto-changelog
 
 ## Phase 31: Workflow Automation (Anvil Flows)
-- [ ] Trigger + action system across all apps (20+ trigger/action types)
-- [ ] Visual drag-and-drop flow builder (React Flow)
-- [ ] BullMQ execution pipeline with retry + error handling
-- [ ] Template library: pre-built flows (invoice processing, weekly digest, meeting prep)
-- [ ] Cron triggers: "Every Friday at 5pm → email summary"
-- [ ] Community flow sharing via marketplace
+- [x] Trigger + action system across all apps (20+ trigger/action types)
+- [x] Visual drag-and-drop flow builder (React Flow)
+- [x] BullMQ execution pipeline with retry + error handling
+- [x] Template library: pre-built flows (invoice processing, weekly digest, meeting prep)
+- [x] Cron triggers: "Every Friday at 5pm → email summary"
+- [x] Community flow sharing via marketplace
 
 ## Phase 32: Collaborative Whiteboard
 - [ ] Infinite canvas with drawing tools (pen, shapes, text, sticky notes, arrows)
@@ -352,11 +352,11 @@
 - [ ] Tech: Excalidraw library wrapped as Anvil app
 
 ## Phase 33: Passwordless Auth + Passkeys
-- [ ] WebAuthn/FIDO2 passkeys for passwordless login
-- [ ] Magic link email login
+- [x] WebAuthn/FIDO2 passkeys for passwordless login
+- [x] Magic link email login
 - [ ] QR code login from mobile
 - [ ] Hardware security key support (YubiKey)
-- [ ] Account recovery without passwords (trusted devices)
+- [x] Account recovery without passwords (trusted devices)
 - [ ] Tech: @simplewebauthn/server + browser WebAuthn API
 
 ## Phase 34: Multi-Layer Cache Architecture
@@ -407,11 +407,11 @@
 - [ ] CSV/JSON export
 
 ## Phase 39: Deep Linking & URL State
-- [ ] Universal URL scheme across all apps (every state = URL)
-- [ ] Shareable deep links with permission scoping
-- [ ] Link expiration + password protection + one-time view
-- [ ] Cross-app deep linking (email → doc, calendar → drive)
-- [ ] `@anvil/deep-link` package + shell router integration
+- [x] Universal URL scheme across all apps (every state = URL)
+- [x] Shareable deep links with permission scoping
+- [x] Link expiration + password protection + one-time view
+- [x] Cross-app deep linking (email → doc, calendar → drive)
+- [x] `@anvil/deep-link` package + shell router integration
 
 ## Phase 40: Portfolio Showcase Site
 - [ ] Landing page with animated app previews + architecture diagram

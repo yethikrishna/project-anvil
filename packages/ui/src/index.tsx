@@ -273,3 +273,7 @@ export type {EmbedConfig, EmbedMessage, EmbedAction} from './embed';
 // ── Gamification ──
 export {useGamification, TrophyCase, ProductivityScoreRing, QuestCard} from './gamification';
 export type {Achievement, Quest, QuestStep, GamificationState} from './gamification';
+
+// ── Dashboard ──
+export {useDashboard, Dashboard} from './dashboard';
+export type {DashboardWidget, DashboardLayout, WidgetType} from './dashboard';
