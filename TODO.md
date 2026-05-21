@@ -111,6 +111,12 @@
 - [ ] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
 - [ ] Evaluate **PowerSync** for offline-first Drive/Docs (SQLite ↔ PostgreSQL sync)
 - [ ] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
+- [ ] Upgrade **Tiptap to 3.0** (smaller bundles, TS, Markdown extension, static renderer)
+- [ ] Evaluate **Turso embedded replicas** for offline Drive/Docs (edge SQLite + microsecond reads)
+- [ ] Evaluate **Bun + Elysia** as Fastify replacement (2–4× perf, auto OpenAPI)
+- [ ] Integrate **FFmpeg.wasm** for YouTube client-side video preprocessing
+- [ ] Add **Dexie.js** as client-side IndexedDB layer for offline features across all apps
+- [ ] Add **WebGPU compute** path for Phase 15 image processing + analytics (70%+ browser support)
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
