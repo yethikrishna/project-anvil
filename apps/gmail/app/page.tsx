@@ -28,6 +28,7 @@ import {
   SemanticSearchBar,
 } from './components/ai-mail-ui';
 import { semanticSearch as semanticSearchAI } from './lib/semantic-email-search';
+import { EmailRulesManager } from './components/email-rules-manager';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
 
@@ -426,6 +427,7 @@ export default function GmailPage() {
   const [activeInboxCategory, setActiveInboxCategory] = useState<InboxCategory | 'all'>('all');
   const [showDigest, setShowDigest] = useState(false);
   const [showSmartFilters, setShowSmartFilters] = useState(false);
+  const [showRulesManager, setShowRulesManager] = useState(false);
 
   // Compute inbox category counts (enhanced with priority detection)
   const inboxCategoryCounts = useMemo(() => {
@@ -602,6 +604,13 @@ export default function GmailPage() {
             >
               <span className="text-sm">🤖</span>
               <span className="flex-1 text-left">Smart Filters</span>
+            </button>
+            <button
+              onClick={() => setShowRulesManager(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+            >
+              <span className="text-sm">⚙️</span>
+              <span className="flex-1 text-left">Rules</span>
             </button>
             <button
               onClick={() => setAppView('calendar')}
@@ -783,6 +792,17 @@ export default function GmailPage() {
           messages={messages}
           onClose={() => setShowDigest(false)}
           onSelectEmail={(threadId) => { setSelectedThread(threadId); setShowDigest(false); }}
+        />
+      )}
+
+      {/* Rules Manager */}
+      {showRulesManager && (
+        <EmailRulesManager
+          messages={messages}
+          onClose={() => setShowRulesManager(false)}
+          onRuleApplied={(rule) => {
+            console.log('Applied rule:', rule.name);
+          }}
         />
       )}
     </div>

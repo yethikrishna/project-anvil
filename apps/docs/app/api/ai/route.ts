@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff';
   payload: Record<string, unknown>;
 }
 
@@ -338,6 +338,35 @@ Rules:
   return {html: result.text.trim()};
 }
 
+async function handleVersionDiff(ai: ReturnType<typeof getAI>, payload: {
+  fromSummary: string;
+  toSummary: string;
+  fromWordCount: number;
+  toWordCount: number;
+  fromChanges?: string[];
+  toChanges?: string[];
+}): Promise<{summary: string; additions: number; deletions: number; sectionChanges: Array<{sectionTitle: string; type: string; description: string}>}> {
+  const result = await ai.generate([
+    {role: 'system', content: `Compare two document versions and summarize the changes.
+Output JSON: {"summary": "human-readable summary", "additions": N, "deletions": N, "sectionChanges": [{"sectionTitle": "...", "type": "added|modified|removed", "description": "..."}]}
+Keep the summary concise (2-3 sentences). Focus on what actually changed, not just word counts.`},
+    {role: 'user', content: `Version A (${payload.fromWordCount} words): ${payload.fromSummary}\nChanges: ${(payload.fromChanges || []).join(', ') || 'initial version'}\n\nVersion B (${payload.toWordCount} words): ${payload.toSummary}\nChanges: ${(payload.toChanges || []).join(', ')}`},
+  ], {temperature: 0.2, maxTokens: 400});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    const diff = payload.toWordCount - payload.fromWordCount;
+    return {
+      summary: `Document updated. ${diff > 0 ? `Added ${diff} words` : diff < 0 ? `Removed ${Math.abs(diff)} words` : 'Word count unchanged'}.`,
+      additions: Math.max(0, diff),
+      deletions: Math.max(0, -diff),
+      sectionChanges: [],
+    };
+  }
+}
+
 async function handleAssistant(ai: ReturnType<typeof getAI>, payload: {
   question: string;
   documentContent: string;
@@ -403,6 +432,8 @@ export async function POST(request: Request) {
         return Response.json(await handleAssistant(ai, body.payload as any));
       case 'toc':
         return Response.json(await handleTOC(ai, body.payload as any));
+      case 'version-diff':
+        return Response.json(await handleVersionDiff(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }
