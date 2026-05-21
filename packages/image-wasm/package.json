@@ -1,0 +1,15 @@
+{
+  "name": "@anvil/image-wasm",
+  "version": "0.1.0",
+  "description": "WASM image processing pipeline (resize, compress, filter) powered by Rust",
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": ["index.ts", "pkg/"],
+  "scripts": {
+    "build:wasm": "wasm-pack build --target web --out-dir pkg --out-name anvil_image",
+    "build": "npm run build:wasm"
+  },
+  "keywords": ["wasm", "image", "resize", "compress", "rust"],
+  "license": "MIT"
+}

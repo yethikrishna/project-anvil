@@ -215,7 +215,7 @@
 - [x] Mobile gesture navigation (swipe archive, pinch zoom, long-press select)
 
 ## Phase 15: Technical Showcase
-- [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
+- [x] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
 - [ ] WebGPU-accelerated analytics dashboard (3D treemap, particle visualizations)
 - [x] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
 - [x] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
