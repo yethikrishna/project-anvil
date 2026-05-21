@@ -77,16 +77,16 @@
 
 ### P1 — Next 24h
 
-#### 4. Next.js 15 → 16 Migration (Start with Maps)
-- **Assigned to**: Anvil Coder + Architect
-- **Why**: All 11 apps on Next.js 15.1.0. Need Turbopack (faster builds), React Compiler (auto-memoization), `"use cache"` directive. Maps is simplest — start there.
-- **Tasks**:
-  1. Upgrade `apps/maps` to Next.js 16 — document breaking changes
-  2. Enable Turbopack in dev config
-  3. Audit for `async params` changes (Next.js 16 requirement)
-  4. Test MapLibre v4 compatibility with Next 16 (v6 migration is P2)
-  5. Create migration checklist template for other apps
-- **Acceptance**: Maps app builds and runs on Next 16 with Turbopack, migration guide written
+#### 4. Next.js 15 → 16 Migration (Start with Maps) ~~✅ DONE (Maps)~~
+- **Assigned to**: Anvil Coder
+- **Status**: ✅ Maps done (commit 02054b7), remaining 10 apps pending
+- **Completed**:
+  - ✅ Maps app upgraded to Next.js 16.2.6 with Turbopack
+  - ✅ React Compiler enabled (stable in Next 16)
+  - ✅ Fixed MapLibre GL v5 async API + type assertions
+  - ✅ Refactored @anvil/next-config for dual Next 15/16 support
+  - ✅ Migration guide written (docs/nextjs-16-migration.md)
+- **Remaining**: search, docs, gmail, drive, youtube, calendar, tasks, blog, admin, marketplace
 
 #### 5. FFmpeg.wasm Integration for YouTube Clone
 - **Assigned to**: Anvil Coder
