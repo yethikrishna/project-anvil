@@ -20,6 +20,8 @@ export interface Plan {
   storageGB: number;
   features: string[];
   stripePriceId?: string;
+  highlight?: boolean;
+  cta?: string;
 }
 
 export interface UsageRecord {
@@ -94,6 +96,8 @@ export const PLANS: Record<PlanId, Plan> = {
       'Priority support',
     ],
     stripePriceId: 'price_business_monthly',
+    highlight: true,
+    cta: 'Start Free Trial',
   },
   enterprise: {
     id: 'enterprise',
@@ -111,37 +115,9 @@ export const PLANS: Record<PlanId, Plan> = {
       'Dedicated support',
       'On-premise option',
     ],
+    cta: 'Contact Sales',
   },
 };
-
-// ── Usage Tracking ──
-
-const usageStore = new Map<string, UsageRecord>();
-
-export function trackUsage(userId: string, metric: keyof Omit<UsageRecord, 'userId' | 'period'>, amount = 1): void {
-  const period = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const key = `${userId}:${period}`;
-  const existing = usageStore.get(key);
-
-  if (existing) {
-    (existing[metric] as number) += amount;
-  } else {
-    usageStore.set(key, {
-      userId,
-      period,
-      storageGB: metric === 'storageGB' ? amount : 0,
-      apiCalls: metric === 'apiCalls' ? amount : 0,
-      documentsCreated: metric === 'documentsCreated' ? amount : 0,
-      emailsSent: metric === 'emailsSent' ? amount : 0,
-      sharesCreated: metric === 'sharesCreated' ? amount : 0,
-    });
-  }
-}
-
-export function getUsage(userId: string, period?: string): UsageRecord | undefined {
-  const p = period ?? new Date().toISOString().slice(0, 7);
-  return usageStore.get(`${userId}:${p}`);
-}
 
 // ── Plan Enforcement ──
 
@@ -192,6 +168,35 @@ export function calculateOverage(planId: PlanId, usedGB: number): {
   return {overageGB, overageCost};
 }
 
+// ── Usage Tracking ──
+
+const usageStore = new Map<string, UsageRecord>();
+
+export function trackUsage(userId: string, metric: keyof Omit<UsageRecord, 'userId' | 'period'>, amount = 1): void {
+  const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const key = `${userId}:${period}`;
+  const existing = usageStore.get(key);
+
+  if (existing) {
+    (existing[metric] as number) += amount;
+  } else {
+    usageStore.set(key, {
+      userId,
+      period,
+      storageGB: metric === 'storageGB' ? amount : 0,
+      apiCalls: metric === 'apiCalls' ? amount : 0,
+      documentsCreated: metric === 'documentsCreated' ? amount : 0,
+      emailsSent: metric === 'emailsSent' ? amount : 0,
+      sharesCreated: metric === 'sharesCreated' ? amount : 0,
+    });
+  }
+}
+
+export function getUsage(userId: string, period?: string): UsageRecord | undefined {
+  const p = period ?? new Date().toISOString().slice(0, 7);
+  return usageStore.get(`${userId}:${p}`);
+}
+
 // ── Stripe Webhook Handlers ──
 
 export interface StripeWebhookEvent {
@@ -228,3 +233,8 @@ export function handleStripeWebhook(event: StripeWebhookEvent): {action: string;
       return {action: 'unknown', customerId};
   }
 }
+
+// ── Re-exports ──
+
+export * from './stripe';
+export * from './metering';

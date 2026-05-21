@@ -186,6 +186,26 @@
 - [x] Create **Cloudflare Free Stack** deployment guide (Workers + R2 + D1 + KV + Pages = $0/mo)
 - [ ] Evaluate **React Aria Components** for accessibility layer in @anvil/ui (50+ ARIA-compliant components)
 
+## Phase 4: Enterprise + SaaS (2026-05-21)
+- [x] Admin console (apps/admin/) — user management, org settings, audit logs, API keys
+- [x] Admin API routes — /api/users, /api/audit, /api/org, /api/billing, /api/api-keys
+- [x] SAML 2.0 integration in packages/auth/saml/ — SP-initiated SSO, IdP-initiated, SLO, JIT provisioning
+- [x] LDAP/Active Directory connector in packages/auth/ldap/ — user/group sync, role mapping, incremental sync
+- [x] MFA enforcement (TOTP + WebAuthn) in packages/auth/mfa/ — RFC 6238, recovery codes, grace periods
+- [x] Compliance deployment configs — Docker Compose for HIPAA, GDPR, SOC 2 (infra/compliance/)
+- [x] Data residency configuration — per-region data routing, jurisdiction constraints (infra/data-residency/)
+- [x] Per-tenant encryption keys — HSM-backed envelope encryption, key rotation (infra/hsm/)
+- [x] Billing system (packages/billing/) — Stripe client, subscription lifecycle, webhook handling
+- [x] Usage metering — per-org counters, rate limits, anomaly detection, overage billing
+- [x] Google Workspace migration toolkit (packages/migration/):
+  - [x] Gmail → Stalwart IMAP migration with label mapping
+  - [x] Google Docs → Anvil Docs via HTML export
+  - [x] Google Drive → MinIO with folder hierarchy preservation
+  - [x] Google Calendar → Anvil Calendar via iCal
+- [x] SaaS hosting infra — multi-tenant DB schema, tenant isolation, custom domains (infra/saas-multitenant/)
+- [x] Landing page — pricing, features, testimonials, demo signup
+- [x] One-liner install script (curl | bash) with preflight checks and auto-configuration
+
 ## Phase 12c: Research-Driven Enhancements (2026-05-21 Session 7)
 - [ ] Build **JMAP-first unified PIM client** — extend Gmail clone with Calendar (JSCalendar), Contacts (JSContact), File Storage via Stalwart v0.16 APIs
 - [ ] Upgrade Stalwart Docker image to **v0.16.6** and configure external OIDC login
