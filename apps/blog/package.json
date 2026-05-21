@@ -8,18 +8,19 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anvil/next-config": "workspace:^",
+    "@anvil/ui": "workspace:*",
+    "clsx": "^2.1.0",
+    "gray-matter": "^4.0.3",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@anvil/ui": "workspace:*",
-    "gray-matter": "^4.0.3",
-    "reading-time": "^1.5.0",
-    "clsx": "^2.1.0"
+    "reading-time": "^1.5.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
-    "tailwindcss": "^4.0.0"
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
   }
 }

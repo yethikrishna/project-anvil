@@ -3,8 +3,55 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Protocol } from 'pmtiles';
+import { layers as protomapsLayers, namedTheme } from 'protomaps-themes-base';
 import { cn, AppShell, ThemeProvider, ThemeToggle } from '@anvil/ui';
 import { NotificationProvider, NotificationBell } from '@anvil/notifications';
+
+// --- PMTiles Protocol (register once globally) ---
+let pmtilesProtocolRegistered = false;
+function ensurePMTilesProtocol() {
+  if (typeof window === 'undefined' || pmtilesProtocolRegistered) return;
+  const protocol = new Protocol();
+  maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol));
+  pmtilesProtocolRegistered = true;
+}
+
+// --- WebGL2 detection ---
+function supportsWebGL2(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(canvas.getContext('webgl2') || canvas.getContext('experimental-webgl2'));
+  } catch {
+    return false;
+  }
+}
+
+// --- Map styles ---
+type MapStyleKey = 'osm' | 'protomaps-light' | 'protomaps-dark';
+
+const OSM_STYLE = 'https://demotiles.maplibre.org/style.json';
+
+// Protomaps public CDN basemap. Swap with your R2 URL for production.
+const PROTOMAPS_TILES_URL = 'https://build.protomaps.com/20250425.pmtiles';
+
+function buildProtomapsStyle(theme: 'light' | 'dark'): maplibregl.StyleSpecification {
+  const themeObj = namedTheme(theme);
+  return {
+    version: 8,
+    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
+    sprite: `https://protomaps.github.io/basemaps-assets/sprites/v4/${theme}`,
+    sources: {
+      protomaps: {
+        type: 'vector',
+        url: `pmtiles://${PROTOMAPS_TILES_URL}`,
+        attribution: '<a href="https://protomaps.com">Protomaps</a> (c) <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      },
+    },
+    layers: protomapsLayers('protomaps', themeObj, { lang: 'en' }) as maplibregl.LayerSpecification[],
+  };
+}
 
 // ─── Types ───
 
@@ -227,8 +274,8 @@ export default function MapsPage() {
   const [searching, setSearching] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<SearchResult | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-
-  // Routing state
+  const [activeStyle, setActiveStyle] = useState<MapStyleKey>('osm');
+  const [webgl2Supported, setWebgl2Supported] = useState(true);
   const [routingMode, setRoutingMode] = useState(false);
   const [routeFrom, setRouteFrom] = useState<[number, number] | null>(null);
   const [routeTo, setRouteTo] = useState<[number, number] | null>(null);
@@ -238,16 +285,28 @@ export default function MapsPage() {
   // Geolocation
   const geo = useGeolocation();
 
-  // Map style
-  const mapStyle = 'https://demotiles.maplibre.org/style.json';
+  // WebGL2 check on mount
+  useEffect(() => {
+    setWebgl2Supported(supportsWebGL2());
+  }, []);
+
+  // Resolve style object from key
+  const resolveStyle = useCallback((key: MapStyleKey): string | maplibregl.StyleSpecification => {
+    if (key === 'protomaps-light') return buildProtomapsStyle('light');
+    if (key === 'protomaps-dark') return buildProtomapsStyle('dark');
+    return OSM_STYLE;
+  }, []);
 
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
+    // Register PMTiles protocol before map init
+    ensurePMTilesProtocol();
+
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyle,
+      style: resolveStyle(activeStyle),
       center: [-73.9857, 40.7484], // NYC
       zoom: 12,
     });
@@ -256,7 +315,7 @@ export default function MapsPage() {
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 
     map.on('load', () => {
-      // Add POI source and layer
+      // Add POI source
       map.addSource('pois', {
         type: 'geojson',
         data: {
@@ -272,45 +331,7 @@ export default function MapsPage() {
         clusterRadius: 50,
       });
 
-      // Cluster circles
-      map.addLayer({
-        id: 'clusters',
-        type: 'circle',
-        source: 'pois',
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#4285F4',
-          'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 25],
-          'circle-opacity': 0.7,
-        },
-      });
-
-      // Cluster count
-      map.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'pois',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-size': 12,
-        },
-        paint: { 'text-color': '#fff' },
-      });
-
-      // Individual POI markers
-      map.addLayer({
-        id: 'unclustered-point',
-        type: 'circle',
-        source: 'pois',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': '#EA4335',
-          'circle-radius': 7,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-        },
-      });
+      addPOILayers(map);
 
       // Click on cluster to zoom
       map.on('click', 'clusters', async (e) => {
@@ -338,19 +359,7 @@ export default function MapsPage() {
         }
       });
 
-      // Route source (empty initially)
-      map.addSource('route', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
-      });
-
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#4285F4', 'line-width': 6, 'line-opacity': 0.8 },
-      });
+      addRouteLayers(map);
 
       routeLayerAdded.current = true;
     });
@@ -361,7 +370,90 @@ export default function MapsPage() {
       map.remove();
       mapRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Switch style without re-creating the map
+  const handleStyleChange = useCallback((key: MapStyleKey) => {
+    setActiveStyle(key);
+    if (mapRef.current) {
+      // Re-register protocol (idempotent) in case map was recreated
+      ensurePMTilesProtocol();
+      mapRef.current.setStyle(resolveStyle(key));
+      // POI + route layers are lost on style change; re-add on next 'style.load'
+      routeLayerAdded.current = false;
+      mapRef.current.once('style.load', () => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.addSource('pois', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: SAMPLE_POIS.map((poi) => ({
+              type: 'Feature',
+              properties: { id: poi.id, name: poi.name, category: poi.category },
+              geometry: { type: 'Point', coordinates: [poi.lng, poi.lat] },
+            })),
+          },
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        });
+        addPOILayers(map);
+        addRouteLayers(map);
+        routeLayerAdded.current = true;
+      });
+    }
+  }, [resolveStyle]);
+
+  // Shared helpers to add POI + route layers (called on initial load and after style swap)
+  function addPOILayers(map: maplibregl.Map) {
+    map.addLayer({
+      id: 'clusters',
+      type: 'circle',
+      source: 'pois',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#4285F4',
+        'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 25],
+        'circle-opacity': 0.7,
+      },
+    });
+    map.addLayer({
+      id: 'cluster-count',
+      type: 'symbol',
+      source: 'pois',
+      filter: ['has', 'point_count'],
+      layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 12 },
+      paint: { 'text-color': '#fff' },
+    });
+    map.addLayer({
+      id: 'unclustered-point',
+      type: 'circle',
+      source: 'pois',
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-color': '#EA4335',
+        'circle-radius': 7,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff',
+      },
+    });
+  }
+
+  function addRouteLayers(map: maplibregl.Map) {
+    map.addSource('route', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
+    });
+    map.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'route',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#4285F4', 'line-width': 6, 'line-opacity': 0.8 },
+    });
+  }
 
   // Fly to geolocation
   useEffect(() => {
@@ -662,25 +754,34 @@ export default function MapsPage() {
         )}
       </SlideUpSheet>
 
-      {/* Map type controls */}
+      {/* WebGL2 warning */}
+      {!webgl2Supported && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-amber-50 border border-amber-300 text-amber-800 text-xs px-4 py-2 rounded-lg shadow">
+          Your browser does not support WebGL2. Map rendering may be limited.
+        </div>
+      )}
+
+      {/* Map style controls */}
       <div className="absolute bottom-4 right-4 z-10 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="p-1 flex flex-col gap-0.5">
-          <button
-            onClick={() => {
-              if (mapRef.current) mapRef.current.setStyle(mapStyle);
-            }}
-            className="px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-100 rounded"
-          >
-            Standard
-          </button>
-          <button
-            onClick={() => {
-              if (mapRef.current) mapRef.current.setStyle('https://demotiles.maplibre.org/style.json');
-            }}
-            className="px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-100 rounded"
-          >
-            Demo
-          </button>
+          {([
+            { key: 'osm', label: 'OSM' },
+            { key: 'protomaps-light', label: 'PM Light' },
+            { key: 'protomaps-dark', label: 'PM Dark' },
+          ] as { key: MapStyleKey; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => handleStyleChange(key)}
+              className={cn(
+                'px-2 py-1 text-[10px] rounded transition-colors',
+                activeStyle === key
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
     </div>

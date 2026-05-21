@@ -1,4 +1,4 @@
-import {getPostBySlug, getAllPosts, renderMarkdown} from '../../lib/posts';
+import {getPostBySlug, getAllPosts, renderMarkdown} from '../../../lib/posts';
 import {notFound} from 'next/navigation';
 
 interface PageProps {

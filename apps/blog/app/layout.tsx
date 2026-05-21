@@ -11,7 +11,7 @@ export default function BlogLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en">
       <body>
-        <AppShell appName="blog">
+        <AppShell>
           {children}
         </AppShell>
       </body>

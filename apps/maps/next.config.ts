@@ -1,6 +1,6 @@
 import {createAnvilNextConfig} from '@anvil/next-config';
 export default createAnvilNextConfig({
-  transpilePackages: ['maplibre-gl', 'supercluster'],
+  transpilePackages: ['maplibre-gl', 'supercluster', 'pmtiles', 'protomaps-themes-base'],
   overrides: {
     reactCompiler: true,
     turbopack: {
