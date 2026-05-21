@@ -122,7 +122,7 @@
 - [x] Add automated npm audit to CI pipeline
 - [x] Generate SBOMs for all packages
 - [x] Pin all dependency versions with lockfile
-- [ ] Add OIDC federation for CI/CD (no stored secrets)
+- [x] Add OIDC federation for CI/CD (no stored secrets)
 - [ ] Set up dependency scanning for container images
 
 ### Production Deployment
