@@ -104,7 +104,7 @@
 ### Framework Upgrades
 - [x] Plan Next.js 15 → 16 migration (Turbopack, React Compiler)
 - [x] Evaluate React 19.1 new features across all apps
-- [ ] Plan MapLibre v6 migration (ESM-only, WebGL2)
+- [x] Plan MapLibre v6 migration (ESM-only, WebGL2)
 
 ### UI Polish
 - [x] Add View Transitions API for app-to-app navigation
@@ -185,6 +185,18 @@
 - [ ] Add **Cloudflare R2** as managed storage for demo deployment (10 GB free, free egress)
 - [ ] Create **Cloudflare Free Stack** deployment guide (Workers + R2 + D1 + KV + Pages = $0/mo)
 - [ ] Evaluate **React Aria Components** for accessibility layer in @anvil/ui (50+ ARIA-compliant components)
+
+## Phase 12b: Research-Driven Enhancements (2026-05-21 Session 6)
+- [ ] Upgrade Meilisearch to **v1.44** (HNSW default, faster embeddings, embedder timeouts, performance observability)
+- [ ] Integrate Stalwart **JMAP Calendar + Contacts + File Storage** APIs (now available in v0.16.x) into Gmail clone
+- [ ] Evaluate **PMTiles + Protomaps** for Maps clone static tile serving (eliminates tile server, ~120 GB planet file, HTTP range requests)
+- [ ] Study **Loops** (joinloops.org) federated short-video architecture for YouTube clone short-form features
+- [ ] Evaluate **Authentik 2026.2** as Keycloak replacement (no Redis, OIDC/SAML/SCIM/LDAP, simpler Docker, Python 3.14)
+- [ ] Evaluate **Zitadel** as third IAM candidate (Go, cloud-native, built-in multi-tenancy, AGPL-3.0) — compare with Authentik and Keycloak
+- [ ] Study **CryptPad** E2EE patterns for improving Docs/Drive client-side encryption implementation
+- [ ] Evaluate **Authelia** as lightweight forward-auth SSO layer for homelab/single-server deployments
+- [ ] Plan **Meilisearch composite embedders** adoption (fast local model for queries + quality remote model for indexing) when available
+- [ ] Evaluate **OpenFreeMap** (hyperknot/openfreemap) as zero-cost map tile hosting option for demo deployment
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
