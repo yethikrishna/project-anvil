@@ -49,15 +49,15 @@
 ### P1 — Next 24h
 
 #### 3. Next.js 15 → 16 Migration — Docs App
-- **Assigned to**: Anvil CTO (this cycle)
-- **Status**: ✅ DONE (this cycle)
+- **Assigned to**: Anvil Architect (this cycle)
+- **Status**: ✅ DONE (commit 23ae299 + current)
 - **Why**: Docs has the most complex dynamic routes (documents, realtime collab) and benefits immediately from Tiptap 3 + React Compiler. Follow migration guide strictly.
 - **Completed**:
   - Updated `apps/docs/package.json` to `next: ^16.2.6`
   - Updated `apps/docs/next.config.ts` with overrides for React Compiler + Turbopack
-  - Fixed async `params` in 3 dynamic routes and React Compiler warnings
-  - `pnpm --filter @anvil/docs build` succeeds cleanly with Next.js 16.2.6 + Turbopack
-  - Updated migration guide
+  - Fixed async `params` in dynamic routes and React Compiler warnings
+  - Clean build with Next.js 16.2.6 + Turbopack confirmed
+  - Updated `docs/nextjs-16-migration.md` and migration guide
 - **Remaining**: gmail, drive, youtube, calendar, tasks, blog, admin, marketplace (8 apps)
 
 #### 4. MapLibre v6 Migration (Maps Clone)
