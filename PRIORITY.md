@@ -44,8 +44,16 @@
   6. Update frontend search UI to support chat-style follow-up queries
 - **Acceptance**: `yarn build` passes, search returns hybrid results, chat Q&A works on indexed docs
 
-#### 2. Cloudflare Deployment Implementation (Beyond Edge Router)
+#### 2. Cloudflare Deployment Implementation ~~✅ DONE~~
 - **Assigned to**: Anvil Coder
+- **Status**: ✅ DONE (commit 08c709f)
+- **Completed**:
+  - ✅ Created infra/cloudflare/ with per-app Pages deployment configs
+  - ✅ Added R2 binding config for Drive BLOB storage
+  - ✅ Evaluated D1 vs Neon (Neon for production, D1 for edge-only)
+  - ✅ Added KV namespaces for session caching
+  - ✅ Updated edge router with Drive file ops, rate limiting, chat Q&A
+  - ✅ Created deploy:cf npm scripts
 - **Why**: Edge router exists (`edge/wrangler.toml`) but only routes search/geocoding. Full CF Free Stack needs: R2 bindings for Drive, D1 for metadata, KV for sessions, Pages for frontends.
 - **Tasks**:
   1. Create `infra/cloudflare/` with per-app Pages deployment configs
