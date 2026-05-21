@@ -1,5 +1,5 @@
 /**
- * Anvil Chat — AI Command Center
+ * Anvil Chat - AI Command Center
  *
  * The Anthropic killer: an intelligent assistant that can act across
  * Mail, Drive, Calendar, and Docs with persistent memory.
@@ -24,7 +24,10 @@ import AttentionPanel from '@/components/AttentionPanel';
 import VoiceOutput from '@/components/VoiceOutput';
 import SearchModal from '@/components/SearchModal';
 import ConversationActions from '@/components/ConversationActions';
+import ContextIndicator from '@/components/ContextIndicator';
+import CommandPalette from '@/components/CommandPalette';
 import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
+import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/components/ChatSettings';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
@@ -49,8 +52,11 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
   const [userPatternSummary, setUserPatternSummary] = useState<string>('');
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -59,7 +65,7 @@ export default function ChatPage() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setShowSearch(prev => !prev);
+        setShowCommandPalette(prev => !prev);
       }
     };
     window.addEventListener('keydown', handler);
@@ -397,11 +403,18 @@ export default function ChatPage() {
                 />
               )}
               <button
-                onClick={() => setShowSearch(true)}
+                onClick={() => setShowCommandPalette(true)}
                 className="text-xs px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-                title="Search conversations (Ctrl+K)"
+                title="Command palette (Ctrl+K)"
               >
-                🔍
+                ⌘ Commands
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="text-xs px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                title="Chat settings"
+              >
+                ⚙️
               </button>
               <button
                 onClick={() => setShowAttention(!showAttention)}
@@ -423,6 +436,11 @@ export default function ChatPage() {
               </button>
             </div>
           </div>
+
+          {/* Context indicator */}
+          {activeConv && activeConv.context && (
+            <ContextIndicator context={activeConv.context} />
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto chat-scroll">
@@ -523,6 +541,26 @@ export default function ChatPage() {
           {/* Input */}
           <ChatInput onSend={handleSend} isLoading={isLoading} />
         </div>
+
+        {/* Command palette */}
+        {showCommandPalette && (
+          <CommandPalette
+            conversations={conversations}
+            onCommand={(prompt) => handleSend(prompt)}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewConversation}
+            onOpenSettings={() => { setShowSettings(true); }}
+            onClose={() => setShowCommandPalette(false)}
+          />
+        )}
+
+        {/* Settings panel */}
+        {showSettings && (
+          <ChatSettingsPanel
+            onClose={() => setShowSettings(false)}
+            onSave={setChatSettings}
+          />
+        )}
 
         {/* Search modal */}
         {showSearch && (
