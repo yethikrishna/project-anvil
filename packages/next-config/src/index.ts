@@ -1,11 +1,9 @@
 /**
  * @anvil/next-config — Shared Next.js configuration for all Anvil apps
  *
- * Provides:
- * - Turbopack enabled for dev (ready for Next.js 16 default)
- * - React Compiler (experimental, auto-memoization)
- * - Common transpile packages
- * - Shared webpack/turbopack aliases
+ * Usage:
+ * - Next 15 apps (default): createAnvilNextConfig()
+ * - Next 16 apps: createAnvilNextConfig({ overrides: { reactCompiler: true, turbopack: {...} } })
  */
 
 import type {NextConfig} from 'next';
@@ -29,27 +27,27 @@ export function createAnvilNextConfig(options: AnvilNextConfigOptions = {}): Nex
     ...(options.transpilePackages ?? []),
   ];
 
-  const config: NextConfig = {
-    transpilePackages,
-
-    // Turbopack configuration (ready for Next.js 16)
-    experimental: {
-      // React Compiler — automatic memoization of components
-      // Removes need for manual useMemo/useCallback in most cases
-      reactCompiler: true,
-
-      // Turbopack for dev server (becomes default in Next.js 16)
-      turbo: {
-        rules: {
-          '*.svg': {
-            loaders: ['@svgr/webpack'],
-            as: '*.js',
-          },
+  // Default experimental config for Next 15 apps
+  // Next 16 apps should override with top-level reactCompiler + turbopack
+  const hasOverrides = options.overrides !== undefined;
+  const experimental = hasOverrides ? undefined : {
+    reactCompiler: true,
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
         },
       },
     },
+  };
 
-    // Image optimization configuration
+  const config: NextConfig = {
+    transpilePackages,
+
+    ...(experimental ? { experimental } : {}),
+
+    // Image optimization
     images: {
       formats: ['image/avif', 'image/webp'],
       remotePatterns: [
@@ -59,7 +57,7 @@ export function createAnvilNextConfig(options: AnvilNextConfigOptions = {}): Nex
       ],
     },
 
-    // Headers for security
+    // Security headers
     async headers() {
       return [
         {
@@ -73,7 +71,6 @@ export function createAnvilNextConfig(options: AnvilNextConfigOptions = {}): Nex
       ];
     },
 
-    // Merge app-specific overrides
     ...options.overrides,
   };
 

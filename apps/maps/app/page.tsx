@@ -313,14 +313,14 @@ export default function MapsPage() {
       });
 
       // Click on cluster to zoom
-      map.on('click', 'clusters', (e) => {
+      map.on('click', 'clusters', async (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
         const clusterId = features[0]?.properties?.cluster_id;
         if (clusterId !== undefined) {
-          (map.getSource('pois') as maplibregl.GeoJSONSource).getClusterExpansionZoom(clusterId, (err, zoom) => {
-            if (err) return;
-            map.easeTo({ center: features[0].geometry.coordinates.slice() as [number, number], zoom });
-          });
+          try {
+            const zoom = await (map.getSource('pois') as maplibregl.GeoJSONSource).getClusterExpansionZoom(clusterId);
+            map.easeTo({ center: (features[0].geometry as unknown as { coordinates: [number, number] }).coordinates.slice() as [number, number], zoom });
+          } catch { /* ignore */ }
         }
       });
 
@@ -332,7 +332,7 @@ export default function MapsPage() {
             id: props.id,
             text: props.name,
             place_name: props.name,
-            center: e.features[0].geometry.coordinates.slice() as [number, number],
+            center: (e.features[0].geometry as unknown as { coordinates: [number, number] }).coordinates.slice() as [number, number],
             place_type: [props.category],
           });
         }
@@ -684,6 +684,6 @@ export default function MapsPage() {
         </div>
       </div>
     </div>
-    </AppShell></NotificationProvider></ThemeProvider>;
-  };
+    </AppShell></NotificationProvider></ThemeProvider>
+  );
 }
