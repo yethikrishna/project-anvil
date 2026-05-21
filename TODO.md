@@ -123,7 +123,7 @@
 - [x] Generate SBOMs for all packages
 - [x] Pin all dependency versions with lockfile
 - [x] Add OIDC federation for CI/CD (no stored secrets)
-- [ ] Set up dependency scanning for container images
+- [x] Set up dependency scanning for container images
 
 ### Production Deployment
 - [ ] Evaluate edge function deployment for search and geocoding APIs
