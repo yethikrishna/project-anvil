@@ -33,6 +33,8 @@ export type {
 
 export {OpenAIProvider} from './providers/openai.js';
 export {OllamaProvider} from './providers/ollama.js';
+export {LocalEmbeddingService} from './local-embeddings.js';
+export type {LocalEmbeddingConfig, LocalEmbeddingModel, EmbeddingCacheEntry} from './local-embeddings.js';
 
 export {useChat, useCompletion} from './react/index.js';
 export type {UseChatOptions, UseChatReturn, UseCompletionOptions, UseCompletionReturn} from './react/index.js';
