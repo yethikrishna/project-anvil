@@ -174,3 +174,4 @@ export * from './middleware';
 export * from './security';
 export * from './session-security';
 export * from './api-keys';
+export * from './dpop';

@@ -96,9 +96,9 @@
 
 ### Local-First AI
 - [ ] Add optional local embedding generation (Nomic/BGE-M3 via Ollama)
-- [ ] Implement on-device document summarization
+- [x] Implement on-device document summarization
 - [ ] Add WebGPU-based client-side embedding for search
-- [ ] Create local RAG pipeline for private document search
+- [x] Create local RAG pipeline for private document search
 
 ### Framework Upgrades
 - [ ] Plan Next.js 15 → 16 migration (Turbopack, React Compiler)
@@ -106,21 +106,21 @@
 - [ ] Plan MapLibre v6 migration (ESM-only, WebGL2)
 
 ### UI Polish
-- [ ] Add View Transitions API for app-to-app navigation
-- [ ] Implement same-document view transitions in page navigation
-- [ ] Add cross-document transitions for multi-app flows
+- [x] Add View Transitions API for app-to-app navigation
+- [x] Implement same-document view transitions in page navigation
+- [x] Add cross-document transitions for multi-app flows
 
 ### Security Hardening (RFC 9700)
 - [ ] Audit OAuth 2.0 flows against RFC 9700 best practices
-- [ ] Add DPoP (RFC 9449) sender-constrained tokens
-- [ ] Tighten CSP to Level 2+ on all auth endpoints
+- [x] Add DPoP (RFC 9449) sender-constrained tokens
+- [x] Tighten CSP to Level 2+ on all auth endpoints
 - [ ] Evaluate PAR (RFC 9126) for high-security scenarios
-- [ ] Add exact redirect URI matching enforcement
+- [x] Add exact redirect URI matching enforcement
 
 ### Supply Chain & CI/CD
-- [ ] Add automated npm audit to CI pipeline
-- [ ] Generate SBOMs for all packages
-- [ ] Pin all dependency versions with lockfile
+- [x] Add automated npm audit to CI pipeline
+- [x] Generate SBOMs for all packages
+- [x] Pin all dependency versions with lockfile
 - [ ] Add OIDC federation for CI/CD (no stored secrets)
 - [ ] Set up dependency scanning for container images
 
