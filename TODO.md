@@ -246,7 +246,7 @@
 - [x] k6 load testing scripts with performance baselines
 - [x] OpenTelemetry distributed tracing (frontend → API → DB → S3)
 - [x] Real-time error tracking (custom Sentry-lite)
-- [ ] Performance budget enforcement in CI (Lighthouse CI)
+- [x] Performance budget enforcement in CI (Lighthouse CI)
 - [ ] Developer playground (API explorer, CRDT debug visualizer)
 - [ ] Contract testing between services (Pact-style)
 
@@ -262,10 +262,10 @@
 
 ## Phase 22: Security Hardening
 - [x] Security headers + CSP nonce policy on all apps (target A+ on SecurityHeaders.com)
-- [ ] OWASP Top 10 audit document with per-risk mitigation proof
+- [x] OWASP Top 10 audit document with per-risk mitigation proof
 - [x] Session security: device fingerprinting, revocation, login history
-- [ ] API key management with scoped permissions + request signing
-- [ ] Dependency audit pipeline (npm audit + trivy + SBOM in CI)
+- [x] API key management with scoped permissions + request signing
+- [x] Dependency audit pipeline (npm audit + SBOM + security scanning)
 - [x] Rate limiting on all endpoints (token bucket rate limiter)
 
 ## Phase 23: Google Photos Clone
