@@ -15,6 +15,7 @@
     "dev:youtube": "turbo dev --filter=youtube",
     "dev:maps": "turbo dev --filter=maps",
     "dev:search": "turbo dev --filter=search",
+    "dev:chat": "turbo dev --filter=chat",
     "dev:gmail": "turbo dev --filter=gmail",
     "deploy:cf": "echo 'Deploy to Cloudflare:' && echo '  pnpm deploy:cf:setup  - Create KV/R2/D1 resources' && echo '  pnpm deploy:cf:router  - Deploy edge router worker' && echo '  pnpm deploy:cf:search  - Build & deploy search app to Pages'",
     "deploy:cf:setup": "bash infra/cloudflare/setup.sh",

@@ -17,6 +17,7 @@ import VoiceOutput from '@/components/VoiceOutput';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
+import { QUICK_COMMANDS } from '@/lib/quick-commands';
 import {
   listConversations, getConversation, createConversation,
   deleteConversation, saveConversation, addMessage, updateMessage,
@@ -306,23 +307,16 @@ export default function ChatPage() {
                   I can search, read, write, schedule, and connect everything together.
                 </p>
                 <div className="grid grid-cols-2 gap-3 max-w-lg">
-                  {[
-                    { icon: '⚡', text: 'What needs my attention?', desc: 'Priority scan of Mail + Calendar' },
-                    { icon: '✉️', text: 'Draft a reply to my latest email', desc: 'AI reads threads, writes replies' },
-                    { icon: '📄', text: 'Find the Q3 report on Drive', desc: 'Semantic search + share link' },
-                    { icon: '📅', text: 'Schedule a team meeting', desc: 'Check calendars, send invites' },
-                    { icon: '📊', text: 'Weekly summary', desc: 'Activity across all apps' },
-                    { icon: '🔗', text: 'Find and share a file', desc: 'Search Drive, create share link' },
-                  ].map(item => (
+                  {QUICK_COMMANDS.slice(0, 6).map(item => (
                     <button
                       key={item.text}
-                      onClick={() => handleSend(item.text)}
+                      onClick={() => handleSend(item.prompt)}
                       className="text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       disabled={isLoading}
                     >
                       <span className="text-lg">{item.icon}</span>
-                      <p className="text-sm font-medium mt-1">{item.text}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{item.desc}</p>
+                      <p className="text-sm font-medium mt-1">{item.label}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{item.description}</p>
                     </button>
                   ))}
                 </div>

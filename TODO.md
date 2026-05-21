@@ -322,6 +322,18 @@
 - [ ] `@anvil/media` shared package (Photos, Drive, YouTube)
 
 ## Phase 24: Chat + Video Calling (WebRTC)
+- [x] AI Command Center — Chat app (apps/chat/) with message list, input, sidebar
+- [x] Tool use framework — AI acts across Mail, Drive, Calendar, Docs
+- [x] What needs my attention — scans Mail + Calendar, priority digest
+- [x] Draft reply — reads email thread, writes reply, saves to Mail drafts
+- [x] Find and share — searches Drive, creates share link
+- [x] Schedule meeting — checks calendars, proposes times, sends invites
+- [x] Weekly summary — searches Mail + Docs + Calendar, generates report
+- [x] Persistent conversations with IndexedDB memory across sessions
+- [x] Voice input (Whisper STT → LLM)
+- [x] Voice output (LLM → TTS)
+- [x] Multi-turn tool use — AI chains actions (find doc → summarize → email)
+- [x] Context accumulation — AI remembers files, people, topics, preferences
 - [ ] Direct messages + group channels + threaded conversations
 - [ ] Message search via Meilisearch integration
 - [ ] 1:1 video calls with WebRTC + screen sharing
