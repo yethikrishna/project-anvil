@@ -106,10 +106,11 @@
 - Integrated into monorepo with typecheck/build support
 
 ### AD-2: Hono Edge Gateway Expansion
-- `edge/wrangler.toml` exists but only handles search/geocoding
-- Expand to unified API gateway: auth validation, rate limiting, request routing for all apps
-- Add CF KV caching for frequently accessed data
-- Keep existing Express/Fastify backends for self-hosted mode
+- **Status**: ✅ DONE (current cycle)
+- Expanded `edge/search-router.ts` (Hono) with full auth middleware, rate limiting, KV session/cache, R2 Drive bindings, and unified routing stubs for Drive/Docs/Gmail
+- wrangler.toml updated with production KV/R2 bindings and staging/prod environments
+- Self-hosted fallback kept via existing Fastify backends
+- Ready for `pnpm deploy:cf` and full Cloudflare Free Tier rollout
 
 ### AD-3: Offline-First Architecture (PGlite + Dexie)
 - PGlite (WASM Postgres) for heavy offline queries (vector search, geospatial)
