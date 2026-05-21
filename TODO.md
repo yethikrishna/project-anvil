@@ -76,7 +76,7 @@
 - [x] Notification system
 - [x] Dark/light theme
 - [x] Mobile responsive layouts
-- [ ] File System Access API for native OS file open/save with auto-sync to Drive
+- [x] File System Access API for native OS file open/save with auto-sync to Drive
 - [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
 ## Phase Next: Trend-Informed Upgrades (2026-05-21)

@@ -274,6 +274,73 @@ export async function fileRoutes(app: FastifyInstance): Promise<void> {
     return { data: link };
   });
 
+  // ── Sync file (upsert: update existing file content) ──
+  app.post('/files/sync', async (request, reply) => {
+    const userId = request.userId;
+    const query = request.query as { fileId?: string; path?: string };
+    const data = await request.file();
+    if (!data) {
+      throw new AppError(400, 'MISSING_FILE', 'No file uploaded');
+    }
+
+    const buffer = await data.toBuffer();
+    const drivePath = query.path ?? '/';
+
+    // If fileId is provided, update the existing file
+    if (query.fileId) {
+      const [existing] = await db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, query.fileId), eq(files.userId, userId), sql`deleted_at IS NULL`))
+        .limit(1);
+
+      if (!existing) {
+        throw new AppError(404, 'NOT_FOUND', 'File not found for sync');
+      }
+
+      // Upload new version to S3 (new key to avoid cache issues)
+      const s3Key = `drive/${userId}/${uuidv4()}/${data.filename}`;
+      await uploadFile(s3Key, buffer, data.mimetype);
+
+      // Delete old S3 object
+      if (existing.s3Key) {
+        await deleteS3File(existing.s3Key).catch(() => {});
+      }
+
+      // Update DB record
+      const [updated] = await db
+        .update(files)
+        .set({
+          size: buffer.length,
+          mimeType: data.mimetype,
+          s3Key,
+          updatedAt: new Date(),
+        })
+        .where(eq(files.id, query.fileId))
+        .returning();
+
+      return { data: updated };
+    }
+
+    // No fileId — create a new file (same as upload)
+    const ltreePath = `${toLtree(drivePath)}.${data.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const s3Key = `drive/${userId}/${uuidv4()}/${data.filename}`;
+
+    await uploadFile(s3Key, buffer, data.mimetype);
+
+    const [entry] = await db.insert(files).values({
+      userId,
+      name: data.filename,
+      path: sql`${ltreePath}::ltree`,
+      mimeType: data.mimetype,
+      size: buffer.length,
+      s3Key,
+      isDirectory: false,
+    }).returning();
+
+    reply.code(201).send({ data: entry });
+  });
+
   // ── Access shared file (public, no auth required) ────
   app.get('/share/:token', async (request, reply) => {
     const { token } = request.params as { token: string };

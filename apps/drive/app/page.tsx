@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { FilePreview } from './components/FilePreview';
 import { ContextMenu, useContextMenu } from './components/ContextMenu';
+import { FileSystemAccessPanel } from './components/FileSystemAccessPanel';
 import { AppShell, ThemeProvider, ThemeToggle, NotificationBell } from '@anvil/ui';
 import { NotificationProvider } from '@anvil/notifications';
 import { tagFile, TAG_CONFIG } from './lib/ai-tagger';
@@ -216,6 +217,13 @@ export default function DrivePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <FileSystemAccessPanel
+            apiBaseUrl={API_BASE}
+            currentPath={currentPath}
+            selectedFileId={null}
+            selectedFileName={null}
+            onFilesChanged={fetchFiles}
+          />
           <button
             onClick={handleCreateFolder}
             className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
