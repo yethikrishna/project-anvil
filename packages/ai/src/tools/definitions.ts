@@ -148,9 +148,66 @@ export const WEB_SEARCH_TOOL: ToolDefinition = {
   },
 };
 
+export const EMAIL_READ_THREAD_TOOL: ToolDefinition = {
+  name: 'email_read_thread',
+  description: 'Read the full email thread by thread ID. Returns all messages in the thread with sender, date, and content.',
+  parameters: {
+    type: 'object',
+    properties: {
+      thread_id: {
+        type: 'string',
+        description: 'Email thread ID to read',
+      },
+    },
+    required: ['thread_id'],
+  },
+};
+
+export const EMAIL_SAVE_DRAFT_TOOL: ToolDefinition = {
+  name: 'email_save_draft',
+  description: 'Save an email draft without sending. Use for preparing replies before user confirmation.',
+  parameters: {
+    type: 'object',
+    properties: {
+      to: {
+        type: 'string',
+        description: 'Recipient email address',
+      },
+      subject: {
+        type: 'string',
+        description: 'Draft subject line',
+      },
+      body: {
+        type: 'string',
+        description: 'Draft body content',
+      },
+    },
+    required: ['to', 'subject', 'body'],
+  },
+};
+
+export const FILE_SHARE_TOOL: ToolDefinition = {
+  name: 'file_share',
+  description: 'Create a shareable link for a file in Drive. Returns a public URL.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file_id: {
+        type: 'string',
+        description: 'File ID to share',
+      },
+      public: {
+        type: 'boolean',
+        description: 'Make link publicly accessible (default: true)',
+      },
+    },
+    required: ['file_id'],
+  },
+};
+
 export const CALENDAR_CREATE_TOOL: ToolDefinition = {
   name: 'calendar_create_event',
-  description: 'Create a calendar event.',
+  description: 'Create a calendar event and optionally send invites to attendees.',
   parameters: {
     type: 'object',
     properties: {
@@ -180,15 +237,38 @@ export const CALENDAR_CREATE_TOOL: ToolDefinition = {
   },
 };
 
+export const CALENDAR_CHECK_AVAILABILITY_TOOL: ToolDefinition = {
+  name: 'calendar_check_availability',
+  description: 'Check calendar availability for a given time range. Returns free/busy slots.',
+  parameters: {
+    type: 'object',
+    properties: {
+      from: {
+        type: 'string',
+        description: 'Start of time range in ISO 8601 format',
+      },
+      to: {
+        type: 'string',
+        description: 'End of time range in ISO 8601 format',
+      },
+    },
+    required: ['from', 'to'],
+  },
+};
+
 /**
  * All built-in Anvil tools.
  */
 export const ANVIL_TOOLS: ToolDefinition[] = [
   FILE_SEARCH_TOOL,
   FILE_READ_TOOL,
+  FILE_SHARE_TOOL,
   DOCUMENT_WRITE_TOOL,
   EMAIL_SEARCH_TOOL,
   EMAIL_SEND_TOOL,
+  EMAIL_READ_THREAD_TOOL,
+  EMAIL_SAVE_DRAFT_TOOL,
   WEB_SEARCH_TOOL,
   CALENDAR_CREATE_TOOL,
+  CALENDAR_CHECK_AVAILABILITY_TOOL,
 ];

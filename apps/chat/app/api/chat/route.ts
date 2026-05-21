@@ -1,5 +1,19 @@
 /**
  * POST /api/chat — Main chat endpoint with streaming + tool use.
+ *
+ * Accepts:
+ * - conversationId: string
+ * - message: string
+ * - history: message array
+ * - context: ConversationContext
+ * - userPatterns: string (optional, from context manager)
+ *
+ * Returns SSE stream with events:
+ * - start: { conversationId }
+ * - delta: { content } — streaming text chunk
+ * - tool: { tool call result } — tool execution update
+ * - done: { message, toolCalls } — final result
+ * - error: { message } — error
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,7 +23,7 @@ export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { conversationId, message, history, context } = body as {
+  const { conversationId, message, history, context, userPatterns } = body as {
     conversationId: string;
     message: string;
     history: Array<{ role: string; content: string }>;
@@ -20,6 +34,7 @@ export async function POST(req: NextRequest) {
       preferences: string[];
       actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
     };
+    userPatterns?: string;
   };
 
   if (!conversationId || !message) {
@@ -30,6 +45,7 @@ export async function POST(req: NextRequest) {
     aiEndpoint: process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1/chat/completions',
     apiKey: process.env.OPENAI_API_KEY,
     model: process.env.AI_MODEL ?? 'gpt-4o',
+    userPatterns,
   });
 
   // Set up SSE stream
@@ -56,7 +72,7 @@ export async function POST(req: NextRequest) {
           // Stream handler
           (chunk) => send('delta', { content: chunk }),
           // Tool call handler
-          (toolCall) => send('tool', toolCall)
+          (toolCall) => send('tool', toolCall),
         );
 
         send('done', {

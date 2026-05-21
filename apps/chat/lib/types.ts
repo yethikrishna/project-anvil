@@ -77,10 +77,14 @@ export interface ToolAction {
 export const TOOL_ACTIONS: ToolAction[] = [
   { name: 'email_search', description: 'Search emails', icon: 'Mail', category: 'mail' },
   { name: 'email_send', description: 'Send email', icon: 'Send', category: 'mail' },
+  { name: 'email_read_thread', description: 'Read email thread', icon: 'MessageSquare', category: 'mail' },
+  { name: 'email_save_draft', description: 'Save email draft', icon: 'FileEdit', category: 'mail' },
   { name: 'file_search', description: 'Search Drive files', icon: 'Search', category: 'drive' },
   { name: 'file_read', description: 'Read file contents', icon: 'FileText', category: 'drive' },
+  { name: 'file_share', description: 'Share file link', icon: 'Share2', category: 'drive' },
   { name: 'document_write', description: 'Create/edit documents', icon: 'Edit', category: 'docs' },
   { name: 'calendar_create_event', description: 'Schedule events', icon: 'Calendar', category: 'calendar' },
+  { name: 'calendar_check_availability', description: 'Check free time', icon: 'Clock', category: 'calendar' },
   { name: 'web_search', description: 'Search the web', icon: 'Globe', category: 'web' },
 ];
 

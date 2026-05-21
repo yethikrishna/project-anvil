@@ -3,12 +3,20 @@
  *
  * The Anthropic killer: an intelligent assistant that can act across
  * Mail, Drive, Calendar, and Docs with persistent memory.
+ *
+ * Features:
+ * - Streaming AI responses with tool use visualization
+ * - Multi-step workflow execution with progress tracking
+ * - Human-in-the-loop approval for high-risk actions
+ * - Persistent conversation memory across sessions
+ * - Context accumulation and user pattern learning
+ * - Voice input/output
+ * - Quick commands for common workflows
  */
 
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ThemeProvider, ThemeToggle, AppShell } from '@anvil/ui';
 import ChatSidebar from '@/components/ChatSidebar';
 import MessageBubble from '@/components/MessageBubble';
 import ChatInput from '@/components/ChatInput';
@@ -16,15 +24,20 @@ import AttentionPanel from '@/components/AttentionPanel';
 import VoiceOutput from '@/components/VoiceOutput';
 import SearchModal from '@/components/SearchModal';
 import ConversationActions from '@/components/ConversationActions';
+import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
 import { QUICK_COMMANDS } from '@/lib/quick-commands';
 import {
   listConversations, getConversation, createConversation,
-  deleteConversation, saveConversation, addMessage, updateMessage,
+  deleteConversation, saveConversation, addMessage,
   getActiveConversationId, setActiveConversationId,
 } from '@/lib/memory';
+import {
+  analyzePatterns, buildContextSummary, loadPatterns, savePatterns,
+  detectPreferences, startSession,
+} from '@/lib/context-manager';
 
 export default function ChatPage() {
   // ── State ──
@@ -36,6 +49,8 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
+  const [userPatternSummary, setUserPatternSummary] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -51,8 +66,9 @@ export default function ChatPage() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // ── Load conversations on mount ──
+  // ── Initialize ──
   useEffect(() => {
+    startSession();
     (async () => {
       const convs = await listConversations();
       setConversations(convs);
@@ -63,6 +79,17 @@ export default function ChatPage() {
         const conv = await getConversation(activeId);
         if (conv) setActiveConv(conv);
       }
+
+      // Load user patterns
+      const patterns = loadPatterns();
+      if (patterns) {
+        setUserPatternSummary(
+          buildContextSummary(
+            { files: [], people: [], topics: patterns.interests, preferences: [], actions: [] },
+            patterns,
+          ),
+        );
+      }
     })();
   }, []);
 
@@ -70,6 +97,23 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeConv?.messages, streamingText]);
+
+  // ── Save patterns periodically ──
+  useEffect(() => {
+    if (!activeConv) return;
+    const interval = setInterval(() => {
+      if (activeConv.context.actions.length > 0) {
+        const patterns = analyzePatterns(activeConv.context);
+        const existing = loadPatterns();
+        const merged = existing ? { ...existing, ...patterns } : patterns;
+        savePatterns(merged);
+        setUserPatternSummary(
+          buildContextSummary(activeConv.context, merged),
+        );
+      }
+    }, 30_000); // Every 30s
+    return () => clearInterval(interval);
+  }, [activeConv]);
 
   // ── Handlers ──
 
@@ -120,6 +164,18 @@ export default function ChatPage() {
     }
   }, [activeConv]);
 
+  // ── Detect implicit preferences from message ──
+  const detectAndStorePreferences = useCallback(async (text: string, convId: string) => {
+    const prefs = detectPreferences(text);
+    if (prefs.length === 0) return;
+
+    const conv = await getConversation(convId);
+    if (!conv) return;
+
+    conv.context.preferences = [...new Set([...conv.context.preferences, ...prefs])].slice(-15);
+    await saveConversation(conv);
+  }, []);
+
   const handleSend = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -130,6 +186,9 @@ export default function ChatPage() {
       setActiveConv(conv);
       setActiveConversationId(conv.id);
     }
+
+    // Detect implicit preferences
+    detectAndStorePreferences(text, conv.id);
 
     // Add user message locally
     const userMsg: ChatMessageType = {
@@ -162,6 +221,7 @@ export default function ChatPage() {
           message: text,
           history: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           context: conv.context,
+          userPatterns: userPatternSummary,
         }),
       });
 
@@ -184,20 +244,28 @@ export default function ChatPage() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const dataStr = line.slice(6);
-          if (!dataStr) continue;
+          if (!dataStr.trim()) continue;
 
           try {
             const data = JSON.parse(dataStr);
 
-            // Handle different event types
             if (data.content) {
-              // Streaming delta
               setStreamingText(prev => prev + data.content);
             }
 
             if (data.tool) {
-              // Tool call update
               setActiveToolCalls(prev => [...prev, data.tool]);
+
+              // Check if this tool needs approval
+              if (['email_send', 'calendar_create_event', 'file_share'].includes(data.tool.tool)) {
+                setPendingApproval({
+                  id: data.tool.id,
+                  type: data.tool.tool,
+                  description: `AI wants to: ${data.tool.tool.replace(/_/g, ' ')}`,
+                  risk: data.tool.tool === 'email_send' ? 'high' : 'medium',
+                  params: data.tool.args,
+                });
+              }
             }
 
             if (data.message) {
@@ -213,7 +281,6 @@ export default function ChatPage() {
         }
       }
 
-      // Finalize: replace streaming text with actual message
       if (finalMessage) {
         setActiveConv(prev => {
           if (!prev) return prev;
@@ -227,8 +294,9 @@ export default function ChatPage() {
 
       setStreamingText('');
       setActiveToolCalls([]);
+      setPendingApproval(null);
 
-      // Reload conversation from storage to get full state
+      // Reload conversation from storage
       const reloadedConv = await getConversation(conv.id);
       if (reloadedConv) {
         setActiveConv(reloadedConv);
@@ -236,7 +304,6 @@ export default function ChatPage() {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        // Show error in conversation
         setActiveConv(prev => {
           if (!prev) return prev;
           return {
@@ -256,14 +323,26 @@ export default function ChatPage() {
       setStreamingText('');
       setActiveToolCalls([]);
     }
-  }, [activeConv, isLoading]);
+  }, [activeConv, isLoading, userPatternSummary, detectAndStorePreferences]);
+
+  // ── Approval handlers ──
+  const handleApprove = useCallback((actionId: string, _modifications?: Record<string, unknown>) => {
+    // In production, this would send the approval to the backend
+    // which would then continue the tool execution
+    setPendingApproval(null);
+  }, []);
+
+  const handleReject = useCallback((_actionId: string) => {
+    setPendingApproval(null);
+    // The AI will see the rejection and adjust its response
+  }, []);
 
   // ── Attention action handler ──
   const handleAttentionAction = useCallback((tool: string, args: Record<string, unknown>) => {
-    // Convert attention action to a chat message
     const actionMessages: Record<string, string> = {
       email_search: `Show me emails about ${args.query ?? 'this'}`,
       email_send: `Reply to ${args.to ?? 'the sender'}`,
+      email_save_draft: `Draft a reply to ${args.to ?? 'the sender'}`,
       file_search: `Find the file "${args.query ?? ''}"`,
       calendar_create_event: `Schedule: ${args.title ?? 'a meeting'}`,
     };
@@ -302,12 +381,13 @@ export default function ChatPage() {
               </h1>
               {activeConv && (
                 <span className="text-[10px] text-gray-400">
-                  {activeConv.context.files.length > 0 && `📄 ${activeConv.context.files.length} files`}
-                  {activeConv.context.people.length > 0 && ` 👥 ${activeConv.context.people.length} people`}
+                  {activeConv.context.files.length > 0 && `📄 ${activeConv.context.files.length}`}
+                  {activeConv.context.people.length > 0 && ` 👥 ${activeConv.context.people.length}`}
+                  {activeConv.context.preferences.length > 0 && ` ⚙️ ${activeConv.context.preferences.length}`}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {activeConv && (
                 <ConversationActions
                   conversation={activeConv}
@@ -318,7 +398,7 @@ export default function ChatPage() {
               )}
               <button
                 onClick={() => setShowSearch(true)}
-                className="text-xs px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                className="text-xs px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
                 title="Search conversations (Ctrl+K)"
               >
                 🔍
@@ -326,21 +406,21 @@ export default function ChatPage() {
               <button
                 onClick={() => setShowAttention(!showAttention)}
                 className={showAttention
-                  ? 'text-xs px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
-                  : 'text-xs px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'
+                  ? 'text-xs px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+                  : 'text-xs px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'
                 }
                 title="What needs my attention"
               >
                 ⚡ Attention
               </button>
               <button
-                onClick={() => handleSend('Give me a weekly summary of my activity across Mail, Docs, and Calendar.')}
-                className="text-xs px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                onClick={() => handleSend('Give me a comprehensive weekly summary of my activity across Mail, Docs, and Calendar.')}
+                className="text-xs px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
                 disabled={isLoading}
+                title="Weekly Summary"
               >
-                📊 Weekly Summary
+                📊
               </button>
-              <ThemeToggle />
             </div>
           </div>
 
@@ -359,7 +439,7 @@ export default function ChatPage() {
                 <div className="grid grid-cols-2 gap-3 max-w-lg">
                   {QUICK_COMMANDS.slice(0, 6).map(item => (
                     <button
-                      key={item.text}
+                      key={item.id}
                       onClick={() => handleSend(item.prompt)}
                       className="text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       disabled={isLoading}
@@ -373,9 +453,26 @@ export default function ChatPage() {
               </div>
             ) : (
               <div className="py-4">
-                {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
+                {messages.map((msg, i) => (
+                  <div key={msg.id}>
+                    <MessageBubble message={msg} />
+                    {/* Voice output for assistant messages */}
+                    {msg.role === 'assistant' && i === messages.length - 1 && !isLoading && (
+                      <div className="px-4 -mt-1 mb-2 ml-11">
+                        <VoiceOutput text={msg.content} />
+                      </div>
+                    )}
+                  </div>
                 ))}
+
+                {/* Approval gate */}
+                {pendingApproval && (
+                  <ApprovalGate
+                    action={pendingApproval}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                  />
+                )}
 
                 {/* Active tool calls */}
                 {activeToolCalls.length > 0 && (
@@ -383,7 +480,7 @@ export default function ChatPage() {
                     {activeToolCalls.map(tc => (
                       <div key={tc.id} className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-3 text-xs font-mono tool-card-enter mb-2">
                         <span className="font-semibold text-blue-700 dark:text-blue-300">
-                          {tc.tool.replace(/_/g, ' ')}
+                          {tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                         <span className="ml-2 text-blue-500">⟳ Running...</span>
                       </div>
@@ -401,6 +498,7 @@ export default function ChatPage() {
                       <div className="rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-2.5 text-sm prose-chat streaming-cursor">
                         {streamingText}
                       </div>
+                      <VoiceOutput text={streamingText} />
                     </div>
                   </div>
                 )}

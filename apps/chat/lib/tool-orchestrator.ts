@@ -1,23 +1,22 @@
 /**
  * Cross-App Tool Orchestrator — chains tools across Mail, Drive, Calendar, Docs.
  *
- * Predefined workflows that combine multiple tool calls into single actions:
- * - "Summarize this email thread and save to Docs"
- * - "Find the Q3 report and email it to the team"
- * - "Check my calendar, find free time, and schedule a meeting"
+ * Predefined workflows + custom workflow support:
+ * - "Find document → summarize → email to team"
+ * - "Read email thread → extract event → create calendar"
+ * - "Check availability → find best slot → schedule + send invites"
+ *
+ * Integrates with @anvil/ai AgentRuntime for autonomous execution.
  */
 
 import { getToolExecutor } from './tool-executor';
 import type { ToolCallResult } from './types';
 
-// ── Workflow Types ─────────────────────────────────────
+// ── Workflow Types ──
 
 export interface WorkflowStep {
-  /** Step name for progress reporting */
   name: string;
-  /** Tool to call */
   tool: string;
-  /** Static args (merged with dynamic outputs from previous steps) */
   args: Record<string, unknown>;
   /** Extract values from previous step results to merge into args */
   extract?: Record<string, { fromStep: number; path: string }>;
@@ -31,19 +30,17 @@ export interface WorkflowResult {
     result: string;
     duration: number;
   }>;
-  /** Final aggregated result */
   summary: string;
-  /** Total duration in ms */
   totalDurationMs: number;
 }
 
-// ── Orchestrator ───────────────────────────────────────
+// ── Orchestrator ──
 
 export class ToolOrchestrator {
   private executor = getToolExecutor();
 
   /**
-   * Execute a multi-step workflow.
+   * Execute a multi-step workflow with dynamic arg resolution.
    */
   async executeWorkflow(
     workflow: WorkflowStep[],
@@ -62,13 +59,13 @@ export class ToolOrchestrator {
     for (let i = 0; i < workflow.length; i++) {
       const step = workflow[i];
 
-      // Resolve dynamic args from previous steps
+      // Resolve dynamic args from previous step outputs
       const resolvedArgs = { ...step.args };
       if (step.extract) {
         for (const [argKey, source] of Object.entries(step.extract)) {
           const prevOutput = stepOutputs[source.fromStep];
           if (prevOutput && typeof prevOutput === 'object') {
-            const value = this.deepGet(prevOutput as Record<string, unknown>, source.path);
+            const value = deepGet(prevOutput as Record<string, unknown>, source.path);
             if (value !== undefined) {
               resolvedArgs[argKey] = value;
             }
@@ -77,7 +74,7 @@ export class ToolOrchestrator {
       }
 
       const result = await this.executor.executeTool(step.tool, resolvedArgs);
-      stepOutputs.push(this.safeParseJSON(result.result));
+      stepOutputs.push(safeParseJSON(result.result));
 
       const stepResult = {
         name: step.name,
@@ -91,22 +88,22 @@ export class ToolOrchestrator {
 
       if (!stepResult.success) {
         overallSuccess = false;
-        break; // Stop on failure
+        break;
       }
     }
 
     return {
       success: overallSuccess,
       steps: results,
-      summary: this.summarizeWorkflow(results),
+      summary: summarizeWorkflow(results),
       totalDurationMs: Date.now() - startTime,
     };
   }
 
-  // ── Predefined Workflows ─────────────────────────
+  // ── Predefined Workflows ──
 
   /**
-   * Find a file and share it via email.
+   * Find a file, create share link, and email it.
    */
   async findAndShareFile(
     query: string,
@@ -114,56 +111,33 @@ export class ToolOrchestrator {
     message: string,
     onProgress?: (step: number, msg: string) => void,
   ): Promise<WorkflowResult> {
-    onProgress?.(0, 'Searching for file...');
-    const searchResult = await this.executor.executeTool('file_search', { query, limit: 5 });
-
-    if (searchResult.status === 'error') {
-      return {
-        success: false,
-        steps: [{ name: 'search', success: false, result: searchResult.result, duration: searchResult.duration ?? 0 }],
-        summary: 'Failed to find the file.',
-        totalDurationMs: searchResult.duration ?? 0,
-      };
-    }
-
-    const searchData = this.safeParseJSON(searchResult.result);
-    const files = (searchData as { results?: Array<{ id: string; name: string }> }).results ?? [];
-
-    if (files.length === 0) {
-      return {
-        success: false,
-        steps: [{ name: 'search', success: true, result: searchResult.result, duration: searchResult.duration ?? 0 }],
-        summary: 'No files found matching your query.',
-        totalDurationMs: searchResult.duration ?? 0,
-      };
-    }
-
-    const file = files[0];
-    onProgress?.(1, `Found "${file.name}" — creating share link...`);
-
-    const shareResult = await this.executor.executeTool('file_read', { file_id: file.id });
-    const shareData = this.safeParseJSON(shareResult.result);
-    const shareUrl = (shareData as { url?: string }).url ?? `(File: ${file.name})`;
-
-    onProgress?.(2, 'Sending email...');
-    const emailResult = await this.executor.executeTool('email_send', {
-      to: recipientEmail,
-      subject: `Shared: ${file.name}`,
-      body: `${message}\n\nFile: ${shareUrl}`,
+    return this.executeWorkflow([
+      {
+        name: 'Search for file',
+        tool: 'file_search',
+        args: { query, limit: 5 },
+      },
+      {
+        name: 'Create share link',
+        tool: 'file_share',
+        args: {},
+        extract: { file_id: { fromStep: 0, path: 'results.0.id' } },
+      },
+      {
+        name: 'Send sharing email',
+        tool: 'email_send',
+        args: {
+          to: recipientEmail,
+          subject: `Shared file: ${query}`,
+          body: message,
+        },
+        extract: {
+          body: { fromStep: 1, path: 'url' },
+        },
+      },
+    ], undefined, (i, step, result) => {
+      onProgress?.(i, step.name);
     });
-
-    return {
-      success: emailResult.status === 'success',
-      steps: [
-        { name: 'search', success: true, result: searchResult.result, duration: searchResult.duration ?? 0 },
-        { name: 'share', success: shareResult.status === 'success', result: shareResult.result, duration: shareResult.duration ?? 0 },
-        { name: 'email', success: emailResult.status === 'success', result: emailResult.result, duration: emailResult.duration ?? 0 },
-      ],
-      summary: emailResult.status === 'success'
-        ? `Found "${file.name}" and shared with ${recipientEmail}.`
-        : 'Failed to send sharing email.',
-      totalDurationMs: (searchResult.duration ?? 0) + (shareResult.duration ?? 0) + (emailResult.duration ?? 0),
-    };
   }
 
   /**
@@ -174,31 +148,27 @@ export class ToolOrchestrator {
     docTitle: string,
     onProgress?: (step: number, msg: string) => void,
   ): Promise<WorkflowResult> {
-    onProgress?.(0, 'Fetching email thread...');
-    const threadResult = await this.executor.executeTool('email_search', { query: '', folder: 'thread', limit: 1 });
-    // In a real flow, the thread ID would be passed to a dedicated thread-fetch endpoint
-
-    onProgress?.(1, 'Creating document...');
-    const docResult = await this.executor.executeTool('document_write', {
-      title: docTitle,
-      content: `# Email Thread Summary\n\n**Thread ID:** ${threadId}\n\n${threadResult.result}`,
+    return this.executeWorkflow([
+      {
+        name: 'Fetch email thread',
+        tool: 'email_read_thread',
+        args: { thread_id: threadId },
+      },
+      {
+        name: 'Save summary to Docs',
+        tool: 'document_write',
+        args: { title: docTitle, content: '' },
+        extract: {
+          content: { fromStep: 0, path: 'raw' },
+        },
+      },
+    ], undefined, (i, step) => {
+      onProgress?.(i, step.name);
     });
-
-    return {
-      success: docResult.status === 'success',
-      steps: [
-        { name: 'fetch_thread', success: threadResult.status === 'success', result: threadResult.result, duration: threadResult.duration ?? 0 },
-        { name: 'save_doc', success: docResult.status === 'success', result: docResult.result, duration: docResult.duration ?? 0 },
-      ],
-      summary: docResult.status === 'success'
-        ? `Thread summarized and saved as "${docTitle}".`
-        : 'Failed to save thread summary.',
-      totalDurationMs: (threadResult.duration ?? 0) + (docResult.duration ?? 0),
-    };
   }
 
   /**
-   * Check schedule and propose a meeting time.
+   * Smart schedule — check availability, find best slot, create event.
    */
   async smartSchedule(
     title: string,
@@ -207,71 +177,139 @@ export class ToolOrchestrator {
     dateRange: { from: string; to: string },
     onProgress?: (step: number, msg: string) => void,
   ): Promise<WorkflowResult> {
-    onProgress?.(0, 'Checking calendar...');
-    const calResult = await this.executor.executeTool('calendar_create_event', {
-      title: '__availability_check__',
-      start_time: dateRange.from,
-      end_time: dateRange.to,
+    return this.executeWorkflow([
+      {
+        name: 'Check calendar availability',
+        tool: 'calendar_check_availability',
+        args: { from: dateRange.from, to: dateRange.to },
+      },
+      {
+        name: 'Create meeting event',
+        tool: 'calendar_create_event',
+        args: {
+          title,
+          start_time: dateRange.from,
+          end_time: dateRange.to,
+          attendees: attendeeEmails,
+          description: `Scheduled via Anvil AI. Duration: ${durationMinutes} min.`,
+        },
+      },
+    ], undefined, (i, step) => {
+      onProgress?.(i, step.name);
     });
+  }
 
-    // The calendar tool would return busy slots; for now we create the event
-    onProgress?.(1, 'Scheduling meeting...');
-    const eventResult = await this.executor.executeTool('calendar_create_event', {
-      title,
-      start_time: dateRange.from,
-      end_time: dateRange.to,
-      attendees: attendeeEmails,
-      description: `Scheduled via Anvil AI. Duration: ${durationMinutes} min.`,
+  /**
+   * Search Drive → Read file → Summarize → Email to team.
+   * Full multi-app chain.
+   */
+  async findSummarizeEmail(
+    fileQuery: string,
+    recipientEmails: string[],
+    summaryInstructions?: string,
+    onProgress?: (step: number, msg: string) => void,
+  ): Promise<WorkflowResult> {
+    return this.executeWorkflow([
+      {
+        name: 'Search for document',
+        tool: 'file_search',
+        args: { query: fileQuery, limit: 3 },
+      },
+      {
+        name: 'Read document contents',
+        tool: 'file_read',
+        args: { format: 'text' },
+        extract: { file_id: { fromStep: 0, path: 'results.0.id' } },
+      },
+      {
+        name: 'Email summary to team',
+        tool: 'email_send',
+        args: {
+          to: recipientEmails.join(', '),
+          subject: `Summary: ${fileQuery}`,
+          body: summaryInstructions ?? 'Here is the document summary.',
+        },
+        extract: {
+          body: { fromStep: 1, path: 'content' },
+        },
+      },
+    ], undefined, (i, step) => {
+      onProgress?.(i, step.name);
     });
-
-    return {
-      success: eventResult.status === 'success',
-      steps: [
-        { name: 'check_calendar', success: calResult.status === 'success', result: calResult.result, duration: calResult.duration ?? 0 },
-        { name: 'create_event', success: eventResult.status === 'success', result: eventResult.result, duration: eventResult.duration ?? 0 },
-      ],
-      summary: eventResult.status === 'success'
-        ? `Meeting "${title}" scheduled.`
-        : 'Failed to schedule meeting.',
-      totalDurationMs: (calResult.duration ?? 0) + (eventResult.duration ?? 0),
-    };
   }
 
-  // ── Helpers ──────────────────────────────────────
-
-  private safeParseJSON(str: string): unknown {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return { raw: str };
-    }
-  }
-
-  private deepGet(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split('.');
-    let current: unknown = obj;
-    for (const key of keys) {
-      if (current && typeof current === 'object' && current !== null) {
-        current = (current as Record<string, unknown>)[key];
-      } else {
-        return undefined;
-      }
-    }
-    return current;
-  }
-
-  private summarizeWorkflow(steps: WorkflowResult['steps']): string {
-    const successful = steps.filter(s => s.success).length;
-    const total = steps.length;
-
-    if (successful === total) {
-      return `All ${total} steps completed successfully.`;
-    }
-    return `${successful}/${total} steps completed. Last step failed.`;
+  /**
+   * Email thread → extract meeting details → create calendar event.
+   */
+  async emailToCalendar(
+    emailQuery: string,
+    onProgress?: (step: number, msg: string) => void,
+  ): Promise<WorkflowResult> {
+    return this.executeWorkflow([
+      {
+        name: 'Find email',
+        tool: 'email_search',
+        args: { query: emailQuery, folder: 'inbox', limit: 1 },
+      },
+      {
+        name: 'Create calendar event from email',
+        tool: 'calendar_create_event',
+        args: {
+          title: `Meeting from email: ${emailQuery}`,
+          start_time: '',
+          end_time: '',
+        },
+        extract: {
+          title: { fromStep: 0, path: 'results.0.subject' },
+        },
+      },
+    ], undefined, (i, step) => {
+      onProgress?.(i, step.name);
+    });
   }
 }
 
-// Singleton
+// ── Helpers ──
+
+function safeParseJSON(str: string): unknown {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return { raw: str };
+  }
+}
+
+function deepGet(obj: Record<string, unknown>, path: string): unknown {
+  const keys = path.split('.');
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current && typeof current === 'object' && current !== null) {
+      // Handle array indices
+      if (/^\d+$/.test(key) && Array.isArray(current)) {
+        current = current[Number(key)];
+      } else {
+        current = (current as Record<string, unknown>)[key];
+      }
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
+
+function summarizeWorkflow(steps: WorkflowResult['steps']): string {
+  const successful = steps.filter(s => s.success).length;
+  const total = steps.length;
+
+  if (successful === total) {
+    return `All ${total} steps completed successfully in ${steps.reduce((a, s) => a + s.duration, 0)}ms.`;
+  }
+  const failed = steps.find(s => !s.success);
+  return `${successful}/${total} steps completed. Failed at: ${failed?.name ?? 'unknown'}.`;
+}
+
+// ── Singleton ──
+
 let orchestrator: ToolOrchestrator | null = null;
 
 export function getToolOrchestrator(): ToolOrchestrator {

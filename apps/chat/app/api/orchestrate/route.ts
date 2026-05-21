@@ -3,6 +3,14 @@
  *
  * Accepts a workflow name + params, executes the multi-step chain,
  * and streams progress via SSE.
+ *
+ * Supported workflows:
+ * - find_and_share: Search file → share link → email
+ * - summarize_and_save: Email thread → summarize → save to Docs
+ * - smart_schedule: Check availability → create event
+ * - find_summarize_email: Search doc → read → email summary
+ * - email_to_calendar: Email → extract event → create calendar
+ * - custom: Arbitrary step array
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +18,13 @@ import { getToolOrchestrator } from '@/lib/tool-orchestrator';
 
 export const runtime = 'edge';
 
-type WorkflowType = 'find_and_share' | 'summarize_and_save' | 'smart_schedule' | 'custom';
+type WorkflowType =
+  | 'find_and_share'
+  | 'summarize_and_save'
+  | 'smart_schedule'
+  | 'find_summarize_email'
+  | 'email_to_calendar'
+  | 'custom';
 
 interface OrchestrateRequest {
   workflow: WorkflowType;
@@ -47,7 +61,7 @@ export async function POST(req: NextRequest) {
             result = await orchestrator.findAndShareFile(
               String(params.query ?? ''),
               String(params.recipientEmail ?? ''),
-              String(params.message ?? ''),
+              String(params.message ?? 'I\'m sharing this file with you.'),
               onProgress,
             );
             break;
@@ -66,9 +80,25 @@ export async function POST(req: NextRequest) {
               Number(params.durationMinutes ?? 60),
               (params.attendeeEmails ?? []) as string[],
               {
-                from: String(params.dateFrom ?? ''),
-                to: String(params.dateTo ?? ''),
+                from: String(params.dateFrom ?? new Date().toISOString()),
+                to: String(params.dateTo ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
               },
+              onProgress,
+            );
+            break;
+
+          case 'find_summarize_email':
+            result = await orchestrator.findSummarizeEmail(
+              String(params.fileQuery ?? ''),
+              (params.recipientEmails ?? []) as string[],
+              String(params.summaryInstructions ?? ''),
+              onProgress,
+            );
+            break;
+
+          case 'email_to_calendar':
+            result = await orchestrator.emailToCalendar(
+              String(params.emailQuery ?? ''),
               onProgress,
             );
             break;
