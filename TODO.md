@@ -148,10 +148,10 @@
 ## Phase 15: Technical Showcase
 - [ ] WASM image processing pipeline in Rust (resize, compress, filter — 10-50x faster)
 - [ ] WebGPU-accelerated analytics dashboard (3D treemap, particle visualizations)
-- [ ] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
+- [x] WebRTC P2P file sharing (encrypted browser-to-browser, no server)
 - [x] E2EE for Docs/Drive with Web Crypto API + WebAuthn passkeys
 - [x] Shared Worker threads: one WebSocket for all tabs
-- [ ] Performance monitoring dashboard (Core Web Vitals, custom traces)
+- [x] Performance monitoring dashboard (Core Web Vitals, custom traces)
 
 ## Phase 16: Calendar + Tasks (Integration Apps)
 - [x] Calendar app (FullCalendar.js + rrule.js recurring events)

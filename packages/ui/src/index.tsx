@@ -223,3 +223,7 @@ export type {PresenceUser} from './presence';
 // ── Mobile Gestures ──
 export {useSwipeGesture, SwipeableListItem, useLongPress, usePinchZoom, usePullToRefresh, useMultiSelect} from './gestures';
 export type {SwipeGestureState, GestureHandlers, SwipeableListItemProps} from './gestures';
+
+// ── Performance ──
+export {usePerformanceMonitor, PerformanceDashboard, trace, traceAsync} from './perf';
+export type {CoreWebVitals, CustomTrace, PerformanceSnapshot} from './perf';
