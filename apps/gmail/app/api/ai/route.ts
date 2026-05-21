@@ -190,6 +190,99 @@ async function handleEmbedEmails(ai: ReturnType<typeof getAI>, payload: {
   return {embeddings: results};
 }
 
+// ── Compose Email with Style ──
+
+async function handleComposeEmail(ai: ReturnType<typeof getAI>, payload: {
+  subject: string;
+  recipientName: string;
+  tone: string;
+  length: string;
+  threadContext?: string;
+  styleProfile?: {avgSentenceLength: number; formality: string; commonGreetings: string[]; commonClosings: string[]; avgEmailLength: number};
+  keyPoints?: string[];
+  intent?: string;
+}): Promise<{html: string; suggestedSubject?: string}> {
+  const toneGuide: Record<string, string> = {
+    professional: 'Professional and respectful. Use formal greetings and closings.',
+    friendly: 'Warm and personable. Use first names and a conversational tone.',
+    casual: 'Relaxed and informal. Short sentences, conversational.',
+    direct: 'Concise and action-oriented. Get to the point quickly.',
+    empathetic: 'Understanding and supportive. Acknowledge feelings.',
+  };
+
+  const lengthGuide: Record<string, string> = {
+    brief: '2-3 sentences, max 75 words.',
+    medium: '3-5 paragraphs, 150-250 words.',
+    detailed: 'Comprehensive, 300-500 words with full context.',
+  };
+
+  const toneDesc = toneGuide[payload.tone] || toneGuide.professional;
+  const lengthDesc = lengthGuide[payload.length] || lengthGuide.medium;
+
+  let systemPrompt = `Write an email that is ${toneDesc}. Length: ${lengthDesc}.`;
+
+  if (payload.styleProfile) {
+    systemPrompt += `\nMatch this writing style:
+- Average sentence length: ${payload.styleProfile.avgSentenceLength} words
+- Formality level: ${payload.styleProfile.formality}
+- Common greetings: ${payload.styleProfile.commonGreetings?.slice(0, 3).join(', ') || 'Hi'}
+- Common closings: ${payload.styleProfile.commonClosings?.slice(0, 3).join(', ') || 'Best'}`;
+  }
+
+  systemPrompt += '\nOutput valid HTML (p, ul, ol, li, strong, em, br only). No subject line.';
+
+  let userPrompt = `Write an email to ${payload.recipientName}.`;
+  if (payload.subject) userPrompt += ` Subject: ${payload.subject}`;
+  if (payload.threadContext) userPrompt += `\n\nThread context:\n${payload.threadContext}`;
+  if (payload.keyPoints?.length) userPrompt += `\n\nKey points to address: ${payload.keyPoints.join('; ')}`;
+  if (payload.intent) userPrompt += `\n\nIntent: ${payload.intent}`;
+
+  const result = await ai.generate([
+    {role: 'system', content: systemPrompt},
+    {role: 'user', content: userPrompt},
+  ], {temperature: 0.4, maxTokens: 1500});
+
+  return {
+    html: result.text.trim(),
+    suggestedSubject: payload.subject ? undefined : `Re: ${payload.subject}`,
+  };
+}
+
+// ── Improve Email ──
+
+async function handleImproveEmail(ai: ReturnType<typeof getAI>, payload: {
+  html: string;
+  tone: string;
+  styleProfile?: any;
+  threadContext?: string;
+}): Promise<{html: string; changes: string[]}> {
+  const toneGuide: Record<string, string> = {
+    professional: 'more professional and polished',
+    friendly: 'warmer and more personable',
+    casual: 'more relaxed and informal',
+    direct: 'more concise and action-oriented',
+    empathetic: 'more understanding and supportive',
+  };
+
+  const result = await ai.generate([
+    {role: 'system', content: `Improve this email draft to be ${toneGuide[payload.tone] || 'better'}.
+Rules:
+- Fix any grammar or clarity issues
+- Improve flow and readability
+- Keep the same core message
+- Output ONLY the improved HTML (p, ul, ol, li, strong, em, br)
+- Then on a new line output: CHANGES: comma-separated list of what you changed`},
+    {role: 'user', content: payload.html},
+  ], {temperature: 0.3, maxTokens: 1500});
+
+  const text = result.text.trim();
+  const changesMatch = text.match(/CHANGES:\s*(.+)/);
+  const html = text.replace(/CHANGES:\s*.+/, '').trim();
+  const changes = changesMatch?.[1]?.split(',').map(c => c.trim()) || [];
+
+  return {html, changes};
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -202,6 +295,10 @@ export async function POST(request: Request) {
         return Response.json(await handleThreadSummary(ai, body.payload as any));
       case 'compose':
         return Response.json(await handleCompose(ai, body.payload as any));
+      case 'compose-email':
+        return Response.json(await handleComposeEmail(ai, body.payload as any));
+      case 'improve-email':
+        return Response.json(await handleImproveEmail(ai, body.payload as any));
       case 'digest':
         return Response.json(await handleDigest(ai, body.payload as any));
       case 'semantic-search':
