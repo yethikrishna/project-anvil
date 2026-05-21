@@ -1,44 +1,50 @@
 #:schema node_modules/wrangler/config-schema.json
+# ── Unified Cloudflare Infrastructure Config ──
+# Creates all required resources for the Anvil CF Free Stack
+
 name = "anvil-edge-router"
-main = "search-router.ts"
+main = "../../edge/search-router.ts"
 compatibility_date = "2026-04-21"
 compatibility_flags = ["nodejs_compat"]
 
-# ── KV Namespaces (session cache + API cache) ──
+# ── KV Namespaces ──
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "placeholder_sessions_id"         # Run: pnpm cf:setup
-preview_id = "placeholder_sessions_preview"
+id = "placeholder_kv_sessions_id"     # Run: wrangler kv namespace create anvil-kv-sessions
+preview_id = "placeholder_kv_sessions_preview"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "placeholder_cache_id"             # Run: pnpm cf:setup
-preview_id = "placeholder_cache_preview"
+id = "placeholder_kv_cache_id"         # Run: wrangler kv namespace create anvil-kv-cache
+preview_id = "placeholder_kv_cache_preview"
 
-# ── R2 Bucket (Drive BLOB storage) ──
+# ── R2 Buckets (Drive BLOB storage) ──
 
 [[r2_buckets]]
 binding = "DRIVE_STORAGE"
-bucket_name = "anvil-r2-drive"          # Run: pnpm cf:setup
+bucket_name = "anvil-r2-drive"         # Run: wrangler r2 bucket create anvil-r2-drive
+
+# ── D1 Database (edge metadata — optional, lightweight) ──
+
+[[d1_databases]]
+binding = "DB"
+database_name = "anvil-d1-metadata"
+database_id = "placeholder_d1_id"       # Run: wrangler d1 create anvil-d1-metadata
 
 # ── Environment Variables ──
 
 [vars]
+ENVIRONMENT = "production"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 OSRM_URL = "https://router.project-osrm.org"
 
-# Secrets (set via `wrangler secret put`):
+# Secrets (set via CLI):
 # wrangler secret put MEILISEARCH_URL
 # wrangler secret put MEILISEARCH_API_KEY
+# wrangler secret put NEON_DATABASE_URL
 # wrangler secret put BACKEND_URL
 # wrangler secret put OPENAI_API_KEY
-
-# ── Free Tier Limits ──
-# Workers: 100,000 requests/day
-# KV: 100,000 reads/day, 1,000 writes/day
-# R2: 10GB storage, 10M class A ops, 1M class B ops/month
-# D1: 5GB storage, 5M rows read, 100K rows written/day
 
 # ── Staging ──
 

@@ -9,7 +9,8 @@ import { FileUpload } from './components/FileUpload';
 import { FilePreview } from './components/FilePreview';
 import { ContextMenu, useContextMenu } from './components/ContextMenu';
 import { FileSystemAccessPanel } from './components/FileSystemAccessPanel';
-import { AppShell, ThemeProvider, ThemeToggle, NotificationBell } from '@anvil/ui';
+import { AppShell, ThemeProvider, ThemeToggle, cn } from '@anvil/ui';
+import { NotificationBell } from '@anvil/notifications';
 import { NotificationProvider } from '@anvil/notifications';
 import { tagFile, TAG_CONFIG } from './lib/ai-tagger';
 

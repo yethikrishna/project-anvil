@@ -15,7 +15,13 @@
     "dev:youtube": "turbo dev --filter=youtube",
     "dev:maps": "turbo dev --filter=maps",
     "dev:search": "turbo dev --filter=search",
-    "dev:gmail": "turbo dev --filter=gmail"
+    "dev:gmail": "turbo dev --filter=gmail",
+    "deploy:cf": "echo 'Deploy to Cloudflare:' && echo '  pnpm deploy:cf:setup  - Create KV/R2/D1 resources' && echo '  pnpm deploy:cf:router  - Deploy edge router worker' && echo '  pnpm deploy:cf:search  - Build & deploy search app to Pages'",
+    "deploy:cf:setup": "bash infra/cloudflare/setup.sh",
+    "deploy:cf:router": "cd edge && npx wrangler deploy",
+    "deploy:cf:search": "pnpm --filter @anvil/search build && cd apps/search && npx wrangler pages deploy .next/static --project-name anvil-search",
+    "deploy:cf:drive": "pnpm --filter @anvil/drive build && cd apps/drive && npx wrangler pages deploy .next/static --project-name anvil-drive",
+    "cf:dev": "cd edge && npx wrangler dev"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "^1.0.0",

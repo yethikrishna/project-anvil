@@ -1,0 +1,15 @@
+#:schema node_modules/wrangler/config-schema.json
+# Drive App — Cloudflare Pages Deployment
+# Includes R2 bindings for file BLOB storage
+
+name = "anvil-drive-pages"
+compatibility_date = "2026-04-21"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://api.anvil.dev"
+
+# R2 binding for Drive BLOB storage (replacing MinIO in cloud mode)
+[[r2_buckets]]
+binding = "DRIVE_STORAGE"
+bucket_name = "anvil-r2-drive"

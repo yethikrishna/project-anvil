@@ -1,0 +1,18 @@
+#:schema node_modules/wrangler/config-schema.json
+# Search App — Cloudflare Pages Deployment
+# Deploy: npx wrangler pages deploy .vercel/output/static --project-name anvil-search
+
+name = "anvil-search-pages"
+compatibility_date = "2026-04-21"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NEXT_PUBLIC_SEARCH_API = "https://api.anvil.dev"
+
+# ── Pages Project Config ──
+# Build output: apps/search/.next/static
+# Framework: Next.js 15 (static export mode for Pages)
+
+# Secrets (set via dashboard or wrangler pages secret put):
+# - No secrets needed for static frontend
+# - API calls go through edge router

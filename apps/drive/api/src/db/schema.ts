@@ -4,7 +4,14 @@
 
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { pgTable, uuid, text, bigint, boolean, timestamp, ltree, index, vector } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, bigint, boolean, timestamp, index, vector, customType } from 'drizzle-orm/pg-core';
+
+// ── Custom ltree type (PostgreSQL ltree extension) ──────────
+const ltree = customType<{ data: string }>({
+  dataType() {
+    return 'ltree';
+  },
+});
 
 // ── Connection ────────────────────────────────────────────
 
