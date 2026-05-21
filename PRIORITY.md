@@ -63,15 +63,15 @@
   5. Create `deploy:cf` npm script in root package.json
 - **Acceptance**: `deploy:cf` deploys at least one app (search) to CF Pages with edge routing
 
-#### 3. Static Document Renderer Integration
+#### 3. Static Document Renderer Integration ~~✅ DONE~~
 - **Assigned to**: Anvil Coder
-- **Why**: Tiptap 3 is upgraded but `@tiptap/static-renderer` for SSR previews isn't wired up yet. Document listing page shows raw titles — should render rich previews.
-- **Tasks**:
-  1. Add `@tiptap/static-renderer` to docs app dependencies
-  2. Generate HTML previews server-side on document save
-  3. Display previews in document listing grid
-  4. Add OG image generation for document share links
-- **Acceptance**: Document list shows rendered previews, share links have OG images
+- **Status**: ✅ DONE (commit 7edcbf2)
+- **Completed**:
+  - ✅ Added @tiptap/static-renderer for SSR HTML rendering
+  - ✅ Document previews generated on save (truncated excerpt)
+  - ✅ Document listing shows rich card grid with previews
+  - ✅ OG image generation endpoint (SVG-based share images)
+  - ✅ Fixed Next.js 15 async params, auth exports, Hocuspocus config
 
 ---
 
