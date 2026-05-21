@@ -172,6 +172,10 @@
 - [ ] Implement **Playwright visual regression** with `toHaveScreenshot()` for @anvil/ui components
 - [ ] Evaluate **Drizzle ORM** for type-safe PostgreSQL queries (RLS, edge/serverless, PGlite WASM)
 - [ ] Add **Zitadel** as third IAM evaluation option (Go, cloud-native, built-in multi-tenancy, AGPL-3.0)
+- [ ] Evaluate **PGlite v0.4** as unified client-side DB (WASM Postgres, pgvector, PostGIS, live queries)
+- [ ] Evaluate **Vercel AI SDK 6** as foundation for `@anvil/ai` (streaming RAG, Agent class, useChat)
+- [ ] Consider **LiveKit** over mediasoup for Phase 24 video calling (AI agents, mobile SDKs, Apache 2.0)
+- [ ] Evaluate **tRPC v11** for internal API type safety (native Next.js RSC, keep OpenAPI for public API)
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
