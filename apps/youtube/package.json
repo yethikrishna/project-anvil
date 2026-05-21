@@ -14,11 +14,14 @@
     "@anvil/auth": "workspace:*",
     "@anvil/ui": "workspace:*",
     "@anvil/notifications": "workspace:*",
+    "@anvil/next-config": "workspace:*",
     "react-player": "^2.16.0",
     "axios": "^1.7.0",
     "lucide-react": "^0.468.0",
     "clsx": "^2.1.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "@ffmpeg/ffmpeg": "^0.12.0",
+    "@ffmpeg/util": "^0.12.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

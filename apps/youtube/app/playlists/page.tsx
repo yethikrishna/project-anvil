@@ -2,7 +2,7 @@
 
 import {useState} from 'react';
 import {AppShell, Button, Card, Input} from '@anvil/ui';
-import {usePlaylistStore} from '../lib/playlist-store';
+import {usePlaylistStore} from '../../lib/playlist-store';
 
 export default function PlaylistsPage() {
   const {playlists, createPlaylist, deletePlaylist, renamePlaylist, removeFromPlaylist} = usePlaylistStore();

@@ -1,11 +1,12 @@
 'use client';
 
-import {useRef, useEffect} from 'react';
+import {useRef, useEffect, useState} from 'react';
 import {AppShell, Button, Card, Input, ThemeProvider, ThemeToggle} from '@anvil/ui';
 import {useAuth} from '@anvil/auth';
 import {NotificationProvider, NotificationBell} from '@anvil/notifications';
 import {useDebouncedSearch} from '../lib/use-debounced-search';
 import {usePlaylistStore} from '../lib/playlist-store';
+import {VideoProcessor} from '../lib/video-processor';
 
 export default function YouTubePage() {
   const {isAuthenticated, login} = useAuth();
@@ -14,7 +15,9 @@ export default function YouTubePage() {
     showSuggestions, setShowSuggestions, search,
   } = useDebouncedSearch();
   const {playlists} = usePlaylistStore();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   if (!isAuthenticated) {
     return (
@@ -30,6 +33,7 @@ export default function YouTubePage() {
   }
 
   return (
+    <>
     <ThemeProvider><NotificationProvider userId="demo-user"><AppShell activeApp="youtube" notifications={<><ThemeToggle/><NotificationBell/></>}>
       <div className="p-6">
         {/* Header */}
@@ -39,6 +43,19 @@ export default function YouTubePage() {
             <a href="/playlists" className="text-sm text-blue-600 hover:underline">
               My Playlists ({playlists.length})
             </a>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) setUploadFile(f);
+              }}
+            />
+            <Button onClick={() => fileInputRef.current?.click()} variant="ghost">
+              📤 Upload
+            </Button>
           </div>
         </div>
 
@@ -46,7 +63,6 @@ export default function YouTubePage() {
         <div className="relative mb-6 max-w-2xl">
           <div className="relative">
             <Input
-              ref={inputRef}
               placeholder="Search videos..."
               value={query}
               onChange={e => {
@@ -158,6 +174,29 @@ export default function YouTubePage() {
           onClick={() => setShowSuggestions(false)}
         />
       )}
-    </AppShell></NotificationProvider></ThemeProvider>;
-  };
+    </AppShell></NotificationProvider></ThemeProvider>
+
+    {/* Video Upload Processor */}
+    {uploadFile && (
+      <VideoProcessor
+        file={uploadFile}
+        onComplete={async (processedFile, metadata) => {
+          setUploading(true);
+          try {
+            // In production, upload to Drive/R2 via API
+            const formData = new FormData();
+            formData.append('video', processedFile);
+            formData.append('metadata', JSON.stringify(metadata));
+            // TODO: Replace with actual upload endpoint
+            console.log('Processed video ready:', processedFile.name, `${(processedFile.size / (1024 * 1024)).toFixed(1)} MB`);
+          } finally {
+            setUploading(false);
+            setUploadFile(null);
+          }
+        }}
+        onCancel={() => setUploadFile(null)}
+      />
+    )}
+    </>
+  );
 }

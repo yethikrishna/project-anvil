@@ -6,7 +6,7 @@ import {
   searchTranscript,
   formatTimestamp,
   type TranscriptLine,
-} from '../../lib/transcript';
+} from '../../../lib/transcript';
 
 interface TranscriptPanelProps {
   videoId: string;

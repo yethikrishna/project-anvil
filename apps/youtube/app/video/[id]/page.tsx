@@ -4,12 +4,12 @@ import {useState, useEffect, useRef} from 'react';
 import ReactPlayer from 'react-player/youtube';
 import {useAuth} from '@anvil/auth';
 import {AppShell, Button, Card, Input} from '@anvil/ui';
-import {getVideoDetails, getRelatedVideos, type VideoDetails, type VideoResult} from '../../lib/youtube-api';
-import {usePlaylistStore} from '../../lib/playlist-store';
+import {getVideoDetails, getRelatedVideos, type VideoDetails, type VideoResult} from '../../../lib/youtube-api';
+import {usePlaylistStore} from '../../../lib/playlist-store';
 import {TranscriptPanel} from './TranscriptPanel';
 
 interface VideoPageProps {
-  params: {id: string};
+  params: Promise<{id: string}>;
 }
 
 export default function VideoPage({params}: VideoPageProps) {
@@ -20,21 +20,25 @@ export default function VideoPage({params}: VideoPageProps) {
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [showTranscript, setShowTranscript] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [videoId, setVideoId] = useState('');
   const playerRef = useRef<any>(null);
 
   const {playlists, createPlaylist, addToPlaylist, isInPlaylist} = usePlaylistStore();
 
   useEffect(() => {
     setIsLoading(true);
-    Promise.all([
-      getVideoDetails(params.id),
-      getRelatedVideos(params.id),
-    ]).then(([details, relatedVideos]) => {
-      setVideo(details);
-      setRelated(relatedVideos);
-      setIsLoading(false);
+    params.then(p => {
+      setVideoId(p.id);
+      Promise.all([
+        getVideoDetails(p.id),
+        getRelatedVideos(p.id),
+      ]).then(([details, relatedVideos]) => {
+        setVideo(details);
+        setRelated(relatedVideos);
+        setIsLoading(false);
+      });
     });
-  }, [params.id]);
+  }, [params]);
 
   const handleSeek = (seconds: number) => {
     playerRef.current?.seekTo(seconds, 'seconds');
@@ -102,7 +106,7 @@ export default function VideoPage({params}: VideoPageProps) {
           <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4">
             <ReactPlayer
               ref={playerRef}
-              url={`https://www.youtube.com/watch?v=${params.id}`}
+              url={`https://www.youtube.com/watch?v=${videoId}`}
               width="100%"
               height="100%"
               controls
@@ -138,7 +142,7 @@ export default function VideoPage({params}: VideoPageProps) {
                       onClick={() => handleAddToPlaylist(pl.id)}
                       className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-50 transition-colors"
                     >
-                      {isInPlaylist(pl.id, params.id) ? '✓ ' : ''}{pl.name}
+                      {isInPlaylist(pl.id, videoId) ? '✓ ' : ''}{pl.name}
                       <span className="text-gray-400 ml-1">({pl.items.length})</span>
                     </button>
                   ))}
@@ -185,7 +189,7 @@ export default function VideoPage({params}: VideoPageProps) {
           {/* Transcript Panel */}
           {showTranscript && (
             <div className="h-1/2 border-b border-gray-100 overflow-auto">
-              <TranscriptPanel videoId={params.id} onSeek={handleSeek} />
+              <TranscriptPanel videoId={videoId} onSeek={handleSeek} />
             </div>
           )}
 
@@ -224,6 +228,7 @@ export default function VideoPage({params}: VideoPageProps) {
                 </div>
               </a>
             ))}
+          </div>
           </div>
         </aside>
       </div>
