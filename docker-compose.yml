@@ -47,9 +47,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Cache & Sessions ──
+  # ── Cache & Sessions (Valkey — BSD-licensed Redis fork, 20-40% better memory) ──
   redis:
-    image: redis:7-alpine
+    image: valkey/valkey:8-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -57,7 +57,7 @@ services:
     networks:
       - anvil-net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
