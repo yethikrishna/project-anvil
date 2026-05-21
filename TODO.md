@@ -176,6 +176,10 @@
 - [ ] Evaluate **Vercel AI SDK 6** as foundation for `@anvil/ai` (streaming RAG, Agent class, useChat)
 - [ ] Consider **LiveKit** over mediasoup for Phase 24 video calling (AI agents, mobile SDKs, Apache 2.0)
 - [ ] Evaluate **tRPC v11** for internal API type safety (native Next.js RSC, keep OpenAPI for public API)
+- [ ] Replace **Redis** with **Valkey** in Docker Compose (drop-in compatible, BSD license, 20-40% better memory)
+- [ ] Adopt **TanStack Table** for all list/grid views across apps (v8 now, v9 when stable)
+- [ ] Upgrade to **Zod v4** across all packages (14× faster parsing, @zod/mini for edge)
+- [ ] Evaluate **Hono** as edge gateway for CF Workers (402K ops/sec, <14KB, multi-runtime)
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
