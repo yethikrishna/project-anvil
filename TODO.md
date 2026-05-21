@@ -142,6 +142,34 @@
 - [x] README with architecture diagrams
 - [x] System design documentation
 - [x] Engineering tradeoff explanations
+
+## Phase 12: Chat Command Center (AI Assistant)
+- [x] Chat app UI with message list, input, sidebar
+- [x] Streaming AI responses with tool use visualization
+- [x] Tool use framework — AI acts across Mail, Drive, Calendar, Docs
+- [x] 11 tools: email_search/send/read_thread/save_draft, file_search/read/share, document_write, calendar_create_event/check_availability, web_search
+- [x] What needs my attention — priority digest scanning Mail + Calendar
+- [x] Draft reply — reads thread, writes reply, saves to drafts
+- [x] Find and share — searches Drive, creates share link, offers email
+- [x] Schedule meeting — checks availability, proposes times, creates event
+- [x] Weekly summary — aggregates Mail + Docs + Calendar, AI report
+- [x] Persistent conversations with IndexedDB memory across sessions
+- [x] Voice input (Whisper STT, local fallback, audio visualization)
+- [x] Voice output (OpenAI TTS, 6 voices, speed control, format options)
+- [x] Multi-turn tool use — AI chains up to 5 rounds of tool calls
+- [x] Context accumulation — pattern learning, preference detection, entity extraction
+- [x] Human-in-the-loop approval gates (email_send, calendar_create, file_share)
+- [x] Command palette (Ctrl+K) with fuzzy search
+- [x] Tool orchestrator with predefined workflows
+- [x] Intent router — 13 intent categories with entity extraction
+- [x] Toast notification system
+- [x] Settings panel (voice, behavior, privacy, communication style)
+- [x] Context indicator (files, people, topics, preferences)
+- [x] Conversation export (Markdown, JSON)
+- [x] Cross-session pattern persistence
+- [x] Chat engine with OpenAI streaming + tool_calls parsing
+- [x] Server-side conversation CRUD API
+- [x] @anvil/ai integration (ANVIL_TOOLS, agent runtime)
 - [x] Resume-ready project descriptions
 - [x] Live demo URLs
 - [x] ATS keyword optimization
