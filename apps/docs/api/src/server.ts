@@ -28,7 +28,6 @@ const HOST = process.env.HOST ?? '0.0.0.0';
 // ── Hocuspocus Server ──
 
 const hocuspocus = new Hocuspocus({
-  port: PORT + 1, // WebSocket on separate port
   address: HOST,
 
   async onConnect({documentName, context}) {
@@ -55,7 +54,6 @@ const hocuspocus = new Hocuspocus({
       if (rows.length && rows[0].ydocState) {
         const state = Buffer.from(rows[0].ydocState, 'base64');
         YDoc.prototype.transact.bind(document)({}, () => {
-          // Apply stored state
           const ydoc = new YDoc();
           YDoc.prototype.applyUpdate.bind(ydoc)(state);
         });
@@ -71,7 +69,6 @@ const hocuspocus = new Hocuspocus({
       const docId = documentName.replace('doc-', '');
       const state = Buffer.from(YDoc.prototype.encodeStateAsUpdate.bind(document)()).toString('base64');
 
-      // Also get HTML content for searchability
       const content = getHTMLContent(document);
 
       await db
@@ -154,6 +151,10 @@ async function main() {
   });
 
   await app.listen({port: PORT, host: HOST});
+
+  // Start Hocuspocus WebSocket server on separate port
+  await hocuspocus.listen({port: PORT + 1, host: HOST});
+
   console.log(`🚀 Docs API running at http://${HOST}:${PORT}`);
   console.log(`🔌 Hocuspocus WS running at ws://${HOST}:${PORT + 1}`);
 }

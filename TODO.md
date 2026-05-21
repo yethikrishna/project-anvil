@@ -84,9 +84,9 @@
 ### Editor Modernization
 - [x] Upgrade Tiptap 2 → 3 across Docs Clone (Phase 4)
 - [x] Add @tiptap/static-renderer for server-side document previews
-- [ ] Evaluate Hocuspocus 4 migration for collaboration server
-- [ ] Enable JSX renderHTML support for custom nodes
-- [ ] Add previously-pro extensions now OSS: Drag Handle, Emoji, Math
+- [x] Evaluate Hocuspocus 4 migration for collaboration server
+- [x] Enable JSX renderHTML support for custom nodes
+- [x] Add previously-pro extensions now OSS: Drag Handle, Emoji, Math
 
 ### AI-Enhanced Search
 - [ ] Upgrade Meilisearch to 1.16+ for multi-modal embeddings
