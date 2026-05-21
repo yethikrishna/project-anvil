@@ -23,7 +23,7 @@ export class JMAPClient {
     this.config = config;
   }
 
-  private async request(calls: JMAPCall[][]): Promise<JMAPResponse> {
+  private async request(calls: JMAPCall[]): Promise<JMAPResponse> {
     const response = await fetch(`${this.config.baseUrl}/.well-known/jmap`, {
       method: 'POST',
       headers: {
@@ -86,7 +86,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'Calendar/get');
-    return response?.[1]?.list ?? [];
+    return (response?.[1] as any)?.list ?? [];
   }
 
   async getCalendarEvents(calendarIds?: string[], start?: Date, end?: Date): Promise<JSCalendarEvent[]> {
@@ -126,7 +126,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'CalendarEvent/get');
-    return response?.[1]?.list ?? [];
+    return (response?.[1] as any)?.list ?? [];
   }
 
   async createCalendarEvent(event: Partial<JSCalendarEvent>): Promise<JSCalendarEvent | null> {
@@ -155,7 +155,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'CalendarEvent/set');
-    const created = response?.[1]?.created?.['new-event'];
+    const created = (response?.[1] as any)?.created?.['new-event'];
     return created ?? null;
   }
 
@@ -181,7 +181,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'CalendarEvent/set');
-    return !!response?.[1]?.updated?.[eventId];
+    return !!(response?.[1] as any)?.updated?.[eventId];
   }
 
   async deleteCalendarEvent(eventId: string): Promise<boolean> {
@@ -204,7 +204,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'CalendarEvent/set');
-    return response?.[1]?.destroyed?.includes(eventId) ?? false;
+    return (response?.[1] as any)?.destroyed?.includes(eventId) ?? false;
   }
 
   // ── Contact Operations (JSContact RFC 9553) ──
@@ -229,7 +229,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'ContactList/get');
-    return response?.[1]?.list ?? [];
+    return (response?.[1] as any)?.list ?? [];
   }
 
   async getContacts(contactListId?: string): Promise<JSContact[]> {
@@ -262,7 +262,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'Contact/get');
-    return response?.[1]?.list ?? [];
+    return (response?.[1] as any)?.list ?? [];
   }
 
   async createContact(contact: Partial<JSContact>): Promise<JSContact | null> {
@@ -291,7 +291,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'Contact/set');
-    const created = response?.[1]?.created?.['new-contact'];
+    const created = (response?.[1] as any)?.created?.['new-contact'];
     return created ?? null;
   }
 
@@ -317,7 +317,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'Contact/set');
-    return !!response?.[1]?.updated?.[contactId];
+    return !!(response?.[1] as any)?.updated?.[contactId];
   }
 
   async deleteContact(contactId: string): Promise<boolean> {
@@ -340,7 +340,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'Contact/set');
-    return response?.[1]?.destroyed?.includes(contactId) ?? false;
+    return (response?.[1] as any)?.destroyed?.includes(contactId) ?? false;
   }
 
   // ── Free/Busy Query ──
@@ -367,7 +367,7 @@ export class JMAPClient {
     ]);
 
     const response = result.methodResponses.find((r) => r[0] === 'CalendarEvent/freeBusy');
-    return response?.[1]?.busy ?? [];
+    return (response?.[1] as any)?.busy ?? [];
   }
 
   // ── Helpers ──
@@ -385,11 +385,7 @@ export class JMAPClient {
 
 // ── JMAP Types ──
 
-interface JMAPCall {
-  name: string;
-  params: Record<string, unknown>;
-  id: string;
-}
+type JMAPCall = [string, Record<string, unknown>, string];
 
 interface JMAPResponse {
   methodResponses: [string, Record<string, unknown>, string][];

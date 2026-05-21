@@ -27,12 +27,61 @@ const AI_TEMPLATE_TYPES = [
   {id: 'ai-letter', title: 'AI Letter', icon: '🤖', description: 'Specify the letter type and recipient, AI writes it', prompt: 'letter'},
 ];
 
+function renderTemplateCard(template: DocumentTemplate, onSelect: (t: DocumentTemplate) => void) {
+  return (
+    <button
+      key={template.id}
+      onClick={() => onSelect(template)}
+      className="group text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-md transition-all bg-white dark:bg-gray-800/50"
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-2xl flex-shrink-0">{template.icon}</span>
+        <div className="min-w-0">
+          <h4 className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
+            {template.title}
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+            {template.description}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export function TemplatePicker({open, onClose, onSelect}: TemplatePickerProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [aiDescription, setAiDescription] = useState('');
   const [aiTemplateType, setAiTemplateType] = useState('proposal');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleAIGenerate = useCallback(async () => {
+    if (!aiDescription.trim()) return;
+    setIsGenerating(true);
+    try {
+      const resp = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'template', payload: {type: aiTemplateType, description: aiDescription}}),
+      });
+      if (!resp.ok) throw new Error('AI generation failed');
+      const result = await resp.json();
+      onSelect({
+        id: `ai-${Date.now()}`,
+        title: result.suggestedTitle || 'AI Generated Document',
+        description: aiDescription,
+        icon: '✨',
+        category: 'business',
+        content: result.html,
+      });
+    } catch (err) {
+      console.error('AI template generation failed:', err);
+      alert('Failed to generate template. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [aiDescription, aiTemplateType, onSelect]);
 
   if (!open) return null;
 
@@ -99,13 +148,13 @@ export function TemplatePicker({open, onClose, onSelect}: TemplatePickerProps) {
                   {CATEGORY_LABELS[category] ?? category}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {items.map(renderTemplateCard)}
+                  {items.map(t => renderTemplateCard(t, onSelect))}
                 </div>
               </div>
             ))
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filtered.map(renderTemplateCard)}
+              {filtered.map(t => renderTemplateCard(t, onSelect))}
             </div>
           )}
         </div>
@@ -167,53 +216,4 @@ export function TemplatePicker({open, onClose, onSelect}: TemplatePickerProps) {
       </div>
     </div>
   );
-
-  const handleAIGenerate = useCallback(async () => {
-    if (!aiDescription.trim()) return;
-    setIsGenerating(true);
-    try {
-      const resp = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action: 'template', payload: {type: aiTemplateType, description: aiDescription}}),
-      });
-      if (!resp.ok) throw new Error('AI generation failed');
-      const result = await resp.json();
-      onSelect({
-        id: `ai-${Date.now()}`,
-        title: result.suggestedTitle || 'AI Generated Document',
-        description: aiDescription,
-        icon: '✨',
-        category: 'business',
-        content: result.html,
-      });
-    } catch (err) {
-      console.error('AI template generation failed:', err);
-      alert('Failed to generate template. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [aiDescription, aiTemplateType, onSelect]);
-
-  function renderTemplateCard(template: DocumentTemplate) {
-    return (
-      <button
-        key={template.id}
-        onClick={() => onSelect(template)}
-        className="group text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-md transition-all bg-white dark:bg-gray-800/50"
-      >
-        <div className="flex items-start gap-3">
-          <span className="text-2xl flex-shrink-0">{template.icon}</span>
-          <div className="min-w-0">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
-              {template.title}
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
-              {template.description}
-            </p>
-          </div>
-        </div>
-      </button>
-    );
-  }
 }

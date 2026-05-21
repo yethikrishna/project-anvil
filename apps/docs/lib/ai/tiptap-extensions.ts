@@ -6,10 +6,9 @@
  * - AICommandsExtension: /ai draft, /ai research commands
  */
 
-import {Extension, Editor, Range} from '@tiptap/core';
-import {Plugin, PluginKey, Transaction} from '@tiptap/pm/state';
+import {Extension, Editor} from '@tiptap/core';
+import {Plugin, PluginKey} from '@tiptap/pm/state';
 import {Decoration, DecorationSet} from '@tiptap/pm/view';
-import {Node as PMNode} from '@tiptap/pm/model';
 
 // ── AI Suggestion State ──
 
@@ -68,6 +67,7 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
     return {suggestionDebounce: 1500};
   },
 
+  // @ts-expect-error — custom AI commands extend RawCommands
   addCommands() {
     return {
       aiRewrite: (mode: 'shorter' | 'formal' | 'casual' | 'fix-grammar' | 'longer' | 'bullet-points') =>
@@ -178,7 +178,7 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
         },
 
       aiSuggest: () =>
-        async ({editor}) => {
+        async ({editor}: {editor: Editor}) => {
           const {from} = editor.state.selection;
           const textBefore = editor.state.doc.textBetween(
             Math.max(0, from - 500), from, '\n'
@@ -195,7 +195,6 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
             });
 
             if (result.suggestion) {
-              // Store suggestion in plugin state for inline display
               const pluginState = aiPluginKey.getState(editor.state);
               if (pluginState) {
                 const newSuggestion: AISuggestion = {
@@ -207,7 +206,6 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
                   type: 'inline',
                   status: 'pending',
                 };
-                // Dispatch transaction to update state
                 const tr = editor.state.tr.setMeta(aiPluginKey, {
                   action: 'addSuggestion',
                   suggestion: newSuggestion,
@@ -223,22 +221,20 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
         },
 
       aiAcceptSuggestion: (suggestionId?: string) =>
-        ({editor}) => {
+        ({editor}: {editor: Editor}) => {
           const pluginState = aiPluginKey.getState(editor.state);
           if (!pluginState) return false;
 
           const suggestion = suggestionId
-            ? pluginState.suggestions.find(s => s.id === suggestionId)
-            : pluginState.suggestions.find(s => s.status === 'pending');
+            ? pluginState.suggestions.find((s: AISuggestion) => s.id === suggestionId)
+            : pluginState.suggestions.find((s: AISuggestion) => s.status === 'pending');
 
           if (!suggestion) return false;
 
-          // Insert suggestion text
           editor.chain().focus()
             .insertContentAt(suggestion.to, suggestion.text)
             .run();
 
-          // Remove from state
           const tr = editor.state.tr.setMeta(aiPluginKey, {
             action: 'removeSuggestion',
             id: suggestion.id,
@@ -248,11 +244,11 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
         },
 
       aiRejectSuggestion: (suggestionId?: string) =>
-        ({editor}) => {
+        ({editor}: {editor: Editor}) => {
           const pluginState = aiPluginKey.getState(editor.state);
           if (!pluginState) return false;
 
-          const id = suggestionId || pluginState.suggestions.find(s => s.status === 'pending')?.id;
+          const id = suggestionId || pluginState.suggestions.find((s: AISuggestion) => s.status === 'pending')?.id;
           if (!id) return false;
 
           const tr = editor.state.tr.setMeta(aiPluginKey, {
@@ -367,7 +363,7 @@ export const AIRewrite = Extension.create<AIRewriteOptions>({
               widget.dataset.suggestionId = suggestion.id;
 
               widget.addEventListener('click', () => {
-                editor.commands.aiAcceptSuggestion(suggestion.id);
+                (editor.commands as any).aiAcceptSuggestion(suggestion.id);
               });
 
               decorations.push(
@@ -394,7 +390,7 @@ export const AIShortcuts = Extension.create({
         // Accept inline suggestion
         const pluginState = aiPluginKey.getState(this.editor.state);
         if (pluginState?.suggestions.some(s => s.status === 'pending')) {
-          return this.editor.commands.aiAcceptSuggestion();
+          return (this.editor.commands as any).aiAcceptSuggestion();
         }
         return false;
       },
@@ -402,7 +398,7 @@ export const AIShortcuts = Extension.create({
         // Reject inline suggestion
         const pluginState = aiPluginKey.getState(this.editor.state);
         if (pluginState?.activeSuggestion) {
-          return this.editor.commands.aiRejectSuggestion();
+          return (this.editor.commands as any).aiRejectSuggestion();
         }
         return false;
       },

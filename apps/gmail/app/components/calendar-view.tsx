@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@anvil/ui';
-import type { JSCalendarEvent } from './jmap-calendar-contacts';
+import type { JSCalendarEvent } from '../lib/jmap-calendar-contacts';
 
 // ── Mock Calendar Data (would come from JMAP in production) ──
 
@@ -220,7 +220,7 @@ function EventFormModal({
 function EventDetail({ event, onClose }: { event: JSCalendarEvent; onClose: () => void }) {
   const cal = MOCK_CALENDARS.find((c) => c.id === event.calendarId);
   const durationMin = parseDuration(event.duration);
-  const participants = event.participants ? Object.values(event.participants) : [];
+  const participants = event.participants ? Object.values(event.participants as Record<string, {name: string; participationStatus?: string; email?: string}>) : [];
 
   return (
     <div className="p-4 border-b border-gray-200 bg-white">
@@ -445,7 +445,7 @@ export default function CalendarView() {
                         <div className="text-xs text-gray-500">{formatTime(evt.start)} · {parseDuration(evt.duration)} min</div>
                         {evt.participants && (
                           <div className="text-xs text-gray-400 mt-0.5">
-                            {Object.values(evt.participants).map((p) => p.name).join(', ')}
+                            {Object.values(evt.participants as Record<string, {name: string}>).map((p) => p.name).join(', ')}
                           </div>
                         )}
                       </div>

@@ -40,8 +40,10 @@ export type {WebGPUEmbeddingConfig, WebGPUEmbeddingResult} from './webgpu-embedd
 export {AgentRuntime, createEmailTriageAgent, createFileOrganizationAgent, createScheduleAgent} from './agents.js';
 export type {AgentStatus, ActionRisk, ApprovalDecision, AgentAction, AgentPlan, ApprovalRequest, AgentConfig} from './agents.js';
 
-export {useChat, useCompletion} from './react/index.js';
-export type {UseChatOptions, UseChatReturn, UseCompletionOptions, UseCompletionReturn} from './react/index.js';
+// React hooks — import from '@anvil/ai/react' instead of '@anvil/ai' to avoid
+// pulling React into server-side bundles.
+// export {useChat, useCompletion} from './react/index.js';
+// export type {UseChatOptions, UseChatReturn, UseCompletionOptions, UseCompletionReturn} from './react/index.js';
 
 export {
   ANVIL_TOOLS,

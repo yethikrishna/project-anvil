@@ -17,9 +17,9 @@ import {HocuspocusProvider} from '@hocuspocus/provider';
 import {useState, useEffect, useCallback, use, useRef} from 'react';
 import {useAuth} from '@anvil/auth';
 import {AnalyticsPanel} from './AnalyticsPanel';
-import {AIRewrite, AIShortcuts} from '../../lib/ai/tiptap-extensions';
-import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../lib/ai/ai-components';
-import {useAutoTitleSummary} from '../../lib/ai/use-auto-title';
+import {AIRewrite, AIShortcuts} from '../../../lib/ai/tiptap-extensions';
+import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../../lib/ai/ai-components';
+import {useAutoTitleSummary} from '../../../lib/ai/use-auto-title';
 
 // ── Toolbar ──
 
@@ -312,8 +312,8 @@ export default function EditorPage({params}: EditorPageProps) {
       return false;
     };
 
-    editor.on('keydown', handleKeyDown);
-    return () => { editor.off('keydown', handleKeyDown); };
+    editor.on('keydown' as any, handleKeyDown);
+    return () => { editor.off('keydown' as any, handleKeyDown); };
   }, [editor]);
 
   // Update title
@@ -404,8 +404,8 @@ export default function EditorPage({params}: EditorPageProps) {
       <AISuggestionBar
         visible={hasSuggestion}
         suggestionText={suggestionText}
-        onAccept={() => editor?.commands.aiAcceptSuggestion?.()}
-        onReject={() => editor?.commands.aiRejectSuggestion?.()}
+        onAccept={() => (editor?.commands as any).aiAcceptSuggestion?.()}
+        onReject={() => (editor?.commands as any).aiRejectSuggestion?.()}
       />
     </div>
   );
