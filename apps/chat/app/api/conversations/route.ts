@@ -1,36 +1,44 @@
 /**
- * Conversations API — server-side persistence for chat history.
+ * Enhanced server-side conversation API.
  *
- * GET  /api/conversations           — list conversations
- * POST /api/conversations           — create conversation
- * GET  /api/conversations?id=xxx    — get single conversation
- * PUT  /api/conversations           — update conversation
- * DELETE /api/conversations?id=xxx  — delete conversation
+ * POST   /api/conversations          — Create new conversation
+ * GET    /api/conversations          — List all conversations (query: ?userId=)
+ * GET    /api/conversations?id=xxx   — Get single conversation
+ * PUT    /api/conversations          — Update conversation (title, context)
+ * DELETE /api/conversations?id=xxx   — Delete conversation
+ * POST   /api/conversations/message  — Add message to conversation
+ * GET    /api/conversations/search?q= — Search across conversations
+ *
+ * Storage: In-memory Map (production: PostgreSQL via Drizzle ORM).
+ * Each conversation stores messages, context, and metadata.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// ── In-memory store (production: PostgreSQL via Drizzle) ──
+// ── In-Memory Store (production: Drizzle + PostgreSQL) ──
+
+interface StoredMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  toolCalls?: Array<{
+    id: string;
+    tool: string;
+    args: Record<string, unknown>;
+    result: string;
+    status: 'running' | 'success' | 'error';
+    duration?: number;
+  }>;
+}
 
 interface StoredConversation {
   id: string;
-  title: string;
   userId: string;
-  messages: Array<{
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: number;
-    toolCalls?: Array<{
-      id: string;
-      tool: string;
-      args: Record<string, unknown>;
-      result: string;
-      status: 'running' | 'success' | 'error';
-      duration?: number;
-    }>;
-    voiceInput?: boolean;
-  }>;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: StoredMessage[];
   context: {
     files: Array<{ id: string; name: string; type: string; lastAccessed: number }>;
     people: string[];
@@ -38,100 +46,146 @@ interface StoredConversation {
     preferences: string[];
     actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
   };
-  createdAt: number;
-  updatedAt: number;
 }
 
-// In production, this is Drizzle ORM against PostgreSQL
-const store = new Map<string, StoredConversation>();
+const conversations = new Map<string, StoredConversation>();
 
-function getUserId(_req: NextRequest): string {
-  // Production: extract from JWT/session
-  return 'default-user';
-}
+// ── Route Handler ──
 
 export async function GET(req: NextRequest) {
-  const userId = getUserId(req);
-  const id = req.nextUrl.searchParams.get('id');
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  const userId = searchParams.get('userId') ?? 'default';
+  const query = searchParams.get('q');
 
+  // Search mode
+  if (query) {
+    const results: Array<{ id: string; title: string; snippet: string; timestamp: number }> = [];
+    const q = query.toLowerCase();
+
+    for (const conv of conversations.values()) {
+      if (conv.userId !== userId) continue;
+      for (const msg of conv.messages) {
+        if (msg.content.toLowerCase().includes(q)) {
+          results.push({
+            id: conv.id,
+            title: conv.title,
+            snippet: msg.content.slice(0, 150),
+            timestamp: msg.timestamp,
+          });
+          if (results.length >= 20) break;
+        }
+      }
+      if (results.length >= 20) break;
+    }
+
+    return NextResponse.json({ results });
+  }
+
+  // Single conversation
   if (id) {
-    const conv = store.get(`${userId}:${id}`);
-    if (!conv) {
+    const conv = conversations.get(id);
+    if (!conv || conv.userId !== userId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     return NextResponse.json(conv);
   }
 
-  // List all conversations for user
-  const conversations = Array.from(store.entries())
-    .filter(([key]) => key.startsWith(`${userId}:`))
-    .map(([, value]) => ({
-      id: value.id,
-      title: value.title,
-      messageCount: value.messages.length,
-      lastMessage: value.messages[value.messages.length - 1]?.content?.slice(0, 100) ?? '',
-      createdAt: value.createdAt,
-      updatedAt: value.updatedAt,
+  // List all
+  const list = Array.from(conversations.values())
+    .filter(c => c.userId === userId)
+    .map(c => ({
+      id: c.id,
+      title: c.title,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      messageCount: c.messages.length,
+      lastMessage: c.messages[c.messages.length - 1]?.content?.slice(0, 80) ?? '',
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  return NextResponse.json({ conversations });
+  return NextResponse.json({ conversations: list });
 }
 
 export async function POST(req: NextRequest) {
-  const userId = getUserId(req);
   const body = await req.json();
+  const { action } = body as { action?: string };
 
-  const id = body.id ?? crypto.randomUUID();
+  // Add message to existing conversation
+  if (action === 'message') {
+    const { conversationId, message } = body as {
+      conversationId: string;
+      message: { role: string; content: string; toolCalls?: unknown[] };
+    };
+
+    const conv = conversations.get(conversationId);
+    if (!conv) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    const stored: StoredMessage = {
+      id: crypto.randomUUID(),
+      role: message.role as StoredMessage['role'],
+      content: message.content,
+      timestamp: Date.now(),
+      toolCalls: message.toolCalls as StoredMessage['toolCalls'],
+    };
+
+    conv.messages.push(stored);
+    conv.updatedAt = Date.now();
+
+    // Auto-title from first user message
+    if (message.role === 'user' && conv.messages.filter(m => m.role === 'user').length === 1) {
+      conv.title = message.content.slice(0, 60) + (message.content.length > 60 ? '...' : '');
+    }
+
+    return NextResponse.json({ success: true, message: stored });
+  }
+
+  // Create new conversation
+  const { userId = 'default', title = 'New conversation' } = body;
   const conv: StoredConversation = {
-    id,
-    title: body.title ?? 'New conversation',
+    id: crypto.randomUUID(),
     userId,
-    messages: body.messages ?? [],
-    context: body.context ?? {
-      files: [], people: [], topics: [], preferences: [], actions: [],
-    },
-    createdAt: body.createdAt ?? Date.now(),
+    title,
+    createdAt: Date.now(),
     updatedAt: Date.now(),
+    messages: [],
+    context: { files: [], people: [], topics: [], preferences: [], actions: [] },
   };
 
-  store.set(`${userId}:${id}`, conv);
+  conversations.set(conv.id, conv);
   return NextResponse.json(conv, { status: 201 });
 }
 
 export async function PUT(req: NextRequest) {
-  const userId = getUserId(req);
   const body = await req.json();
-  const id = body.id;
+  const { id, title, context } = body as {
+    id: string;
+    title?: string;
+    context?: StoredConversation['context'];
+  };
 
-  if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-  }
-
-  const key = `${userId}:${id}`;
-  const existing = store.get(key);
-  if (!existing) {
+  const conv = conversations.get(id);
+  if (!conv) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const updated: StoredConversation = {
-    ...existing,
-    ...body,
-    updatedAt: Date.now(),
-  };
+  if (title) conv.title = title;
+  if (context) conv.context = context;
+  conv.updatedAt = Date.now();
 
-  store.set(key, updated);
-  return NextResponse.json(updated);
+  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(req: NextRequest) {
-  const userId = getUserId(req);
-  const id = req.nextUrl.searchParams.get('id');
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
 
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
 
-  store.delete(`${userId}:${id}`);
-  return NextResponse.json({ deleted: true });
+  const deleted = conversations.delete(id);
+  return NextResponse.json({ success: deleted });
 }
