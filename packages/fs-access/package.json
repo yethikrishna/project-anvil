@@ -8,7 +8,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./sync": "./src/sync-engine.ts",
-    "./hooks": "./src/hooks.ts"
+    "./hooks": "./src/hooks.ts",
+    "./sync-engine": "./src/sync-engine.ts",
+    "./store": "./src/store.ts"
   },
   "dependencies": {
     "idb": "^8.0.0"

@@ -15,13 +15,13 @@ import type {
   SyncResult,
   DriveFileEntry,
   SyncStatusCallback,
-} from './types.js';
+} from './types';
 import {
   putSyncedHandle,
   getSyncedHandle,
   getAllSyncedHandles,
   deleteSyncedHandle,
-} from './store.js';
+} from './store';
 
 // ── Configuration ────────────────────────────────────────
 

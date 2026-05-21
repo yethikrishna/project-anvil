@@ -8,18 +8,18 @@ import type {
   SyncResult,
   DriveFileEntry,
   SyncStatusCallback,
-} from './types.js';
+} from './types';
 import {
   SyncEngine,
   openAndSync,
   saveFromDrive,
   isFileSystemAccessSupported,
-} from './sync-engine.js';
-import type { SyncEngineConfig } from './sync-engine.js';
-import { getAllSyncedHandles, deleteSyncedHandle } from './store.js';
+} from './sync-engine';
+import type { SyncEngineConfig } from './sync-engine';
+import { getAllSyncedHandles, deleteSyncedHandle } from './store';
 
-export type { SyncEngineConfig } from './sync-engine.js';
-export type { SyncedFileHandle, SyncResult, DriveFileEntry } from './types.js';
+export type { SyncEngineConfig } from './sync-engine';
+export type { SyncedFileHandle, SyncResult, DriveFileEntry } from './types';
 
 // ── useFileSystemAccess hook ─────────────────────────────
 

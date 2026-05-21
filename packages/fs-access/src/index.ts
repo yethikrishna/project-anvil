@@ -23,11 +23,11 @@ export type {
   SyncResult,
   DriveFileEntry,
   SyncStatusCallback,
-} from './types.js';
+} from './types';
 
 // Sync engine (can be used without React)
-export { SyncEngine, openAndSync, saveFromDrive, syncOne, isFileSystemAccessSupported } from './sync-engine.js';
-export type { SyncEngineConfig } from './sync-engine.js';
+export { SyncEngine, openAndSync, saveFromDrive, syncOne, isFileSystemAccessSupported } from './sync-engine';
+export type { SyncEngineConfig } from './sync-engine';
 
 // IndexedDB store (low-level, for custom implementations)
 export {
@@ -38,8 +38,8 @@ export {
   deleteSyncedHandle,
   updateSyncStatus,
   clearAllHandles,
-} from './store.js';
+} from './store';
 
 // React hooks
-export { useFileSystemAccess } from './hooks.js';
-export type { UseFileSystemAccessOptions, UseFileSystemAccessReturn } from './hooks.js';
+export { useFileSystemAccess } from './hooks';
+export type { UseFileSystemAccessOptions, UseFileSystemAccessReturn } from './hooks';

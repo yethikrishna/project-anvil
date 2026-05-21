@@ -6,7 +6,7 @@
  * This persists them across page reloads and sessions.
  */
 
-import type { SyncedFileHandle } from './types.js';
+import type { SyncedFileHandle } from './types';
 
 const DB_NAME = 'anvil-fs-access';
 const DB_VERSION = 1;
