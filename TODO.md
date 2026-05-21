@@ -117,6 +117,10 @@
 - [ ] Integrate **FFmpeg.wasm** for YouTube client-side video preprocessing
 - [ ] Add **Dexie.js** as client-side IndexedDB layer for offline features across all apps
 - [ ] Add **WebGPU compute** path for Phase 15 image processing + analytics (70%+ browser support)
+- [ ] Add **OTel browser SDK 2.0** for frontend-to-backend trace correlation (`@opentelemetry/auto-instrumentations-web`)
+- [ ] Implement **Playwright visual regression** with `toHaveScreenshot()` for @anvil/ui components
+- [ ] Evaluate **Drizzle ORM** for type-safe PostgreSQL queries (RLS, edge/serverless, PGlite WASM)
+- [ ] Add **Zitadel** as third IAM evaluation option (Go, cloud-native, built-in multi-tenancy, AGPL-3.0)
 
 ## Backlog (AI-Generated Features)
 - [x] AI-powered email categorization
