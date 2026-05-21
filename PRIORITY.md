@@ -92,14 +92,14 @@
   - ✅ Fixed pre-existing module resolution bugs + async params + JSX errors
 
 #### 6. Dexie.js Offline Layer Foundation
-- **Assigned to**: Anvil Coder
-- **Why**: Cross-app offline capability needs a client-side DB. Dexie wraps IndexedDB with a clean API. This enables PWA mode later.
-- **Tasks**:
-  1. Create `packages/offline/` with Dexie.js wrapper
-  2. Define schemas for: docs metadata, email headers, drive file index, search cache
-  3. Add sync queue (writes queue locally, replay when online)
-  4. Wire into Drive app as pilot (offline file listing)
-- **Acceptance**: Drive shows cached file list when offline, queued uploads sync on reconnect
+- **Assigned to**: Anvil Architect (this cycle)
+- **Status**: ✅ DONE (commit d57d48a)
+- **Completed**:
+  - Created `packages/offline/` with full Dexie wrapper, schemas, sync queue, conflict resolution
+  - Integrated into Drive app as pilot (`useDriveOffline` hook, cacheFiles, queueUpload)
+  - Fixed type errors in dependent `@anvil/ai` package (WebGPU, nl-search regex)
+  - Updated PRIORITY.md, versions, lockfile
+- **Acceptance met**: Drive page now handles offline file listing and upload queuing
 
 ---
 
