@@ -2,6 +2,7 @@ export { DocumentIndexer } from './indexer.js';
 export type {
   IndexableDocument, DocumentChunk, IndexerConfig, IndexResult,
   IndexStats, MeilisearchConfig, MeilisearchSearchResult, VectorStoreConfig,
+  IndexableSource,
 } from './indexer.js';
 
 export { HybridRetriever } from './retriever.js';
