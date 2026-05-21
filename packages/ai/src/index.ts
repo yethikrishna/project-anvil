@@ -37,6 +37,8 @@ export {LocalEmbeddingService} from './local-embeddings.js';
 export type {LocalEmbeddingConfig, LocalEmbeddingModel, EmbeddingCacheEntry} from './local-embeddings.js';
 export {WebGPUEmbedding, isWebGPUAvailable, embedClientSide} from './webgpu-embeddings.js';
 export type {WebGPUEmbeddingConfig, WebGPUEmbeddingResult} from './webgpu-embeddings.js';
+export {AgentRuntime, createEmailTriageAgent, createFileOrganizationAgent, createScheduleAgent} from './agents.js';
+export type {AgentStatus, ActionRisk, ApprovalDecision, AgentAction, AgentPlan, ApprovalRequest, AgentConfig} from './agents.js';
 
 export {useChat, useCompletion} from './react/index.js';
 export type {UseChatOptions, UseChatReturn, UseCompletionOptions, UseCompletionReturn} from './react/index.js';

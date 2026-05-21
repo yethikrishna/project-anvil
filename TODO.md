@@ -204,7 +204,7 @@
 - [x] Natural language file search: "find the contract I sent to Acme Corp"
 - [x] Document intelligence: auto TOC, style matching, version diff summary
 - [x] Email thread summarization + sentiment analysis
-- [ ] Autonomous AI agents: email triage, file organization, schedule negotiation with human-in-the-loop approval
+- [x] Autonomous AI agents: email triage, file organization, schedule negotiation with human-in-the-loop approval
 
 ## Phase 14: Power User Experience
 - [x] Unified Command Palette (Cmd+K) across all apps
