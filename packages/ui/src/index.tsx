@@ -254,3 +254,7 @@ export type {A11yAuditResult, A11yAppScore} from './a11y-dashboard';
 // ── Smart Bookmarks ──
 export {useBookmarks, BookmarkButton, QuickAccessPanel} from './bookmarks';
 export type {Bookmark, BookmarkGroup} from './bookmarks';
+
+// ── App Analytics ──
+export {EmailAnalytics, DriveAnalytics, CollaborationAnalytics} from './app-analytics';
+export type {EmailAnalyticsData, DriveAnalyticsData, CollaborationAnalyticsData} from './app-analytics';
