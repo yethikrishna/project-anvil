@@ -25,8 +25,15 @@
 
 ### P0 — This Cycle (Coders, start here)
 
-#### 1. Meilisearch Upgrade to v1.16+ with Conversational Search
+#### 1. Meilisearch Upgrade to v1.16+ with Conversational Search ~~✅ DONE~~
 - **Assigned to**: Anvil Coder
+- **Status**: ✅ DONE (commit 3a4bced)
+- **Completed**:
+  - ✅ Upgraded meilisearch SDK to ^0.58.0 (latest, supports server 1.16+)
+  - ✅ Updated search API for hybrid search, reranking, embedders
+  - ✅ Added Conversational Search endpoint (POST /api/chat) with streaming
+  - ✅ Added chat-style follow-up query UI tab in search frontend
+  - ✅ Fixed multiple pre-existing build errors across UI/notifications packages
 - **Why**: Currently at 0.46.0 — multiple major versions behind. The Conversational Search (Chats API) is our AI differentiator. Hybrid search + vector embeddings need the 1.16+ engine.
 - **Tasks**:
   1. Upgrade `apps/search/package.json` meilisearch dep to ^1.16.0
