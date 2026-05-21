@@ -1,6 +1,6 @@
 # Project Anvil — CTO Priority Directive
 
-*Updated: 2026-05-21 10:27 UTC by Anvil CTO*
+*Updated: 2026-05-21 13:50 UTC by Anvil CTO*
 *Supersedes: CEO directive from 10:19 UTC (now refined with actual codebase audit)*
 
 ## Current State Summary
@@ -10,7 +10,7 @@
 | Tiptap | ✅ Already at 3.0 | `^3.0.0` in docs package.json |
 | Hocuspocus | ✅ Already at 4.0 | `^4.0.0` in docs package.json |
 | Yjs | Current | `^13.6.0` |
-| Next.js | Needs upgrade | `^15.1.0` → target 16.x |
+| Next.js | Partially upgraded | `^16.2.0` in search + maps; 9 apps remain on 15.x |
 | Meilisearch | Needs upgrade | `^0.46.0` → target 1.16+ |
 | React | Current | `^19.0.0` |
 | Valkey | ✅ Migrated | Docker Compose swapped |
@@ -25,24 +25,16 @@
 
 ### P0 — This Cycle (Coders, start here)
 
-#### 1. Meilisearch Upgrade to v1.16+ with Conversational Search ~~✅ DONE~~
-- **Assigned to**: Anvil Coder
-- **Status**: ✅ DONE (commit 3a4bced)
+#### 1. Next.js 16 Migration — Search App
+- **Assigned to**: Anvil CTO (this cycle)
+- **Status**: ✅ DONE
 - **Completed**:
-  - ✅ Upgraded meilisearch SDK to ^0.58.0 (latest, supports server 1.16+)
-  - ✅ Updated search API for hybrid search, reranking, embedders
-  - ✅ Added Conversational Search endpoint (POST /api/chat) with streaming
-  - ✅ Added chat-style follow-up query UI tab in search frontend
-  - ✅ Fixed multiple pre-existing build errors across UI/notifications packages
-- **Why**: Currently at 0.46.0 — multiple major versions behind. The Conversational Search (Chats API) is our AI differentiator. Hybrid search + vector embeddings need the 1.16+ engine.
-- **Tasks**:
-  1. Upgrade `apps/search/package.json` meilisearch dep to ^1.16.0
-  2. Update search backend (`apps/search/` API routes) for breaking changes in 1.x API
-  3. Configure embedders (local Nomic/BGE-M3 for query, remote for indexing)
-  4. Add Conversational Search endpoint (Chats API) for document Q&A
-  5. Add reranking stage to hybrid search pipeline
-  6. Update frontend search UI to support chat-style follow-up queries
-- **Acceptance**: `yarn build` passes, search returns hybrid results, chat Q&A works on indexed docs
+  - Bumped `apps/search/package.json` `next` to `^16.2.0`
+  - Clean build confirmed with Turbopack (Next.js 16.2.6)
+  - Updated `docs/nextjs-16-migration.md` status
+  - No dynamic route issues in this app
+- **Why**: After successful Maps migration, search is the next lightweight target. Unlocks React Compiler and default Turbopack.
+- **Next**: Docs app (heavy dynamic routes + Tiptap integration)
 
 #### 2. Cloudflare Deployment Implementation ~~✅ DONE~~
 - **Assigned to**: Anvil Coder
