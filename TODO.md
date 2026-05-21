@@ -165,7 +165,7 @@
 - [x] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
 - [x] Upgrade **Tiptap to 3.0** (smaller bundles, TS, Markdown extension, static renderer)
 - [x] Evaluate **Turso embedded replicas** for offline Drive/Docs (edge SQLite + microsecond reads)
-- [ ] Evaluate **Bun + Elysia** as Fastify replacement (2–4× perf, auto OpenAPI)
+- [x] Evaluate **Bun + Elysia** as Fastify replacement (2–4× perf, auto OpenAPI)
 - [ ] Integrate **FFmpeg.wasm** for YouTube client-side video preprocessing
 - [ ] Add **Dexie.js** as client-side IndexedDB layer for offline features across all apps
 - [ ] Add **WebGPU compute** path for Phase 15 image processing + analytics (70%+ browser support)
@@ -173,10 +173,10 @@
 - [ ] Implement **Playwright visual regression** with `toHaveScreenshot()` for @anvil/ui components
 - [x] Evaluate **Drizzle ORM** for type-safe PostgreSQL queries (RLS, edge/serverless, PGlite WASM)
 - [ ] Add **Zitadel** as third IAM evaluation option (Go, cloud-native, built-in multi-tenancy, AGPL-3.0)
-- [ ] Evaluate **PGlite v0.4** as unified client-side DB (WASM Postgres, pgvector, PostGIS, live queries)
-- [ ] Evaluate **Vercel AI SDK 6** as foundation for `@anvil/ai` (streaming RAG, Agent class, useChat)
-- [ ] Consider **LiveKit** over mediasoup for Phase 24 video calling (AI agents, mobile SDKs, Apache 2.0)
-- [ ] Evaluate **tRPC v11** for internal API type safety (native Next.js RSC, keep OpenAPI for public API)
+- [x] Evaluate **PGlite v0.4** as unified client-side DB (WASM Postgres, pgvector, PostGIS, live queries)
+- [x] Evaluate **Vercel AI SDK 6** as foundation for `@anvil/ai` (streaming RAG, Agent class, useChat)
+- [x] Consider **LiveKit** over mediasoup for Phase 24 video calling (AI agents, mobile SDKs, Apache 2.0)
+- [x] Evaluate **tRPC v11** for internal API type safety (native Next.js RSC, keep OpenAPI for public API)
 - [x] Replace **Redis** with **Valkey** in Docker Compose (drop-in compatible, BSD license, 20-40% better memory)
 - [ ] Adopt **TanStack Table** for all list/grid views across apps (v8 now, v9 when stable)
 - [x] Upgrade to **Zod v4** across all packages (14× faster parsing, @zod/mini for edge)
