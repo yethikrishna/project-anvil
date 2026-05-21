@@ -3,7 +3,7 @@
  */
 
 import {describe, it, expect} from 'vitest';
-import {generateTOC, tocToMarkdown, analyzeStyle, summarizeDiff} from '@anvil/ai/tools/doc-intelligence.js';
+import {generateTOC, tocToMarkdown, analyzeStyle, summarizeDiff} from '../../packages/ai/src/tools/doc-intelligence.ts';
 
 describe('generateTOC', () => {
   it('extracts headings from HTML', () => {

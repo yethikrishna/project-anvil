@@ -3,7 +3,7 @@
  */
 
 import {describe, it, expect} from 'vitest';
-import {parseNaturalLanguageQuery} from '@anvil/ai/tools/nl-search.js';
+import {parseNaturalLanguageQuery} from '../../packages/ai/src/tools/nl-search.ts';
 
 describe('parseNaturalLanguageQuery', () => {
   it('parses "find the contract I sent to Acme Corp"', () => {

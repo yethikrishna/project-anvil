@@ -6,6 +6,10 @@
   "main": "./lib/events.js",
   "types": "./lib/events.d.ts",
   "exports": {
+    ".": {
+      "types": "./lib/events.d.ts",
+      "import": "./lib/events.js"
+    },
     "./lib/events": {
       "types": "./lib/events.d.ts",
       "import": "./lib/events.js"

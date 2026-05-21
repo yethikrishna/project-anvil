@@ -3,8 +3,8 @@
  */
 
 import {describe, it, expect} from 'vitest';
-import {expandRecurrence, findAvailableSlots, extractEventFromEmail} from '@anvil/calendar/lib/events.js';
-import type {CalendarEvent} from '@anvil/calendar/lib/events.js';
+import {expandRecurrence, findAvailableSlots, extractEventFromEmail} from '../../apps/calendar/lib/events.js';
+import type {CalendarEvent} from '../../apps/calendar/lib/events.js';
 
 function makeEvent(overrides: Partial<CalendarEvent>): CalendarEvent {
   return {

@@ -231,8 +231,8 @@ importers:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.6)
       next:
-        specifier: ^15.1.0
-        version: 15.5.18(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: ^16.2.6
+        version: 16.2.6(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       postgres:
         specifier: ^3.4.0
         version: 3.4.9
