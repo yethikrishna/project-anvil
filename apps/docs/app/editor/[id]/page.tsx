@@ -23,6 +23,8 @@ import {AIRewriteToolbar, AICommandPanel, AISuggestionBar} from '../../../lib/ai
 import {useAutoTitleSummary} from '../../../lib/ai/use-auto-title';
 import {AIAssistantPanel} from '../../../lib/ai/ai-assistant-panel';
 import {AIQuickActions} from '../../../lib/ai/ai-quick-actions';
+import {AIGrammarChecker} from '../../../lib/ai/grammar-checker';
+import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
 import '../../../ai-styles.css';
 
 // ── Toolbar ──
@@ -183,6 +185,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showOutline, setShowOutline] = useState(false);
   const [showAIRewrite, setShowAIRewrite] = useState(false);
   const [showAICommands, setShowAICommands] = useState(false);
   const [hasSuggestion, setHasSuggestion] = useState(false);
@@ -267,6 +270,7 @@ export default function EditorPage({params}: EditorPageProps) {
       AIShortcuts,
       AISlashCommands,
       AIQuickActions,
+      AIGrammarChecker,
       ...(provider ? [
         Collaboration.configure({document: provider.document}),
         CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
@@ -400,6 +404,12 @@ export default function EditorPage({params}: EditorPageProps) {
           ✨ AI Assist
         </button>
         <button
+          onClick={() => setShowOutline(!showOutline)}
+          className={`px-2 py-1 rounded text-xs transition-colors ${showOutline ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
+          title="Document Outline"
+        >
+          📑 Outline
+        </button>
           onClick={() => setShowAnalytics(!showAnalytics)}
           className={`px-2 py-1 rounded text-xs transition-colors ${showAnalytics ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100'}`}
           title="Collaboration Analytics"
@@ -417,11 +427,18 @@ export default function EditorPage({params}: EditorPageProps) {
         showAIRewrite={showAIRewrite}
       />
 
-      {/* Editor */}
-      <div className="flex-1 overflow-auto">
-        <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''} ${showAIAssistant ? 'mr-80' : ''}`}>
-          <EditorContent editor={editor} />
+      {/* Editor + Outline */}
+      <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-auto">
+          <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''} ${showAIAssistant ? 'mr-80' : ''}`}>
+            <EditorContent editor={editor} />
+          </div>
         </div>
+
+        {/* Document Outline Sidebar */}
+        {showOutline && editor && (
+          <OutlineSidebar editor={editor} onClose={() => setShowOutline(false)} />
+        )}
       </div>
 
       {/* AI Assistant Side Panel */}

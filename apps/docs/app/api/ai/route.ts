@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check';
   payload: Record<string, unknown>;
 }
 
@@ -338,6 +338,26 @@ Rules:
   return {html: result.text.trim()};
 }
 
+async function handleGrammarCheck(ai: ReturnType<typeof getAI>, payload: {text: string}): Promise<{issues: Array<{from: number; to: number; type: string; severity: string; message: string; replacement: string | null}>}> {
+  const result = await ai.generate([
+    {role: 'system', content: `You are a grammar and style checker. Analyze the text and return a JSON array of issues.
+Each issue: {"from": number, "to": number, "type": "spelling|grammar|punctuation|style|clarity", "severity": "error|warning|info", "message": "description", "replacement": "fixed text or null"}
+Rules:
+- Only flag real issues, not stylistic preferences
+- Provide replacements when obvious
+- Use character offsets relative to the start of the text
+- Return ONLY the JSON array, no markdown fences`},
+    {role: 'user', content: payload.text.slice(0, 5000)},
+  ], {temperature: 0.1, maxTokens: 2000});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return {issues: JSON.parse(cleaned)};
+  } catch {
+    return {issues: []};
+  }
+}
+
 async function handleSmartTemplate(ai: ReturnType<typeof getAI>, payload: {
   type: string;
   description: string;
@@ -501,6 +521,8 @@ export async function POST(request: Request) {
         return Response.json(await handleVersionDiff(ai, body.payload as any));
       case 'smart-template':
         return Response.json(await handleSmartTemplate(ai, body.payload as any));
+      case 'grammar-check':
+        return Response.json(await handleGrammarCheck(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

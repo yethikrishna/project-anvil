@@ -29,6 +29,7 @@ import {
 } from './components/ai-mail-ui';
 import { semanticSearch as semanticSearchAI } from './lib/semantic-email-search';
 import { EmailRulesManager } from './components/email-rules-manager';
+import { FollowUpPanel } from './components/follow-up-panel';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
 
@@ -428,6 +429,7 @@ export default function GmailPage() {
   const [showDigest, setShowDigest] = useState(false);
   const [showSmartFilters, setShowSmartFilters] = useState(false);
   const [showRulesManager, setShowRulesManager] = useState(false);
+  const [showFollowUps, setShowFollowUps] = useState(false);
 
   // Compute inbox category counts (enhanced with priority detection)
   const inboxCategoryCounts = useMemo(() => {
@@ -611,6 +613,13 @@ export default function GmailPage() {
             >
               <span className="text-sm">⚙️</span>
               <span className="flex-1 text-left">Rules</span>
+            </button>
+            <button
+              onClick={() => setShowFollowUps(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+            >
+              <span className="text-sm">🔔</span>
+              <span className="flex-1 text-left">Follow-ups</span>
             </button>
             <button
               onClick={() => setAppView('calendar')}
@@ -803,6 +812,22 @@ export default function GmailPage() {
           onRuleApplied={(rule) => {
             console.log('Applied rule:', rule.name);
           }}
+        />
+      )}
+
+      {/* Follow-Up Reminders */}
+      {showFollowUps && (
+        <FollowUpPanel
+          messages={messages}
+          onCompose={(to, subject, context) => {
+            setShowFollowUps(false);
+            setShowCompose(true);
+          }}
+          onSelectThread={(threadId) => {
+            setSelectedThread(threadId);
+            setShowFollowUps(false);
+          }}
+          onClose={() => setShowFollowUps(false)}
         />
       )}
     </div>
