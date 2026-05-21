@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       shareData = { url: shareResult };
     }
 
-    const result: Record<string, unknown> = {
+    const result: { found: boolean; file?: { id?: string; name?: string; type?: string; size?: number; modified?: string }; shareLink?: string; shareData?: unknown; emailDraft?: { to: string; subject: string; body: string } } = {
       found: true,
       file: {
         id: file.id ?? file.fileId,
@@ -64,12 +64,15 @@ export async function POST(req: NextRequest) {
       shareData,
     };
 
+    const fileName = result.file?.name ?? 'Unknown';
+    const shareLink = result.shareLink ?? '';
+
     // If recipient specified, offer to email
     if (recipient) {
       result.emailDraft = {
         to: recipient,
-        subject: `Shared: ${result.file.name}`,
-        body: `Hi,\n\nI've shared a file with you: ${result.file.name}\n\nAccess it here: ${result.shareLink}\n\nBest,\nAnvil AI`,
+        subject: `Shared: ${fileName}`,
+        body: `Hi,\n\nI've shared a file with you: ${fileName}\n\nAccess it here: ${shareLink}\n\nBest,\nAnvil AI`,
       };
     }
 

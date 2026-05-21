@@ -17,7 +17,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { cn } from '@anvil/ui';
 
 interface UseVoiceInputOptions {
   onTranscript: (text: string) => void;
@@ -200,60 +199,4 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputRetur
   };
 }
 
-// ── Voice Button Component ──
-
-interface VoiceButtonProps {
-  onTranscript: (text: string) => void;
-  disabled?: boolean;
-  className?: string;
-}
-
-export function VoiceButton({ onTranscript, disabled, className }: VoiceButtonProps) {
-  const { isRecording, isProcessing, audioLevel, startRecording, stopRecording, error } =
-    useVoiceInput({ onTranscript });
-
-  return (
-    <div className="relative">
-      <button
-        onMouseDown={startRecording}
-        onMouseUp={stopRecording}
-        onMouseLeave={() => isRecording && stopRecording()}
-        onTouchStart={startRecording}
-        onTouchEnd={stopRecording}
-        disabled={disabled || isProcessing}
-        className={cn(
-          'w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 transition-all relative',
-          isRecording
-            ? 'bg-red-500 text-white voice-pulse'
-            : isProcessing
-              ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 animate-pulse'
-              : disabled
-                ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
-          className,
-        )}
-        title={
-          error ? error :
-          isRecording ? 'Release to stop' :
-          isProcessing ? 'Processing...' :
-          'Hold to record voice'
-        }
-      >
-        {isProcessing ? '⏳' : '🎤'}
-      </button>
-
-      {/* Audio level indicator */}
-      {isRecording && (
-        <div className="absolute -top-1 -right-1 w-3 h-3">
-          <svg viewBox="0 0 12 12" className="w-full h-full">
-            <circle
-              cx="6" cy="6" r={3 + audioLevel * 3}
-              fill="rgba(239, 68, 68, 0.6)"
-              className="transition-all duration-75"
-            />
-          </svg>
-        </div>
-      )}
-    </div>
-  );
-}
+// VoiceButton component is in components/VoiceButton.tsx
