@@ -28,6 +28,7 @@ import ContextIndicator from '@/components/ContextIndicator';
 import CommandPalette from '@/components/CommandPalette';
 import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
 import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/components/ChatSettings';
+import { ToastContainer, toastSuccess, toastError, toastInfo, toastTool } from '@/components/Toast';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
@@ -336,11 +337,12 @@ export default function ChatPage() {
     // In production, this would send the approval to the backend
     // which would then continue the tool execution
     setPendingApproval(null);
+    toastSuccess('Action approved', 'The AI will proceed with execution.');
   }, []);
 
   const handleReject = useCallback((_actionId: string) => {
     setPendingApproval(null);
-    // The AI will see the rejection and adjust its response
+    toastInfo('Action rejected', 'The AI will adjust its response.');
   }, []);
 
   // ── Attention action handler ──
@@ -579,6 +581,9 @@ export default function ChatPage() {
           />
         )}
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer />
     </div>
   );
 }
