@@ -227,3 +227,14 @@ export type {SwipeGestureState, GestureHandlers, SwipeableListItemProps} from '.
 // ── Performance ──
 export {usePerformanceMonitor, PerformanceDashboard, trace, traceAsync} from './perf';
 export type {CoreWebVitals, CustomTrace, PerformanceSnapshot} from './perf';
+
+// ── Spatial Navigation ──
+export {useSpatialNavigation, useRovingTabindex, useFocusTrap} from './spatial';
+
+// ── Accessibility ──
+export {announce, useA11yPreferences, SkipLinks, LANDMARKS, useVoiceControl, VoiceControlButton, VisuallyHidden} from './a11y';
+export type {A11yPreferences, VoiceCommand} from './a11y';
+
+// ── Smart Clipboard ──
+export {useSmartClipboard, handleFilePaste, handleLocationPaste, handleContactPaste, handleLinkPaste, PasteSuggestion} from './clipboard';
+export type {ClipboardItem} from './clipboard';

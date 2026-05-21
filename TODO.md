@@ -181,7 +181,7 @@
 - [ ] WCAG 2.2 AA compliance with axe-core CI integration
 - [ ] Accessibility score dashboard per app
 - [ ] Screen reader-optimized mode (ARIA live regions, landmark nav)
-- [ ] Voice control interface via Web Speech API
+- [x] Voice control interface via Web Speech API
 - [x] `@anvil/i18n` package with type-safe keys + RTL support
 - [x] Locale-aware formatting (dates, numbers, distances, file sizes)
 
@@ -196,10 +196,10 @@
 - [ ] Contract testing between services (Pact-style)
 
 ## Phase 21: Novel Interactions & Analytics
-- [ ] Smart Clipboard (copy file from Drive → paste into Gmail as attachment)
+- [x] Smart Clipboard (copy file from Drive → paste into Gmail as attachment)
 - [x] Focus modes: Zen (Docs), Inbox Zero (Gmail), Deep Work (cross-app)
 - [ ] Smart bookmarks/pins across all apps + AI-suggested pins
-- [ ] Spatial navigation for grids and lists (keyboard-driven)
+- [x] Spatial navigation for grids and lists (keyboard-driven)
 - [x] Activity timeline across all apps ("12 emails, 3 docs, 1 upload today")
 - [ ] Email analytics (response time, volume heatmap, top correspondents)
 - [ ] Drive analytics (storage by type, duplicates, shared file audit)
