@@ -40,6 +40,38 @@ export type {WebGPUEmbeddingConfig, WebGPUEmbeddingResult} from './webgpu-embedd
 export {AgentRuntime, createEmailTriageAgent, createFileOrganizationAgent, createScheduleAgent} from './agents.js';
 export type {AgentStatus, ActionRisk, ApprovalDecision, AgentAction, AgentPlan, ApprovalRequest, AgentConfig} from './agents.js';
 
+// RAG pipeline
+export {DocumentIndexer} from './rag/indexer.js';
+export type {DocumentChunk, IndexerConfig} from './rag/indexer.js';
+export {HybridRetriever} from './rag/retriever.js';
+export type {RetrievalResult, RetrievalOptions, RetrievalResponse} from './rag/retriever.js';
+export {RAGPipeline} from './rag/pipeline.js';
+export type {RAGPipelineConfig, RAGQueryOptions, RAGResponse} from './rag/pipeline.js';
+
+// Models
+export {ModelRouter, createDefaultRouter} from './models/router.js';
+export type {RouterConfig, RouterProviderConfig, ProviderHealth, RouterStats} from './models/router.js';
+export {OllamaClient} from './models/ollama.js';
+export type {OllamaModelInfo, OllamaChatOptions, OllamaPullProgress} from './models/ollama.js';
+export {OpenAIClient} from './models/openai.js';
+export type {OpenAIChatOptions, OpenAIModerationResult, OpenAITokenCount} from './models/openai.js';
+export {ModelConfigService} from './models/config.js';
+export type {ModelConfig, ModelDefinition, AITask, ModelTier, TaskModelMapping} from './models/config.js';
+
+// Tools
+export {ToolRegistry} from './tools/registry.js';
+export type {RegisteredTool, ToolCategory, ToolRisk, ToolResult, ToolContext, ToolCallRequest, ToolExecutionResult} from './tools/registry.js';
+export {MAIL_TOOLS} from './tools/mail-tools.js';
+export {DRIVE_TOOLS} from './tools/drive-tools.js';
+export {CALENDAR_TOOLS} from './tools/calendar-tools.js';
+export {DOCS_TOOLS} from './tools/docs-tools.js';
+
+// Context
+export {UserContext} from './context/user-context.js';
+export type {UserProfile, CommunicationStyle, FrequentContact, ActiveDocument, KnowledgeEntity, ToolUsageStats, UserContextData} from './context/user-context.js';
+export {Session, SessionStore} from './context/session.js';
+export type {SessionState, SessionConfig, SessionMessage, SessionSummary, SessionData} from './context/session.js';
+
 // React hooks — import from '@anvil/ai/react' instead of '@anvil/ai' to avoid
 // pulling React into server-side bundles.
 // export {useChat, useCompletion} from './react/index.js';

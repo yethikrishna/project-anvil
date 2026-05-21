@@ -132,6 +132,22 @@ export interface MeetingProposal {
   description?: string;
 }
 
+// ── Cross-App Workflows ──
+
+export interface WorkflowStep {
+  name: string;
+  tool: string;
+  args: Record<string, unknown>;
+  extract?: Record<string, { fromStep: number; path: string }>;
+}
+
+export interface WorkflowResult {
+  success: boolean;
+  steps: Array<{ name: string; success: boolean; result: string; duration: number }>;
+  summary: string;
+  totalDurationMs: number;
+}
+
 // ── Weekly Summary ──
 
 export interface WeeklySummary {
