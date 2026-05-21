@@ -115,7 +115,7 @@
 - [x] Audit OAuth 2.0 flows against RFC 9700 best practices
 - [x] Add DPoP (RFC 9449) sender-constrained tokens
 - [x] Tighten CSP to Level 2+ on all auth endpoints
-- [ ] Evaluate PAR (RFC 9126) for high-security scenarios
+- [x] Evaluate PAR (RFC 9126) for high-security scenarios
 - [x] Add exact redirect URI matching enforcement
 
 ### Supply Chain & CI/CD
