@@ -498,18 +498,39 @@ export class UserContext {
    * Rehydrate from serialized data.
    */
   static fromJSON(json: Record<string, unknown>): UserContext {
-    const profile = json.profile as UserProfile;
+    if (!json || typeof json !== 'object') {
+      throw new Error('Invalid UserContext JSON: expected object');
+    }
+
+    const profile = json.profile as UserProfile | undefined;
+    if (!profile || !profile.id) {
+      throw new Error('Invalid UserContext JSON: missing profile.id');
+    }
+
     const ctx = new UserContext(profile.id);
     ctx.data.profile = profile;
     ctx.data.communicationStyle = (json.communicationStyle ?? ctx.data.communicationStyle) as CommunicationStyle;
-    ctx.data.frequentContacts = (json.frequentContacts ?? []) as FrequentContact[];
-    ctx.data.activeDocuments = (json.activeDocuments ?? []) as ActiveDocument[];
-    ctx.data.entities = new Map(Object.entries(json.entities ?? {}) as Array<[string, KnowledgeEntity]>);
-    ctx.data.toolUsage = new Map(Object.entries(json.toolUsage ?? {}) as Array<[string, ToolUsageStats]>);
-    ctx.data.recentInteractions = (json.recentInteractions ?? []) as UserContextData['recentInteractions'];
-    ctx.data.memos = (json.memos ?? []) as UserContextData['memos'];
-    ctx.data.createdAt = (json.createdAt as number) ?? Date.now();
-    ctx.data.updatedAt = (json.updatedAt as number) ?? Date.now();
+    ctx.data.frequentContacts = Array.isArray(json.frequentContacts) ? json.frequentContacts as FrequentContact[] : [];
+    ctx.data.activeDocuments = Array.isArray(json.activeDocuments) ? json.activeDocuments as ActiveDocument[] : [];
+
+    try {
+      const entitiesRaw = json.entities ?? {};
+      ctx.data.entities = new Map(Object.entries(entitiesRaw as Record<string, KnowledgeEntity>));
+    } catch {
+      ctx.data.entities = new Map();
+    }
+
+    try {
+      const toolUsageRaw = json.toolUsage ?? {};
+      ctx.data.toolUsage = new Map(Object.entries(toolUsageRaw as Record<string, ToolUsageStats>));
+    } catch {
+      ctx.data.toolUsage = new Map();
+    }
+
+    ctx.data.recentInteractions = Array.isArray(json.recentInteractions) ? json.recentInteractions as UserContextData['recentInteractions'] : [];
+    ctx.data.memos = Array.isArray(json.memos) ? json.memos as UserContextData['memos'] : [];
+    ctx.data.createdAt = (typeof json.createdAt === 'number' ? json.createdAt : Date.now());
+    ctx.data.updatedAt = (typeof json.updatedAt === 'number' ? json.updatedAt : Date.now());
     return ctx;
   }
 

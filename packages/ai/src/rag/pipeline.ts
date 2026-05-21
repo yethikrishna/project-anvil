@@ -178,6 +178,16 @@ export class RAGPipeline {
    */
   async query(question: string, options: RAGQueryOptions = {}): Promise<RAGResponse> {
     const totalStart = Date.now();
+    const modelId = options.model ?? this.config.generationModel ?? 'unknown';
+
+    if (!question.trim()) {
+      return {
+        answer: 'Please provide a question to search the knowledge base.',
+        sources: [],
+        model: modelId,
+        timing: { retrievalMs: 0, rerankMs: 0, generationMs: 0, totalMs: Date.now() - totalStart },
+      };
+    }
 
     // 1. Retrieve
     const retrievalStart = Date.now();
@@ -187,46 +197,51 @@ export class RAGPipeline {
       topK: this.config.retrievalDepth ?? 20,
     };
 
-    const retrieval = await this.retriever.retrieve(question, retrievalOpts);
+    let retrieval: Awaited<ReturnType<HybridRetriever['retrieve']>>;
+    try {
+      retrieval = await this.retriever.retrieve(question, retrievalOpts);
+    } catch (err) {
+      return {
+        answer: `Retrieval failed: ${err instanceof Error ? err.message : 'Unknown error'}. Please try again.`,
+        sources: [],
+        model: modelId,
+        timing: { retrievalMs: Date.now() - retrievalStart, rerankMs: 0, generationMs: 0, totalMs: Date.now() - totalStart },
+      };
+    }
     const retrievalMs = Date.now() - retrievalStart;
 
     if (retrieval.results.length === 0) {
       return {
         answer: 'I could not find any relevant information to answer your question. Please try rephrasing or indexing more documents.',
         sources: [],
-        model: options.model ?? this.config.generationModel ?? 'unknown',
-        timing: {
-          retrievalMs,
-          rerankMs: 0,
-          generationMs: 0,
-          totalMs: Date.now() - totalStart,
-        },
+        model: modelId,
+        timing: { retrievalMs, rerankMs: 0, generationMs: 0, totalMs: Date.now() - totalStart },
       };
     }
 
     // 2. Rerank
     const rerankStart = Date.now();
     let ranked: RetrievalResult[];
-
-    if (this.config.enableReranking !== false) {
-      ranked = this.reranker.rerank(
-        question,
-        retrieval.results,
-        this.config.rerankTopK ?? 5,
-      );
-    } else {
+    try {
+      if (this.config.enableReranking !== false) {
+        ranked = this.reranker.rerank(question, retrieval.results, this.config.rerankTopK ?? 5);
+      } else {
+        ranked = retrieval.results.slice(0, this.config.rerankTopK ?? 5);
+      }
+    } catch (err) {
+      console.warn(`Reranking failed, using raw retrieval order: ${err instanceof Error ? err.message : String(err)}`);
       ranked = retrieval.results.slice(0, this.config.rerankTopK ?? 5);
     }
-
     const rerankMs = Date.now() - rerankStart;
 
-    // 3. Build context
+    // 3. Build context — sanitize XML special chars in titles
     const maxLen = this.config.maxContextLength ?? 4000;
     let context = '';
     const contextParts: string[] = [];
 
     for (let i = 0; i < ranked.length; i++) {
-      const entry = `<context source="${i + 1}" title="${ranked[i].metadata.title}">\n${ranked[i].text}\n</context>`;
+      const safeTitle = ranked[i].metadata.title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const entry = `<context source="${i + 1}" title="${safeTitle}">\n${ranked[i].text}\n</context>`;
       if (context.length + entry.length > maxLen) break;
       contextParts.push(entry);
       context += entry + '\n\n';
@@ -249,13 +264,25 @@ export class RAGPipeline {
     };
 
     let result: GenerationResult;
-
-    if (options.stream && options.onChunk) {
-      result = await this.config.provider.generateStream(messages, (chunk) => {
-        if (chunk.delta) options.onChunk!(chunk.delta);
-      }, genOptions);
-    } else {
-      result = await this.config.provider.generate(messages, genOptions);
+    try {
+      if (options.stream && options.onChunk) {
+        result = await this.config.provider.generateStream(messages, (chunk) => {
+          if (chunk.delta) options.onChunk!(chunk.delta);
+        }, genOptions);
+      } else {
+        result = await this.config.provider.generate(messages, genOptions);
+      }
+    } catch (err) {
+      return {
+        answer: `Generation failed: ${err instanceof Error ? err.message : 'Unknown error'}. The retrieval was successful but I could not generate a response.`,
+        sources: ranked.slice(0, contextParts.length).map(r => ({
+          id: r.id, docId: r.docId, title: r.metadata.title, source: r.metadata.source,
+          text: r.text.slice(0, 200) + (r.text.length > 200 ? '...' : ''),
+          score: Math.round(r.score * 1000) / 1000,
+        })),
+        model: modelId,
+        timing: { retrievalMs, rerankMs, generationMs: Date.now() - genStart, totalMs: Date.now() - totalStart },
+      };
     }
 
     const generationMs = Date.now() - genStart;
@@ -275,12 +302,7 @@ export class RAGPipeline {
       sources,
       model: result.model,
       usage: result.usage,
-      timing: {
-        retrievalMs,
-        rerankMs,
-        generationMs,
-        totalMs: Date.now() - totalStart,
-      },
+      timing: { retrievalMs, rerankMs, generationMs, totalMs: Date.now() - totalStart },
     };
   }
 
@@ -292,28 +314,33 @@ export class RAGPipeline {
     query: string,
     options: RetrievalOptions = {},
   ): Promise<{ context: string; sources: Array<{ title: string; source: string }> }> {
-    const retrieval = await this.retriever.retrieve(query, {
-      ...this.config.retrieval,
-      ...options,
-    });
+    try {
+      const retrieval = await this.retriever.retrieve(query, {
+        ...this.config.retrieval,
+        ...options,
+      });
 
-    if (retrieval.results.length === 0) {
+      if (retrieval.results.length === 0) {
+        return { context: '', sources: [] };
+      }
+
+      const maxLen = this.config.maxContextLength ?? 4000;
+      let context = '';
+
+      for (const r of retrieval.results) {
+        const entry = `[${r.metadata.title}] ${r.text}\n`;
+        if (context.length + entry.length > maxLen) break;
+        context += entry;
+      }
+
+      const sources = [...new Map(
+        retrieval.results.map(r => [r.metadata.title, { title: r.metadata.title, source: r.metadata.source }])
+      ).values()];
+
+      return { context, sources };
+    } catch (err) {
+      console.error(`retrieveOnly error: ${err instanceof Error ? err.message : String(err)}`);
       return { context: '', sources: [] };
     }
-
-    const maxLen = this.config.maxContextLength ?? 4000;
-    let context = '';
-
-    for (const r of retrieval.results) {
-      const entry = `[${r.metadata.title}] ${r.text}\n`;
-      if (context.length + entry.length > maxLen) break;
-      context += entry;
-    }
-
-    const sources = [...new Map(
-      retrieval.results.map(r => [r.metadata.title, { title: r.metadata.title, source: r.metadata.source }])
-    ).values()];
-
-    return { context, sources };
   }
 }

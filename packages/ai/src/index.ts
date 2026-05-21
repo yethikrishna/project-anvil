@@ -42,7 +42,7 @@ export type {AgentStatus, ActionRisk, ApprovalDecision, AgentAction, AgentPlan, 
 
 // RAG pipeline
 export {DocumentIndexer} from './rag/indexer.js';
-export type {DocumentChunk, IndexerConfig} from './rag/indexer.js';
+export type {DocumentChunk, IndexerConfig, IndexableSource} from './rag/indexer.js';
 export {HybridRetriever} from './rag/retriever.js';
 export type {RetrievalResult, RetrievalOptions, RetrievalResponse} from './rag/retriever.js';
 export {RAGPipeline} from './rag/pipeline.js';

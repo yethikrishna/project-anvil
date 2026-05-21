@@ -14,6 +14,8 @@ import { LocalEmbeddingService } from '../local-embeddings.js';
 
 // ── Types ──────────────────────────────────────────────
 
+export type IndexableSource = 'gmail' | 'drive' | 'docs' | 'calendar' | 'web' | 'custom';
+
 export interface IndexableDocument {
   /** Unique identifier */
   id: string;
@@ -21,8 +23,8 @@ export interface IndexableDocument {
   title: string;
   /** Full text content */
   content: string;
-  /** Source application: gmail, drive, docs, calendar */
-  source: 'gmail' | 'drive' | 'docs' | 'calendar' | 'web' | 'custom';
+  /** Source application */
+  source: IndexableSource;
   /** MIME type */
   mimeType?: string;
   /** Original author */
@@ -607,5 +609,34 @@ export class DocumentIndexer {
     this.vectorStore.clear();
     this.chunks.clear();
     this.documents.clear();
+  }
+
+  /**
+   * Search for chunks from a specific source app.
+   */
+  async searchBySource(
+    query: string,
+    source: string,
+    topK: number = 10,
+  ): Promise<Array<{ chunk: DocumentChunk; score: number }>> {
+    const allResults = await this.searchVector(query, topK * 5);
+    return allResults
+      .filter(r => r.chunk.metadata.source === source)
+      .slice(0, topK);
+  }
+
+  /**
+   * Get documents by source type.
+   */
+  getDocumentsBySource(source: string): IndexableDocument[] {
+    return Array.from(this.documents.values())
+      .filter(d => d.source === source);
+  }
+
+  /**
+   * Check if a document is already indexed.
+   */
+  hasDocument(docId: string): boolean {
+    return this.documents.has(docId);
   }
 }

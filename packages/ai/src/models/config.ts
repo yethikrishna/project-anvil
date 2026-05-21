@@ -293,9 +293,16 @@ export class ModelConfigService {
       this.models.set(model.id, model);
     }
 
-    // Register custom models
+    // Register custom models with validation
     if (config.customModels) {
       for (const model of config.customModels) {
+        if (!model.id || !model.name || !model.provider) {
+          console.warn(`Skipping invalid custom model: missing id, name, or provider`);
+          continue;
+        }
+        if (!Array.isArray(model.tasks) || model.tasks.length === 0) {
+          console.warn(`Custom model "${model.id}" has no tasks defined — it will not be selected for any task`);
+        }
         this.models.set(model.id, model);
       }
     }

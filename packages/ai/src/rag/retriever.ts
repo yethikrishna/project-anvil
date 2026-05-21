@@ -159,20 +159,35 @@ export class HybridRetriever {
     const enableRRF = options.enableRRF ?? true;
     const rrfK = options.rrfK ?? 60;
 
-    // Build filter string for Meilisearch
+    if (!query.trim()) {
+      return {
+        query,
+        results: [],
+        totalCandidates: 0,
+        durationMs: Date.now() - startTime,
+      };
+    }
+
+    // Build filter string for Meilisearch — escape values to prevent injection
     const filters: string[] = [];
     if (options.sourceFilter) {
-      filters.push(`source = ${options.sourceFilter}`);
+      filters.push(`source = "${options.sourceFilter.replace(/"/g, '\\"')}"`);
     }
     if (options.authorFilter) {
-      filters.push(`author = ${options.authorFilter}`);
+      filters.push(`author = "${options.authorFilter.replace(/"/g, '\\"')}"`);
     }
     const filterStr = filters.length > 0 ? filters.join(' AND ') : undefined;
 
-    // Run both searches in parallel
+    // Run both searches in parallel — each is independently fault-tolerant
     const [semanticResults, bm25Results] = await Promise.allSettled([
-      this.indexer.searchVector(query, topK * 3), // Over-fetch for better fusion
-      this.indexer.searchBM25(query, topK * 3, filterStr),
+      this.indexer.searchVector(query, topK * 3).catch((err: Error) => {
+        console.warn(`Vector search failed: ${err.message}`);
+        return [] as Awaited<ReturnType<DocumentIndexer['searchVector']>>;
+      }),
+      this.indexer.searchBM25(query, topK * 3, filterStr).catch((err: Error) => {
+        console.warn(`BM25 search failed: ${err.message}`);
+        return null as Awaited<ReturnType<DocumentIndexer['searchBM25']>>;
+      }),
     ]);
 
     const semantic = semanticResults.status === 'fulfilled' ? semanticResults.value : [];
@@ -193,62 +208,70 @@ export class HybridRetriever {
 
     let results: RetrievalResult[];
 
-    if (enableRRF && (semanticRanked.length > 0 || bm25Ranked.length > 0)) {
-      // Merge via RRF
-      const fused = reciprocalRankFusion(
-        semanticRanked,
-        bm25Ranked,
-        semanticWeight,
-        bm25Weight,
-        rrfK,
-      );
+    try {
+      if (enableRRF && (semanticRanked.length > 0 || bm25Ranked.length > 0)) {
+        // Merge via RRF
+        const fused = reciprocalRankFusion(
+          semanticRanked,
+          bm25Ranked,
+          semanticWeight,
+          bm25Weight,
+          rrfK,
+        );
 
-      // Normalize fused scores to 0-1 range
-      const maxScore = Math.max(...Array.from(fused.values()).map(v => v.fusedScore), 0.001);
+        // Normalize fused scores to 0-1 range
+        const fusedValues = Array.from(fused.values());
+        const maxScore = fusedValues.length > 0
+          ? Math.max(...fusedValues.map(v => v.fusedScore), 0.001)
+          : 0.001;
 
-      results = Array.from(fused.entries())
-        .map(([id, scores]) => {
-          const chunk = this.indexer.getChunk(id);
+        results = Array.from(fused.entries())
+          .map(([id, scores]) => {
+            const chunk = this.indexer.getChunk(id);
+            if (!chunk) return null;
+
+            return {
+              id,
+              docId: chunk.docId,
+              text: chunk.text,
+              score: scores.fusedScore / maxScore,
+              semanticRank: scores.semanticRank,
+              bm25Rank: scores.bm25Rank,
+              semanticScore: scores.semanticScore,
+              bm25Score: scores.bm25Score,
+              metadata: chunk.metadata,
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null)
+          .sort((a, b) => b.score - a.score);
+      } else if (semanticRanked.length > 0) {
+        // Semantic only
+        results = semantic.map(r => ({
+          id: r.chunk.id,
+          docId: r.chunk.docId,
+          text: r.chunk.text,
+          score: r.score,
+          semanticRank: r.score,
+          metadata: r.chunk.metadata,
+        }));
+      } else {
+        // BM25 only
+        results = bm25Ranked.map(r => {
+          const chunk = this.indexer.getChunk(r.id);
           if (!chunk) return null;
-
           return {
-            id,
+            id: r.id,
             docId: chunk.docId,
             text: chunk.text,
-            score: scores.fusedScore / maxScore,
-            semanticRank: scores.semanticRank,
-            bm25Rank: scores.bm25Rank,
-            semanticScore: scores.semanticScore,
-            bm25Score: scores.bm25Score,
+            score: r.score,
+            bm25Rank: r.rank + 1,
             metadata: chunk.metadata,
           };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null)
-        .sort((a, b) => b.score - a.score);
-    } else if (semanticRanked.length > 0) {
-      // Semantic only
-      results = semantic.map(r => ({
-        id: r.chunk.id,
-        docId: r.chunk.docId,
-        text: r.chunk.text,
-        score: r.score,
-        semanticRank: r.score,
-        metadata: r.chunk.metadata,
-      }));
-    } else {
-      // BM25 only
-      results = bm25Ranked.map(r => {
-        const chunk = this.indexer.getChunk(r.id);
-        if (!chunk) return null;
-        return {
-          id: r.id,
-          docId: chunk.docId,
-          text: chunk.text,
-          score: r.score,
-          bm25Rank: r.rank + 1,
-          metadata: chunk.metadata,
-        };
-      }).filter((r): r is NonNullable<typeof r> => r !== null);
+        }).filter((r): r is NonNullable<typeof r> => r !== null);
+      }
+    } catch (err) {
+      console.error(`Retrieval fusion error: ${err instanceof Error ? err.message : String(err)}`);
+      results = [];
     }
 
     // Filter by minimum score
@@ -274,22 +297,27 @@ export class HybridRetriever {
     query: string,
     options: RetrievalOptions = {},
   ): Promise<{ context: string; sources: string[] }> {
-    const response = await this.retrieve(query, options);
+    try {
+      const response = await this.retrieve(query, options);
 
-    if (response.results.length === 0) {
+      if (response.results.length === 0) {
+        return { context: '', sources: [] };
+      }
+
+      const parts = response.results.map((r, i) => {
+        const source = `[${i + 1}] ${r.metadata.title} (${r.metadata.source})`;
+        return `${source}\n${r.text}`;
+      });
+
+      const sources = [...new Set(response.results.map(r => r.metadata.title))];
+
+      return {
+        context: parts.join('\n\n---\n\n'),
+        sources,
+      };
+    } catch (err) {
+      console.error(`retrieveAsContext error: ${err instanceof Error ? err.message : String(err)}`);
       return { context: '', sources: [] };
     }
-
-    const parts = response.results.map((r, i) => {
-      const source = `[${i + 1}] ${r.metadata.title} (${r.metadata.source})`;
-      return `${source}\n${r.text}`;
-    });
-
-    const sources = [...new Set(response.results.map(r => r.metadata.title))];
-
-    return {
-      context: parts.join('\n\n---\n\n'),
-      sources,
-    };
   }
 }

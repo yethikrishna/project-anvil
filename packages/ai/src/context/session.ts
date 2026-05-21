@@ -402,16 +402,27 @@ export class Session {
   }
 
   static fromJSON(json: SessionData, options?: { userContext?: UserContext }): Session {
+    if (!json || !json.id) {
+      throw new Error('Invalid SessionData: missing id');
+    }
+
     const session = new Session(json.id, json.config, { userContext: options?.userContext });
-    session.data.messages = json.messages ?? [];
-    session.data.state = json.state;
-    session.data.conversationSummary = json.conversationSummary;
-    session.data.topics = json.topics ?? [];
-    session.data.toolsUsed = json.toolsUsed ?? [];
-    session.data.createdAt = json.createdAt;
-    session.data.lastActivityAt = json.lastActivityAt;
-    session.data.completedAt = json.completedAt;
-    session.data.tokenBudget = json.tokenBudget;
+    session.data.messages = Array.isArray(json.messages) ? json.messages : [];
+    session.data.state = ['active', 'idle', 'paused', 'completed', 'error'].includes(json.state)
+      ? json.state : 'error';
+    session.data.conversationSummary = typeof json.conversationSummary === 'string' ? json.conversationSummary : undefined;
+    session.data.topics = Array.isArray(json.topics) ? json.topics : [];
+    session.data.toolsUsed = Array.isArray(json.toolsUsed) ? json.toolsUsed : [];
+    session.data.createdAt = typeof json.createdAt === 'number' ? json.createdAt : Date.now();
+    session.data.lastActivityAt = typeof json.lastActivityAt === 'number' ? json.lastActivityAt : Date.now();
+    session.data.completedAt = typeof json.completedAt === 'number' ? json.completedAt : undefined;
+    session.data.tokenBudget = json.tokenBudget && typeof json.tokenBudget === 'object'
+      ? {
+          used: typeof (json.tokenBudget as any).used === 'number' ? (json.tokenBudget as any).used : 0,
+          remaining: typeof (json.tokenBudget as any).remaining === 'number' ? (json.tokenBudget as any).remaining : 0,
+          total: typeof (json.tokenBudget as any).total === 'number' ? (json.tokenBudget as any).total : 128000,
+        }
+      : { used: 0, remaining: 128000, total: 128000 };
     return session;
   }
 
