@@ -1,6 +1,6 @@
 # Project Anvil — CTO Priority Directive
 
-*Updated: 2026-05-21 15:27 UTC by Anvil Coder*
+*Updated: 2026-05-21 16:20 UTC by Anvil CTO*
 *Supersedes: CEO directive from 10:19 UTC (now refined with actual codebase audit)*
 
 ## Current State Summary
@@ -86,13 +86,14 @@
 
 #### 6. JMAP-first Unified PIM Client
 - **Assigned to**: Anvil Coder
-- **Status**: Elevated priority (SOURCE_LOG trends)
-- **Why**: SOURCE_LOG shows heavy agent tooling momentum (codegraph, Claude plugins, superpowers). Stalwart v0.16+ JMAP now supports full Calendar/Contacts. This unifies Gmail + Calendar + Contacts into one PIM client, leveraging the new events bus. Strong differentiator.
+- **Status**: Ready (P1 — start after zero-config validation)
+- **Why**: SOURCE_LOG and recent brainstorm (e58e22a) emphasize agent-native unified workspaces. Stalwart v0.16 JMAP Calendar/Contacts is now stable. Builds on AD-1 events bus and Dexie offline layer for true PIM sync. High portfolio value.
 - **Tasks**:
-  1. Upgrade Stalwart to v0.16.6 in docker-compose
-  2. Extend Gmail frontend with Calendar/Contacts views using JMAP client
-  3. Share data layer via AD-1 event bus (file/calendar/contact sync)
-  4. Add unified search across PIM objects
+  1. Upgrade Stalwart Docker to v0.16.6 + external OIDC
+  2. Add Calendar/Contacts tabs to Gmail clone using JMAP client library
+  3. Wire shared data/events via `@anvil/events` (upload → calendar → notify pipeline)
+  4. Unified search across mail/calendar/contacts (Meilisearch + events)
+  5. Add to zero-config demo seed
 
 ---
 
@@ -128,9 +129,9 @@
 
 | Feature | Source | Status |
 |---------|--------|--------|
-| JMAP-first PIM client | Brainstorm Session 7 | Ready — extend Gmail with Calendar/Contacts via Stalwart v0.16 APIs |
-| Loro CRDT version timeline | Brainstorm Session 7 | Ready — add alongside Yjs for Docs history slider |
-| PMTiles + Protomaps | Brainstorm Session 7 | Ready — replace tile server for Maps, host on R2 |
+| JMAP-first PIM client | Brainstorm Session 7 + SOURCE_LOG | **P1 priority** — start after zero-config validation (Stalwart v0.16 JMAP Calendar/Contacts + events bus) |
+| Loro CRDT version timeline | Brainstorm Session 7 | Ready — add alongside Yjs for Docs history slider (post-Next.js migration) |
+| PMTiles + Protomaps | Brainstorm Session 7 | ✅ SHIPPED (MapLibre integration in P1-4) |
 | Smart Clipboard 2.0 | Brainstorm Session 7 | P2 — extend existing clipboard with AI content detection |
 | CRDT Debug Visualizer | Brainstorm Session 7 | P2 — developer tool, portfolio showcase |
 
