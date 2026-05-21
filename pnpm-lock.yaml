@@ -454,6 +454,9 @@ importers:
       '@anvil/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@anvil/next-config':
+        specifier: workspace:*
+        version: link:../../packages/next-config
       '@anvil/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -461,8 +464,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       meilisearch:
-        specifier: ^0.46.0
-        version: 0.46.0
+        specifier: ^0.58.0
+        version: 0.58.0
       next:
         specifier: ^15.1.0
         version: 15.5.18(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -3449,8 +3452,9 @@ packages:
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
 
-  meilisearch@0.46.0:
-    resolution: {integrity: sha512-bx0tei1B+Ke0Y02pCoqmcwfpkwuDf+/ZkQDVDvb+ZfGDpWaxq9Z7sE5kc3o8zWvP6wJE7e3PoU3Oy6WINqq5bw==}
+  meilisearch@0.58.0:
+    resolution: {integrity: sha512-MXFlU+JVG2I3tDI4brS3UHxEv2fjOROP24TPP16c8dGHTulb1kxMgXvKP0x4ImvUcsVVJFi4QXP0JNDS/TaWaw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
 
   memoize-one@5.2.1:
     resolution: {integrity: sha512-zYiwtZUcYyXKo/np96AGZAckk+FWWsUdJ3cHGGmld7+AhvcWmQyGCYUh1hc4Q/pkOhb65dQR/pqCyK0cOaHz4Q==}
@@ -6581,7 +6585,7 @@ snapshots:
 
   mdurl@2.0.0: {}
 
-  meilisearch@0.46.0: {}
+  meilisearch@0.58.0: {}
 
   memoize-one@5.2.1: {}
 

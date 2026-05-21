@@ -2,6 +2,8 @@
  * @anvil/ui — Shared component library for Project Anvil
  */
 
+import { cn } from './utils';
+
 // ── Utilities ──
 export { cn } from './utils';
 
@@ -275,8 +277,8 @@ export {useGamification, TrophyCase, ProductivityScoreRing, QuestCard} from './g
 export type {Achievement, Quest, QuestStep, GamificationState} from './gamification';
 
 // ── Productivity Blocks ──
-export {SplitPane, CommandBar, Kbd, EmptyState, Skeleton as ProductivitySkeleton, ToastContainer, useToast} from './productivity/productivity-blocks';
-export type {SplitPaneProps, CommandItem, CommandBarProps, EmptyStateProps, Toast as ProductivityToast, ToastType as ProductivityToastType} from './productivity/productivity-blocks';
+export {SplitPane, CommandBar, Kbd, EmptyState, Skeleton as ProductivitySkeleton, useToast} from './productivity/productivity-blocks';
+export type {SplitPaneProps, CommandBarProps, EmptyStateProps, Toast as ProductivityToast, ToastType as ProductivityToastType} from './productivity/productivity-blocks';
 
 // ── Dashboard ──
 export {useDashboard, Dashboard} from './dashboard';

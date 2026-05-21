@@ -1,1 +1,1 @@
-export {useSpatialNavigation, useRovingTabindex, useFocusTrap} from './spatial-navigation.js';
+export {useSpatialNavigation, useRovingTabindex, useFocusTrap} from './spatial-navigation';

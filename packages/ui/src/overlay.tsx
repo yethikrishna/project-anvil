@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { cn } from '../utils';
+import { cn } from './utils';
 
 // ── Modal ──
 
@@ -324,7 +324,7 @@ export interface TooltipProps {
 export function Tooltip({ content, children, position = 'top', delay = 300 }: TooltipProps) {
   const [show, setShow] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleEnter = useCallback(() => {
     timerRef.current = setTimeout(() => {

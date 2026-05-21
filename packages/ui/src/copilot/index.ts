@@ -1,1 +1,1 @@
-export {AICopilot, CopilotToggleButton} from './copilot.js';
+export {AICopilot, CopilotToggleButton} from './copilot';

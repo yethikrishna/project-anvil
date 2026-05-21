@@ -1,5 +1,5 @@
-export {useKeyboardShortcuts, ShortcutHelpOverlay} from './shortcuts.js';
+export {useKeyboardShortcuts, ShortcutHelpOverlay} from './shortcuts';
 export {
   GLOBAL_SHORTCUTS, GMAIL_SHORTCUTS, DOCS_SHORTCUTS,
-} from './shortcuts.js';
-export type {ShortcutDef, ShortcutState} from './shortcuts.js';
+} from './shortcuts';
+export type {ShortcutDef, ShortcutState} from './shortcuts';

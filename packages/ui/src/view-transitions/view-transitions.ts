@@ -88,7 +88,7 @@ export async function startViewTransition(
     return;
   }
 
-  const (document as any).startViewTransition(async () => {
+  (document as any).startViewTransition(async () => {
     await updateDOM();
   });
 

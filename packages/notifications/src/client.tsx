@@ -56,7 +56,7 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // WebSocket connection
   useEffect(() => {
@@ -119,7 +119,7 @@ export function NotificationProvider({
     return () => {
       disposed = true;
       clearTimeout(reconnectTimer.current);
-      ws.close();
+      wsRef.current?.close();
     };
   }, [userId, wsUrl]);
 

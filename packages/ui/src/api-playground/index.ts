@@ -1,1 +1,1 @@
-export {ApiPlayground} from './api-playground.js';
+export {ApiPlayground} from './api-playground';

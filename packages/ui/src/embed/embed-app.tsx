@@ -29,8 +29,8 @@ export interface EmbedConfig {
 }
 
 export interface EmbedMessage {
-  type: 'ready' | 'resize' | 'navigate' | 'action' | 'error' | 'auth-required';
-  payload: Record<string, unknown>;
+  type: 'ready' | 'resize' | 'navigate' | 'action' | 'error' | 'auth-required' | 'auth';
+  payload: Record<string, unknown> | EmbedAction;
   source: string;
   timestamp: string;
 }
@@ -104,7 +104,7 @@ export function EmbeddedApp({config, className}: {config: EmbedConfig; className
           }
           break;
         case 'resize':
-          setHeight(Number(message.payload.height) || 600);
+          setHeight(Number((message.payload as Record<string, unknown>).height) || 600);
           break;
         case 'auth-required':
           // Parent needs to provide auth
@@ -187,7 +187,7 @@ export function useEmbeddedApp() {
 
       switch (message.type) {
         case 'auth':
-          setAuthToken(message.payload.token as string);
+          setAuthToken((message.payload as Record<string, unknown>).token as string);
           break;
         case 'action':
           const action = message.payload as EmbedAction;

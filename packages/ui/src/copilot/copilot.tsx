@@ -1,7 +1,7 @@
 'use client';
 
 import {useState, useCallback, useRef, useEffect} from 'react';
-import {cn} from '../utils.js';
+import {cn} from '../utils';
 
 // ── Types ──
 

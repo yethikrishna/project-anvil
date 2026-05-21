@@ -1,1 +1,1 @@
-export {usePerformanceBudget, PerformanceBudgetPanel} from './performance-budget.js';
+export {usePerformanceBudget, PerformanceBudgetPanel} from './performance-budget';

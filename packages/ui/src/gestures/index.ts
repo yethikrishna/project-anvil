@@ -5,5 +5,5 @@ export {
   usePinchZoom,
   usePullToRefresh,
   useMultiSelect,
-} from './mobile-gestures.js';
-export type {SwipeGestureState, GestureHandlers, SwipeableListItemProps} from './mobile-gestures.js';
+} from './mobile-gestures';
+export type {SwipeGestureState, GestureHandlers, SwipeableListItemProps} from './mobile-gestures';

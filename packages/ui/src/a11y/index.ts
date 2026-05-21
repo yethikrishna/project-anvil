@@ -6,5 +6,5 @@ export {
   useVoiceControl,
   VoiceControlButton,
   VisuallyHidden,
-} from './accessibility.js';
-export type {A11yPreferences, VoiceCommand} from './accessibility.js';
+} from './accessibility';
+export type {A11yPreferences, VoiceCommand} from './accessibility';

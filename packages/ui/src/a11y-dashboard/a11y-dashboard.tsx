@@ -189,7 +189,7 @@ function auditDOM(): A11yAuditResult[] {
         const interactive = document.querySelectorAll('a, button, input, select, textarea, [tabindex]');
         const tabbable = Array.from(interactive).filter(el => {
           const tabindex = el.getAttribute('tabindex');
-          return tabindex !== '-1' && !(el as HTMLElement).disabled;
+          return tabindex !== '-1' && !(el as HTMLInputElement).disabled;
         });
         score = interactive.length > 0 ? Math.round((tabbable.length / interactive.length) * 100) : 100;
         passed = tabbable.length === interactive.length;
@@ -327,8 +327,6 @@ export function A11yScoreDashboard() {
           {isAuditing ? 'Auditing...' : 'Run Audit'}
         </button>
       </div>
-
-      {scores.forEach((score, appName) => null)}
 
       {Array.from(scores.entries()).map(([appName, score]) => (
         <div key={appName}>
