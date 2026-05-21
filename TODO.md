@@ -98,7 +98,7 @@
 ### Local-First AI
 - [x] Add optional local embedding generation (Nomic/BGE-M3 via Ollama)
 - [x] Implement on-device document summarization
-- [ ] Add WebGPU-based client-side embedding for search
+- [x] Add WebGPU-based client-side embedding for search
 - [x] Create local RAG pipeline for private document search
 
 ### Framework Upgrades
