@@ -24,7 +24,7 @@ export class OllamaProvider implements AIProvider {
   private defaultModel: string;
   private embeddingModel: string;
 
-  constructor(config: OllamaConfig = {}) {
+  constructor(config: OllamaConfig = { type: 'ollama' }) {
     this.baseUrl = (config.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     this.defaultModel = config.defaultModel ?? 'llama3.2';
     this.embeddingModel = config.embeddingModel ?? 'nomic-embed-text';

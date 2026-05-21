@@ -67,7 +67,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
   async function resolveToken(): Promise<string | null> {
     if (config.accessToken) return config.accessToken;
-    if (config.getToken) return config.getToken();
+    if (config.getToken) return (await config.getToken()) ?? null;
     return null;
   }
 

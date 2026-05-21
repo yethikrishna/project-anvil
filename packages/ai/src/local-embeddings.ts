@@ -66,6 +66,7 @@ export class LocalEmbeddingService {
     this.cache = new Map();
 
     this.provider = new OllamaProvider({
+      type: 'ollama',
       baseUrl: config.ollamaUrl,
       embeddingModel: this.model,
     });
