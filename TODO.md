@@ -159,8 +159,8 @@
 - [x] Explore **Seafile** sync engine patterns for Drive clone desktop/mobile sync
 - [x] Upgrade **Hocuspocus to v4** (cross-runtime, memory optimization, edge deploy on CF Workers)
 - [x] Plan **Next.js 15 → 16 migration** (Cache Components, Turbopack default, async params)
-- [ ] Evaluate **MLT vector tile format** for Maps clone (6× smaller tiles, Martin tile server)
-- [ ] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
+- [x] Evaluate **MLT vector tile format** for Maps clone (6× smaller tiles, Martin tile server)
+- [x] Use **PeerJS** for WebRTC P2P file sharing in Drive clone
 - [ ] Evaluate **PowerSync** for offline-first Drive/Docs (SQLite ↔ PostgreSQL sync)
 - [ ] Plan **MapLibre v6 migration** when stable (WebGL 2 only, ESM-only)
 - [ ] Upgrade **Tiptap to 3.0** (smaller bundles, TS, Markdown extension, static renderer)
