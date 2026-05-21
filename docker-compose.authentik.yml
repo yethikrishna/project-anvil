@@ -1,0 +1,72 @@
+# Authentik Alternative Docker Compose
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.authentik.yml up
+#
+# This replaces Keycloak with Authentik (MIT license, no Redis, visual flow editor).
+# Authentik uses the same PostgreSQL instance.
+
+version: "3.9"
+
+services:
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.2
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-to-a-random-string}
+      AUTHENTIK_REDIS__HOST: ""
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_USER:-anvil}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD:-anvil_secret}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_LOG_LEVEL: info
+    ports:
+      - "9443:9443"
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+      - authentik_certs:/certs
+    networks:
+      - anvil-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    profiles:
+      - authentik
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.2
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-to-a-random-string}
+      AUTHENTIK_REDIS__HOST: ""
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_USER:-anvil}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD:-anvil_secret}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+    networks:
+      - anvil-net
+    profiles:
+      - authentik
+
+volumes:
+  authentik_media:
+  authentik_templates:
+  authentik_certs:
