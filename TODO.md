@@ -152,7 +152,7 @@
 - [x] Add **Coolify v4** deployment option to CI/CD (self-hosted PaaS, push-to-deploy)
 - [x] Integrate Stalwart **JMAP Calendar/Contacts** (v0.14.0+) into Gmail clone for full workspace client
 - [x] Evaluate **Authentik** as Keycloak alternative (no Redis, SLO, simpler Docker deploy)
-- [ ] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
+- [x] Adopt **shadcn/ui blocks** (shadcnblocks.com) for shared productivity UI components
 - [x] Add **Oracle Cloud Always Free** deployment guide (4 ARM OCPU + 24 GB RAM)
 - [ ] Study **PeerTube** architecture for self-hosted video in YouTube clone
 - [ ] Study **TubeArchivist** Elasticsearch approach for video metadata search
