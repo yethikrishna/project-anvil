@@ -76,6 +76,7 @@
 - [x] Notification system
 - [x] Dark/light theme
 - [x] Mobile responsive layouts
+- [ ] File System Access API for native OS file open/save with auto-sync to Drive
 - [x] OpenAPI 3.1 contract-first API spec (types in @anvil/api-client)
 
 ## Phase Next: Trend-Informed Upgrades (2026-05-21)
@@ -203,6 +204,7 @@
 - [x] Natural language file search: "find the contract I sent to Acme Corp"
 - [x] Document intelligence: auto TOC, style matching, version diff summary
 - [x] Email thread summarization + sentiment analysis
+- [ ] Autonomous AI agents: email triage, file organization, schedule negotiation with human-in-the-loop approval
 
 ## Phase 14: Power User Experience
 - [x] Unified Command Palette (Cmd+K) across all apps
@@ -243,6 +245,7 @@
 - [x] CSS Container Queries for adaptive component rendering
 - [x] Popover API + Anchor Positioning for menus and tooltips
 - [ ] `<selectlist>` customizable selects across all apps
+- [ ] Speculation Rules API for prefetch/prerender of likely next pages (sub-zero navigation)
 
 ## Phase 19: Accessibility & Internationalization
 - [ ] WCAG 2.2 AA compliance with axe-core CI integration
@@ -430,3 +433,5 @@
 - [ ] Event sourcing for Docs (time-travel, branch & merge)
 - [ ] Full offline PWA with Workbox (Service Worker + Background Sync)
 - [ ] Progressive enhancement: works without JS for core flows
+- [ ] WebNN API for hardware-accelerated on-device ML (face clustering, background segmentation, OCR)
+- [ ] Protocol-level federation: ActivityPub sharing, Matrix chat interop, WebFinger user discovery
