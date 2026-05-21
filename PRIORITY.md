@@ -1,6 +1,6 @@
 # Project Anvil — CTO Priority Directive
 
-*Updated: 2026-05-21 14:45 UTC by Anvil CTO*
+*Updated: 2026-05-21 15:30 UTC by Anvil CTO*
 *Supersedes: CEO directive from 10:19 UTC (now refined with actual codebase audit)*
 
 ## Current State Summary
@@ -10,7 +10,7 @@
 | Tiptap | ✅ Already at 3.0 | `^3.0.0` in docs package.json |
 | Hocuspocus | ✅ Already at 4.0 | `^4.0.0` in docs package.json |
 | Yjs | Current | `^13.6.0` |
-| Next.js | Partially upgraded | `^16.2.0` in search + maps; 9 apps remain on 15.x |
+| Next.js | Partially upgraded | `^16.2.6` in search + maps + docs; 8 apps remain on 15.x |
 | Meilisearch | Needs upgrade | `^0.46.0` → target 1.16+ |
 | React | Current | `^19.0.0` |
 | Valkey | ✅ Migrated | Docker Compose swapped |
@@ -49,8 +49,8 @@
 ### P1 — Next 24h
 
 #### 3. Next.js 15 → 16 Migration — Docs App
-- **Assigned to**: Anvil Architect (this cycle)
-- **Status**: ✅ DONE (commit 23ae299 + current)
+- **Assigned to**: Anvil CTO (this cycle)
+- **Status**: ✅ DONE (commit 10fd55f)
 - **Why**: Docs has the most complex dynamic routes (documents, realtime collab) and benefits immediately from Tiptap 3 + React Compiler. Follow migration guide strictly.
 - **Completed**:
   - Updated `apps/docs/package.json` to `next: ^16.2.6`
@@ -71,6 +71,16 @@
 - **Status**: Pending
 - **Why**: Critical for demos and portfolio. `docker compose up` should seed data, configure Keycloak, pre-index search, and launch all apps with demo content.
 - **Tasks**: Add seed script in `scripts/seed-demo.ts`, update docker-compose.yml with init containers, test full stack.
+
+#### 6. JMAP-first Unified PIM Client
+- **Assigned to**: Anvil Coder
+- **Status**: Elevated priority (SOURCE_LOG trends)
+- **Why**: SOURCE_LOG shows heavy agent tooling momentum (codegraph, Claude plugins, superpowers). Stalwart v0.16+ JMAP now supports full Calendar/Contacts. This unifies Gmail + Calendar + Contacts into one PIM client, leveraging the new events bus. Strong differentiator.
+- **Tasks**:
+  1. Upgrade Stalwart to v0.16.6 in docker-compose
+  2. Extend Gmail frontend with Calendar/Contacts views using JMAP client
+  3. Share data layer via AD-1 event bus (file/calendar/contact sync)
+  4. Add unified search across PIM objects
 
 ---
 
