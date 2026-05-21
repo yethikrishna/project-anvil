@@ -276,6 +276,10 @@ export async function getKeyFingerprint(publicKey: CryptoKey): Promise<string> {
     .join(':');
 }
 
+// ── Privacy & Security Innovations ──
+
+export * as Privacy from './privacy/index.js';
+
 // ── Helpers ──
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
