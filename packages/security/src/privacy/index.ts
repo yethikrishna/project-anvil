@@ -178,3 +178,76 @@ export {
   type PendingOperation,
   type WeightedVRFConfig,
 } from './novel/vrf-conflict.js';
+
+// ── Novel #21-28: Second Wave Innovations ──
+
+export {
+  FuzzyVaultScheme,
+  type LockedVault,
+  type VaultUnlockResult,
+  type BiometricTemplate,
+  type BiometricType,
+  type FuzzyVaultConfig,
+} from './novel/fuzzy-vault.js';
+
+export {
+  GarbledCircuitGenerator,
+  GarbledCircuitEvaluator,
+  SimplifiedOT,
+  type GarbledCircuit,
+  type SearchPredicate,
+  type GarbledSearchResult,
+} from './novel/garbled-circuits.js';
+
+export {
+  MixnetClient,
+  MixnetDirectory,
+  MixNodeSimulator,
+  type MixnetEnvelope,
+  type MixNode,
+  type OnionPacket,
+  type RoutingProof,
+} from './novel/mixnet.js';
+
+export {
+  WitnessEncryption,
+  TimelockPuzzleScheme,
+  type WitnessEncryptedDocument,
+  type WitnessReveal,
+  type WitnessDecryptResult,
+  type TimelockPuzzle,
+} from './novel/witness-encryption.js';
+
+export {
+  AccountableAnonymity,
+  type TraceableRingSignature,
+  type CommitteeKeySetup,
+  type TracingResult,
+  type RingMember,
+} from './novel/accountable-anonymity.js';
+
+export {
+  SecureAggregation,
+  type MaskedGradient,
+  type AggregationResult,
+  type SecAggConfig,
+  type InclusionAuditResult,
+} from './novel/secure-aggregation.js';
+
+export {
+  ProxyReEncryption,
+  RevocationManager,
+  type PREKeyPair,
+  type ReEncryptionKey,
+  type PRECiphertext,
+  type RevocationLog,
+} from './novel/proxy-reencryption.js';
+
+export {
+  TopologyHidingMPC,
+  StyleometricDefense,
+  type THMPCSession,
+  type THMPCOutput,
+  type THMPCInput,
+  type StyleometricNoise,
+} from './novel/topology-hiding-mpc.js';

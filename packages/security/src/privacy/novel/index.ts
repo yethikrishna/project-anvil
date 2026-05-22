@@ -46,3 +46,61 @@ export { ThresholdDocumentEncryption, type ThresholdConfig, type KeyShare, type 
 export { SealedSender, type SealedEnvelope, type UnsealedMessage, type SealedSenderConfig, type KeyState, type SenderCertificate } from './sealed-sender.js';
 export { AnonymousCredentialRBAC, type AnonymousCredential, type AccessPolicy, type AccessProof, type CredentialIssuer, type CredentialSpec, type RevocationAccumulator } from './anonymous-rbac.js';
 export { VRFConflictResolver, type VRFKeyPair, type VRFOutput, type ConflictResolution, type PendingOperation, type WeightedVRFConfig } from './vrf-conflict.js';
+
+// ── Novel #21-28: Second Wave Innovations ──
+
+/**
+ * #21 — Fuzzy Vault for Biometric Document Unlock
+ *    Lock a document's key in a vault openable by biometric similarity.
+ *    Novel: LSH projection of continuous embeddings (face/voice) into discrete sets.
+ */
+export { FuzzyVaultScheme, type LockedVault, type VaultUnlockResult, type BiometricTemplate, type BiometricType, type FuzzyVaultConfig } from './fuzzy-vault.js';
+
+/**
+ * #22 — Garbled Circuit Search
+ *    Server evaluates search predicates on encrypted metadata via Yao's garbled circuits.
+ *    Novel: Half-gates optimization + OT for boolean search over encrypted Drive/Mail.
+ */
+export { GarbledCircuitGenerator, GarbledCircuitEvaluator, SimplifiedOT, type GarbledCircuit, type SearchPredicate, type GarbledSearchResult } from './garbled-circuits.js';
+
+/**
+ * #23 — Mixnet-Based Message Routing
+ *    Chaumian onion routing for Mail/Drive notifications.
+ *    Novel: Poisson-delayed mixing + Indistinguishable cover traffic + verifiable routing.
+ */
+export { MixnetClient, MixnetDirectory, MixNodeSimulator, type MixnetEnvelope, type MixNode, type OnionPacket, type RoutingProof } from './mixnet.js';
+
+/**
+ * #24 — Witness Encryption for Time-Locked Documents
+ *    Documents unlockable only after an observable event.
+ *    Novel: RSA timelock + threshold committee witness + dead-man's switch + blockchain event binding.
+ */
+export { WitnessEncryption, TimelockPuzzleScheme, type WitnessEncryptedDocument, type WitnessReveal, type WitnessDecryptResult, type TimelockPuzzle } from './witness-encryption.js';
+
+/**
+ * #25 — Accountable Anonymity (Traceable Signatures)
+ *    Anonymous actions with k-of-n committee traceability.
+ *    Novel: Ring signatures with threshold-committee tracing + key image double-spend detection.
+ */
+export { AccountableAnonymity, type TraceableRingSignature, type CommitteeKeySetup, type TracingResult, type RingMember } from './accountable-anonymity.js';
+
+/**
+ * #26 — Secure Aggregation for Distributed AI Training
+ *    Multiple users train AI models without exposing individual data.
+ *    Novel: SecAgg + commitment audit trail + verifiable DP noise proofs + streaming chunked aggregation.
+ */
+export { SecureAggregation, type MaskedGradient, type AggregationResult, type SecAggConfig, type InclusionAuditResult } from './secure-aggregation.js';
+
+/**
+ * #27 — Cryptographic Access Revocation with Proxy Re-Encryption
+ *    Revoke shared document access without re-encrypting documents.
+ *    Novel: Forward-secret epoch-based revocation + verifiable re-encryption ZK proofs + revocation transparency log.
+ */
+export { ProxyReEncryption, RevocationManager, type PREKeyPair, type ReEncryptionKey, type PRECiphertext, type RevocationLog } from './proxy-reencryption.js';
+
+/**
+ * #28 — Topology-Hiding Multi-Party Computation
+ *    Collaborative computation where participants don't know who else is computing.
+ *    Novel: Topology-hidden additive sharing + styleometric fingerprinting defense + onion routing.
+ */
+export { TopologyHidingMPC, StyleometricDefense, type THMPCSession, type THMPCOutput, type THMPCInput, type StyleometricNoise } from './topology-hiding-mpc.js';
