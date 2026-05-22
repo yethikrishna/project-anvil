@@ -28,6 +28,9 @@ import {AIAutocorrect} from '../../../lib/ai/ai-autocorrect';
 import {AIWritingCoach} from '../../../lib/ai/writing-coach';
 import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
 import {DocumentHealthDashboard} from '../../../lib/ai/document-health-dashboard';
+import {AITranslationDropdown} from '../../../lib/ai/ai-translation';
+import {SmartTemplateBrowser} from '../../../lib/ai/smart-template-browser';
+import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
 // ── Toolbar ──
@@ -194,6 +197,8 @@ export default function EditorPage({params}: EditorPageProps) {
   const [hasSuggestion, setHasSuggestion] = useState(false);
   const [suggestionText, setSuggestionText] = useState('');
   const [showHealth, setShowHealth] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch document metadata
@@ -430,6 +435,27 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📊 Analytics
         </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowTranslation(!showTranslation)}
+            className={`px-2 py-1 rounded text-xs transition-colors ${showTranslation ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}
+            title="AI Translation"
+          >
+            🌐 Translate
+          </button>
+          {showTranslation && editor && (
+            <AIErrorBoundary featureName="AI Translation">
+              <AITranslationDropdown editor={editor} onClose={() => setShowTranslation(false)} />
+            </AIErrorBoundary>
+          )}
+        </div>
+        <button
+          onClick={() => setShowTemplateBrowser(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Smart Templates"
+        >
+          📄 Templates
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -457,7 +483,9 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* AI Assistant Side Panel */}
       {showAIAssistant && editor && (
-        <AIAssistantPanel editor={editor} onClose={() => setShowAIAssistant(false)} />
+        <AIErrorBoundary featureName="AI Assistant">
+          <AIAssistantPanel editor={editor} onClose={() => setShowAIAssistant(false)} />
+        </AIErrorBoundary>
       )}
 
       {/* Analytics Side Panel */}
@@ -470,7 +498,9 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* AI Command Panel */}
       {showAICommands && editor && (
-        <AICommandPanel editor={editor} onClose={() => setShowAICommands(false)} />
+        <AIErrorBoundary featureName="AI Commands">
+          <AICommandPanel editor={editor} onClose={() => setShowAICommands(false)} />
+        </AIErrorBoundary>
       )}
 
       {/* AI Suggestion Bar */}
@@ -480,6 +510,17 @@ export default function EditorPage({params}: EditorPageProps) {
         onAccept={() => (editor?.commands as any).aiAcceptSuggestion?.()}
         onReject={() => (editor?.commands as any).aiRejectSuggestion?.()}
       />
+
+      {/* Smart Template Browser */}
+      {showTemplateBrowser && (
+        <AIErrorBoundary featureName="Smart Templates">
+          <SmartTemplateBrowser
+            editor={editor}
+            onClose={() => setShowTemplateBrowser(false)}
+            onTemplateApplied={(title) => setDocTitle(title)}
+          />
+        </AIErrorBoundary>
+      )}
     </div>
   );
 }

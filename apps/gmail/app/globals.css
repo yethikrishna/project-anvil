@@ -45,3 +45,134 @@
   border-radius: 3px;
   font-size: 13px;
 }
+
+/* ── Anvil Mail AI Styles ── */
+
+/* Streaming AI compose indicator */
+.ai-mail-streaming {
+  position: relative;
+}
+
+.ai-mail-streaming::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6366f1, #a5b4fc, #6366f1);
+  background-size: 200% 100%;
+  animation: ai-mail-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-mail-progress {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* AI thread summary */
+.ai-thread-summary {
+  border-left: 3px solid #6366f1;
+  padding: 8px 12px;
+  background: #fafafe;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 8px;
+}
+
+/* Smart reply pills */
+.ai-smart-reply-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #374151;
+}
+
+.ai-smart-reply-pill:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+  background: #f5f3ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+}
+
+/* Inbox category tab */
+.ai-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+}
+
+.ai-category-tab:hover {
+  background: #f3f4f6;
+}
+
+.ai-category-tab.active {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+.ai-category-tab .count-badge {
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.ai-category-tab.active .count-badge {
+  background: #c7d2fe;
+  color: #4338ca;
+}
+
+/* Semantic search results */
+.ai-mail-search-result {
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+
+.ai-mail-search-result:hover {
+  background: #f5f3ff;
+}
+
+.ai-mail-search-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* Unread digest */
+.ai-digest-section {
+  border-left: 3px solid;
+  padding-left: 12px;
+  margin-bottom: 12px;
+}
+
+.ai-digest-section.action-needed { border-color: #ef4444; }
+.ai-digest-section.updates { border-color: #3b82f6; }
+.ai-digest-section.fyi { border-color: #9ca3af; }
+.ai-digest-section.personal { border-color: #10b981; }

@@ -283,3 +283,7 @@ export type {SplitPaneProps, CommandBarProps, EmptyStateProps, Toast as Producti
 // ── Dashboard ──
 export {useDashboard, Dashboard} from './dashboard';
 export type {DashboardWidget, DashboardLayout, WidgetType} from './dashboard';
+
+// ── AI Error Boundary ──
+export {AIErrorBoundary, queueFailedRequest, getQueuedRequests, clearQueue, useAIWithErrorHandling} from "./ai-error-boundary";
+

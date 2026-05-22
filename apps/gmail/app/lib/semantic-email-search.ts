@@ -283,11 +283,12 @@ function simpleHashEmbed(text: string, dimensions: number): number[] {
 export async function semanticSearch(
   query: string,
   emails: SearchableEmail[],
-  options?: {maxResults?: number; minScore?: number}
+  options?: {maxResults?: number; minScore?: number; useCache?: boolean}
 ): Promise<SemanticSearchResult[]> {
   const startTime = performance.now();
   const maxResults = options?.maxResults ?? 20;
   const minScore = options?.minScore ?? 0.1;
+  const useCache = options?.useCache ?? true;
 
   if (!query.trim()) return [];
 
