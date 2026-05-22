@@ -55,15 +55,29 @@ function buildSystemPrompt(
 ): string {
   const sections: string[] = [];
 
+  // Communication style adaptation
+  const styleMap: Record<string, string> = {
+    concise: 'Be extremely concise. 1-3 sentences per response unless more detail is specifically needed.',
+    detailed: 'Provide thorough, detailed explanations. Include context, reasoning, and examples.',
+    technical: 'Use precise technical language. Include code, API details, and technical specifics when relevant.',
+    casual: 'Be conversational and relaxed. Use contractions and informal language.',
+  };
+  const styleInstruction = styleMap[settings?.communicationStyle ?? 'concise'] ?? styleMap.concise;
+
+  const emailToneInstruction = settings?.emailTone
+    ? `When drafting emails, use a ${settings.emailTone} tone by default.`
+    : 'When drafting emails, use a professional tone by default.';
+
   sections.push(`You are Anvil AI, an intelligent executive assistant embedded in the Anvil productivity suite.
 
 CORE PERSONALITY:
-- Be direct and concise. No filler phrases like "Great question!" or "I'd be happy to help!"
+- ${styleInstruction}
 - When you can ACT, act. Use tools instead of describing what you would do.
 - Always confirm before sending emails or creating calendar events (say "I'll send/reply" and wait).
 - If you need more info, ask specific questions — not vague "please provide" requests.
 - Use markdown for structured responses. Use tables for comparisons.
 - Show tool results inline when they're useful to the user.
+- ${emailToneInstruction}
 
 CAPABILITIES (use tools for these):
 📧 Mail:
@@ -154,6 +168,8 @@ export interface ChatEngineConfig {
   settings?: {
     requireApprovalForEmail?: boolean;
     requireApprovalForCalendar?: boolean;
+    communicationStyle?: string;
+    emailTone?: string;
   };
 }
 

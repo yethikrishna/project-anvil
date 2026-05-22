@@ -258,6 +258,8 @@ export default function ChatPage() {
           settings: {
             requireApprovalForEmail: chatSettings.requireApprovalForEmail,
             requireApprovalForCalendar: chatSettings.requireApprovalForCalendar,
+            communicationStyle: chatSettings.communicationStyle,
+            emailTone: chatSettings.emailTone,
           },
         }),
       });

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
     };
     userPatterns?: string;
-    settings?: { requireApprovalForEmail?: boolean; requireApprovalForCalendar?: boolean };
+    settings?: { requireApprovalForEmail?: boolean; requireApprovalForCalendar?: boolean; communicationStyle?: string; emailTone?: string };
   };
 
   if (!conversationId || !message) {
