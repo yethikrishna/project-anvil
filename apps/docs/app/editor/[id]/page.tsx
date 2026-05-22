@@ -41,6 +41,7 @@ import {ReadingMetricsBadge, ReadingMetricsPanel} from '../../../lib/ai/reading-
 import {AIOutlineBuilder} from '../../../lib/ai/ai-outline-builder';
 import {WordChoicePanel} from '../../../lib/ai/word-choice-suggester';
 import {ContentTransformer} from '../../../lib/ai/content-transformer';
+import {HeadingSuggestionsPanel} from '../../../lib/ai/heading-suggestions';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -219,6 +220,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showOutlineBuilder, setShowOutlineBuilder] = useState(false);
   const [showWordChoice, setShowWordChoice] = useState(false);
   const [showTransformer, setShowTransformer] = useState(false);
+  const [showHeadingSuggestions, setShowHeadingSuggestions] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -548,6 +550,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           ✨ Transform
         </button>
+        <button
+          onClick={() => setShowHeadingSuggestions(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Improve Headings with AI"
+        >
+          📌 Headings
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -696,6 +705,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showTransformer && editor && (
         <AIErrorBoundary featureName="Content Transformer">
           <ContentTransformer editor={editor} onClose={() => setShowTransformer(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Heading Suggestions */}
+      {showHeadingSuggestions && editor && (
+        <AIErrorBoundary featureName="Heading Suggestions">
+          <HeadingSuggestionsPanel editor={editor} onClose={() => setShowHeadingSuggestions(false)} />
         </AIErrorBoundary>
       )}
 

@@ -43,6 +43,7 @@ import { UnsubscribeBanner, detectUnsubscribeInfo } from './components/ai-unsubs
 import { SmartLabelBadges } from './lib/smart-labels';
 import { KeyPointsCard } from './components/ai-key-points';
 import { WaitingReplyBadge, calculateWaitTime } from './components/ai-response-intelligence';
+import { EmailEmotionBadge } from './components/ai-emotion-detector';
 
 // ─── Types ───
 
@@ -453,9 +454,12 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
                   {msg.from.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-gray-900">{msg.from.name}</span>
                     <span className="text-xs text-gray-400">&lt;{msg.from.email}&gt;</span>
+                    {msg.from.email !== 'me@anvil.local' && (
+                      <EmailEmotionBadge body={msg.body} subject={msg.subject} showTip />
+                    )}
                   </div>
                   <p className="text-xs text-gray-500">to {msg.to.map((t) => t.name).join(', ')}</p>
                 </div>

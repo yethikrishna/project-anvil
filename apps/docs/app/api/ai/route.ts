@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find' | 'generate-outline';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find' | 'generate-outline' | 'suggest-heading';
   payload: Record<string, unknown>;
 }
 
@@ -496,6 +496,28 @@ Rules:
   return {response: result.text.trim()};
 }
 
+// ── Suggest Heading ──
+
+async function handleSuggestHeading(ai: ReturnType<typeof getAI>, payload: {
+  heading: string;
+  content: string;
+  issue: string;
+}): Promise<{suggestions: string[]}> {
+  const result = await ai.generate([
+    {role: 'system', content: `You are a writing expert. Given a document heading and the content beneath it, suggest 3 better heading alternatives.
+Output JSON: {"suggestions": ["string", "string", "string"]}
+Make headings specific, descriptive, and action-oriented when appropriate. Keep them under 10 words.`},
+    {role: 'user', content: `Original heading: "${payload.heading}" (issue: ${payload.issue})\n\nContent below:\n${payload.content.slice(0, 500)}`},
+  ], {temperature: 0.6, maxTokens: 300});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {suggestions: []};
+  }
+}
+
 // ── Generate Outline ──
 
 async function handleGenerateOutline(ai: ReturnType<typeof getAI>, payload: {
@@ -625,6 +647,8 @@ export async function POST(request: Request) {
         return Response.json(await handleSemanticFind(ai, body.payload as any));
       case 'generate-outline':
         return Response.json(await handleGenerateOutline(ai, body.payload as any));
+      case 'suggest-heading':
+        return Response.json(await handleSuggestHeading(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }
