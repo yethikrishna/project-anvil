@@ -38,6 +38,7 @@ import {DocumentComparisonPanel} from '../../../lib/ai/document-comparison';
 import {AIFocusMode} from '../../../lib/ai/ai-focus-mode';
 import {ToneAnalyzerPanel} from '../../../lib/ai/tone-analyzer';
 import {ReadingMetricsBadge, ReadingMetricsPanel} from '../../../lib/ai/reading-metrics';
+import {AIOutlineBuilder} from '../../../lib/ai/ai-outline-builder';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -213,6 +214,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showToneAnalyzer, setShowToneAnalyzer] = useState(false);
   const [showReadingMetrics, setShowReadingMetrics] = useState(false);
+  const [showOutlineBuilder, setShowOutlineBuilder] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -521,6 +523,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           🎭 Tone
         </button>
+        <button
+          onClick={() => setShowOutlineBuilder(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="AI Outline Builder"
+        >
+          📀 Outline
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -648,6 +657,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showReadingMetrics && editor && (
         <AIErrorBoundary featureName="Reading Metrics">
           <ReadingMetricsPanel text={editor.getText()} onClose={() => setShowReadingMetrics(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* AI Outline Builder */}
+      {showOutlineBuilder && editor && (
+        <AIErrorBoundary featureName="Outline Builder">
+          <AIOutlineBuilder editor={editor} onClose={() => setShowOutlineBuilder(false)} />
         </AIErrorBoundary>
       )}
 

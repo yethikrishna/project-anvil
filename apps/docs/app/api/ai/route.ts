@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find' | 'generate-outline';
   payload: Record<string, unknown>;
 }
 
@@ -496,6 +496,28 @@ Rules:
   return {response: result.text.trim()};
 }
 
+// ── Generate Outline ──
+
+async function handleGenerateOutline(ai: ReturnType<typeof getAI>, payload: {
+  text: string;
+  docType: string;
+  currentHeadings: string;
+}): Promise<{outline: any[]; suggestedTitle?: string; missingSections: string[]}> {
+  const result = await ai.generate([
+    {role: 'system', content: `You are a document structure expert. Given document text and its type, create an optimal outline.
+Output JSON: {"outline": [{"level": 1|2|3, "title": "string"}], "suggestedTitle": "string", "missingSections": ["string"]}
+Guidelines: 5-12 sections, proper heading hierarchy, actionable section titles, identify 1-3 missing important sections.`},
+    {role: 'user', content: `Document type: ${payload.docType}\n\nCurrent headings:\n${payload.currentHeadings || '(none)'}\n\nContent (excerpt):\n${payload.text.slice(0, 2500)}`},
+  ], {temperature: 0.4, maxTokens: 800});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {outline: [], missingSections: []};
+  }
+}
+
 // ── Semantic Find ──
 
 async function handleSemanticFind(ai: ReturnType<typeof getAI>, payload: {
@@ -601,6 +623,8 @@ export async function POST(request: Request) {
         return Response.json(await handleWritingCoach(ai, body.payload as any));
       case 'semantic-find':
         return Response.json(await handleSemanticFind(ai, body.payload as any));
+      case 'generate-outline':
+        return Response.json(await handleGenerateOutline(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

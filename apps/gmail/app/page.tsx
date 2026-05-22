@@ -40,6 +40,7 @@ import { SmartSnoozeMenu, SendTimeOptimizer } from './lib/snooze-intelligence';
 import { AIContactCard, extractContactFromEmail } from './components/ai-contact-intelligence';
 import { MeetingDetectorCard } from './components/ai-meeting-detector';
 import { UnsubscribeBanner, detectUnsubscribeInfo } from './components/ai-unsubscribe';
+import { SmartLabelBadges } from './lib/smart-labels';
 
 // ─── Types ───
 
@@ -356,6 +357,17 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
       {/* Subject */}
       <div className="px-6 pt-4 pb-2">
         <h2 className="text-xl font-normal text-gray-900">{subject}</h2>
+        {messages[0] && (
+          <div className="mt-1.5">
+            <SmartLabelBadges
+              subject={messages[0].subject}
+              body={messages[0].body}
+              senderEmail={messages[0].from.email}
+              appliedLabels={messages[0].labels || []}
+              onApply={(label) => console.log('Applying label:', label)}
+            />
+          </div>
+        )}
       </div>
 
       {/* AI Thread Summary */}
