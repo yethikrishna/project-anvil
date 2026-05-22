@@ -34,6 +34,9 @@ import { SmartRulesManager, DeadlineExtractor } from './components/smart-rules-m
 import { scoreInbox, scoreEmailPriority, recordInteraction, loadPriorityConfig, type PriorityScore } from './lib/priority-inbox-scorer';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
+import { SenderContextBadge } from './lib/sender-context';
+import { AIAttachmentList } from './components/ai-attachment-summarizer';
+import { SmartSnoozeMenu, SendTimeOptimizer } from './lib/snooze-intelligence';
 
 // ─── Types ───
 
@@ -275,8 +278,9 @@ function ComposeModal({ onClose, onSend }: { onClose: () => void; onSend: (to: s
 
 // ─── Thread View ───
 
-function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
+function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete, onSpam }: {
   messages: MailMessage[];
+  allMessages: MailMessage[];
   onBack: () => void;
   onStar: (id: string) => void;
   onArchive: (id: string) => void;
@@ -289,6 +293,8 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
     if (messages.length > 0) set.add(messages[messages.length - 1].id);
     return set;
   });
+  const [showSnooze, setShowSnooze] = useState(false);
+  const [snoozedUntil, setSnoozedUntil] = useState<Date | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedMsgs((prev) => {
@@ -318,6 +324,24 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
         <button onClick={() => onDelete(messages[0].id)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title="Delete">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
         </button>
+        {/* Smart Snooze */}
+        <div className="relative">
+          <button
+            onClick={() => setShowSnooze(s => !s)}
+            className={cn('px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1', snoozedUntil ? 'bg-amber-100 text-amber-700' : 'text-gray-500 hover:bg-gray-100')}
+            title="Snooze this thread"
+          >
+            ⏰ {snoozedUntil ? `Until ${snoozedUntil.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : 'Snooze'}
+          </button>
+          {showSnooze && messages[0] && (
+            <SmartSnoozeMenu
+              email={messages[0]}
+              emailId={messages[0].id}
+              onSnooze={(until, reason) => { setSnoozedUntil(until); setShowSnooze(false); }}
+              onClose={() => setShowSnooze(false)}
+            />
+          )}
+        </div>
         <div className="flex-1" />
         {messages[0]?.labels.map((l) => (
           <span key={l} className={cn('px-2 py-0.5 rounded-full text-xs font-medium', LABEL_COLORS[l] || 'bg-gray-100 text-gray-700')}>
@@ -335,6 +359,18 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
       <div className="px-6">
         <ThreadSummaryPanel messages={messages} />
       </div>
+
+      {/* Sender Context (Conversation Memory) */}
+      {messages[0] && (
+        <div className="px-6 pb-2">
+          <SenderContextBadge
+            senderEmail={messages[0].from.email}
+            senderName={messages[0].from.name}
+            allMessages={allMessages}
+            currentEmail={messages[0]}
+          />
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-auto px-6 pb-4">
@@ -370,17 +406,13 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
                 <div className="px-4 pb-4 pt-1">
                   <div className="pl-11">
                     <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans leading-relaxed">{msg.body}</pre>
+                    {/* AI Attachment Summarizer */}
                     {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="mt-3 flex gap-2">
-                        {msg.attachments.map((att) => (
-                          <div key={att.name} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg>
-                            <div>
-                              <p className="text-xs font-medium text-gray-700">{att.name}</p>
-                              <p className="text-[10px] text-gray-400">{att.size}</p>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="mt-3">
+                        <AIAttachmentList
+                          attachments={msg.attachments}
+                          emailContext={`${msg.subject}: ${msg.body.slice(0, 200)}`}
+                        />
                       </div>
                     )}
                     <div className="mt-3 flex items-center gap-2">
@@ -405,7 +437,7 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
         })}
       </div>
 
-      {/* AI Smart Replies at bottom of thread */}
+      {/* AI Smart Replies + Send Time Optimizer */}
       <div className="border-t border-gray-200 px-6">
         <SmartReplyBar
           messages={messages}
@@ -413,6 +445,15 @@ function ThreadView({ messages, onBack, onStar, onArchive, onDelete, onSpam }: {
             console.log('Smart reply:', text);
           }}
         />
+        {/* Send Time Optimizer */}
+        {messages[0] && (
+          <SendTimeOptimizer
+            recipientEmail={messages.filter(m => m.from.email !== 'me@anvil.local')[0]?.from.email || messages[0].from.email}
+            threadHistory={messages.map(m => ({date: m.date}))}
+            onSendNow={() => console.log('Send now')}
+            onSchedule={(sendAt) => console.log('Scheduled for:', sendAt)}
+          />
+        )}
       </div>
     </div>
   );
@@ -667,6 +708,7 @@ export default function GmailPage() {
       ) : selectedThread ? (
         <ThreadView
           messages={threadMessages}
+          allMessages={messages}
           onBack={() => setSelectedThread(null)}
           onStar={handleStar}
           onArchive={handleArchive}

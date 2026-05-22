@@ -31,6 +31,8 @@ import {DocumentHealthDashboard} from '../../../lib/ai/document-health-dashboard
 import {AITranslationDropdown} from '../../../lib/ai/ai-translation';
 import {SmartTemplateBrowser} from '../../../lib/ai/smart-template-browser';
 import {AIContextMenu, useAIContextMenu} from '../../../lib/ai/ai-context-menu';
+import {AIFloatingToolbar} from '../../../lib/ai/ai-floating-toolbar';
+import {useWritingScore, WritingScoreBadge, WritingScorePanel} from '../../../lib/ai/writing-score';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -200,6 +202,8 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showHealth, setShowHealth] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+  const [showWritingScore, setShowWritingScore] = useState(false);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch document metadata
@@ -315,6 +319,9 @@ export default function EditorPage({params}: EditorPageProps) {
       body: JSON.stringify({title}),
     }).catch(() => {});
   });
+
+  // Writing score
+  const writingScore = useWritingScore(editor ?? null);
 
   // AI Context Menu
   const {menuPosition: contextMenuPos, closeMenu: closeContextMenu} = useAIContextMenu(editor);
@@ -460,6 +467,8 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📄 Templates
         </button>
+        {/* Writing Score Badge */}
+        <WritingScoreBadge score={writingScore} onClick={() => setShowWritingScore(s => !s)} />
       </div>
 
       {/* Toolbar with AI */}
@@ -474,7 +483,16 @@ export default function EditorPage({params}: EditorPageProps) {
       {/* Editor + Outline */}
       <div className="flex-1 overflow-hidden flex">
         <div className="flex-1 overflow-auto">
-          <div className={`max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''} ${showAIAssistant ? 'mr-80' : ''}`}>
+          <div
+            ref={editorContainerRef}
+            className={`relative max-w-4xl mx-auto px-8 py-6 ${showAnalytics ? 'mr-96' : ''} ${showAIAssistant ? 'mr-80' : ''}`}
+          >
+            {/* Floating AI Selection Toolbar */}
+            {editor && (
+              <AIErrorBoundary featureName="AI Floating Toolbar">
+                <AIFloatingToolbar editor={editor} containerRef={editorContainerRef} />
+              </AIErrorBoundary>
+            )}
             <EditorContent editor={editor} />
           </div>
         </div>
@@ -532,6 +550,27 @@ export default function EditorPage({params}: EditorPageProps) {
         position={contextMenuPos}
         onClose={closeContextMenu}
       />
+
+      {/* Writing Score Panel */}
+      {showWritingScore && writingScore && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <AIErrorBoundary featureName="Writing Score">
+            <WritingScorePanel
+              score={writingScore}
+              onClose={() => setShowWritingScore(false)}
+              onAICoach={async () => {
+                if (!editor) return;
+                const text = editor.getText();
+                await fetch('/api/ai', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({action: 'writing-coach', payload: {text: text.slice(0, 2000), docContext: text.slice(0, 500)}}),
+                });
+              }}
+            />
+          </AIErrorBoundary>
+        </div>
+      )}
     </div>
   );
 }

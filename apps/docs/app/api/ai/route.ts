@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach';
   payload: Record<string, unknown>;
 }
 
@@ -496,6 +496,41 @@ Rules:
   return {response: result.text.trim()};
 }
 
+// ── Writing Coach (AI deep analysis) ──
+
+async function handleWritingCoach(ai: ReturnType<typeof getAI>, payload: {
+  text: string;
+  docContext?: string;
+}): Promise<{
+  overallFeedback: string;
+  strengths: string[];
+  improvements: string[];
+  rewriteSuggestion?: string;
+}> {
+  const result = await ai.generate([
+    {role: 'system', content: `You are an expert writing coach. Analyze the provided text and give actionable feedback.
+Output JSON:
+{
+  "overallFeedback": "2-3 sentence holistic assessment",
+  "strengths": ["specific strength 1", "specific strength 2"],
+  "improvements": ["specific improvement 1", "specific improvement 2", "specific improvement 3"],
+  "rewriteSuggestion": "A rewritten version of the first sentence showing your suggestions in practice"
+}`},
+    {role: 'user', content: `Text to analyze:\n\n${payload.text.slice(0, 2000)}\n\n${payload.docContext ? `Document context:\n${payload.docContext.slice(0, 500)}` : ''}`},
+  ], {temperature: 0.3, maxTokens: 600});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {
+      overallFeedback: result.text.slice(0, 300),
+      strengths: [],
+      improvements: [],
+    };
+  }
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -536,6 +571,8 @@ export async function POST(request: Request) {
         return Response.json(await handleSmartTemplate(ai, body.payload as any));
       case 'grammar-check':
         return Response.json(await handleGrammarCheck(ai, body.payload as any));
+      case 'writing-coach':
+        return Response.json(await handleWritingCoach(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

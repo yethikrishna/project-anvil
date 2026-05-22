@@ -395,6 +395,51 @@ Output JSON: {
   }
 }
 
+// ── Attachment Summary ──
+
+async function handleAttachmentSummary(ai: ReturnType<typeof getAI>, payload: {
+  fileName: string;
+  fileType: string;
+  fileSize: string;
+  emailContext: string;
+}): Promise<{
+  summary: string;
+  keyPoints: string[];
+  fileType: string;
+  pageCount?: number;
+  wordCount?: number;
+  rowCount?: number;
+}> {
+  const ext = payload.fileName.split('.').pop()?.toUpperCase() || 'FILE';
+  const isSpreadsheet = /xlsx?|csv|ods/i.test(payload.fileName);
+  const isPDF = /pdf/i.test(payload.fileName);
+  const isCode = /\.(js|ts|py|java|go|rs|cpp|c|cs|rb|php|sh|sql)$/i.test(payload.fileName);
+
+  const prompt = isSpreadsheet
+    ? `Summarize what this spreadsheet likely contains based on its name and the email context. Estimate row count. Output JSON: {"summary": "...", "keyPoints": ["..."], "fileType": "${ext}", "rowCount": N}`
+    : isPDF
+    ? `Summarize what this PDF document likely contains based on its name and email context. Estimate page count. Output JSON: {"summary": "...", "keyPoints": ["..."], "fileType": "${ext}", "pageCount": N, "wordCount": N}`
+    : isCode
+    ? `Summarize what this code file likely does based on its name and the email context. Output JSON: {"summary": "...", "keyPoints": ["..."], "fileType": "${ext}"}`
+    : `Summarize what this file likely contains based on its name and email context. Output JSON: {"summary": "...", "keyPoints": ["..."], "fileType": "${ext}"}`;
+
+  const result = await ai.generate([
+    {role: 'system', content: prompt},
+    {role: 'user', content: `File: ${payload.fileName} (${payload.fileSize})\nEmail context: ${payload.emailContext.slice(0, 500)}`},
+  ], {temperature: 0.2, maxTokens: 400});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {
+      summary: `${ext} file: ${payload.fileName} (${payload.fileSize})`,
+      keyPoints: [],
+      fileType: ext,
+    };
+  }
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -424,6 +469,8 @@ export async function POST(request: Request) {
         return Response.json(await handleGenerateRules(ai, body.payload as any));
       case 'match-style':
         return Response.json(await handleMatchStyle(ai, body.payload as any));
+      case 'attachment-summary':
+        return Response.json(await handleAttachmentSummary(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }
