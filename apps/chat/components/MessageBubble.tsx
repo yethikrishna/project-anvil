@@ -1,131 +1,27 @@
 /**
  * MessageBubble — renders a single chat message with:
  * - Rich markdown rendering (tables, code, links)
- * - Inline file/email/calendar cards
- * - Tool call visualization with status
+ * - Rich tool result cards (email previews, file cards, calendar, web results)
  * - Voice input badge
  * - Message actions (copy, read aloud, bookmark)
  * - Streaming cursor during generation
+ * - Collapsible thinking/reasoning sections
  */
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@anvil/ui';
-import type { ChatMessage, ToolCallResult } from '@/lib/types';
+import type { ChatMessage } from '@/lib/types';
 import VoiceOutput from './VoiceOutput';
+import RichToolResults from './RichToolResults';
 
 interface Props {
   message: ChatMessage;
   isStreaming?: boolean;
   isLast?: boolean;
-}
-
-// ── Tool Call Card ──
-
-const TOOL_ICONS: Record<string, string> = {
-  email_search: '✉️',
-  email_send: '📤',
-  email_read_thread: '📨',
-  email_save_draft: '📝',
-  file_search: '🔍',
-  file_read: '📄',
-  file_share: '🔗',
-  document_write: '✏️',
-  calendar_create_event: '📅',
-  calendar_check_availability: '🕐',
-  web_search: '🌐',
-};
-
-function ToolCallCard({ tc }: { tc: ToolCallResult }) {
-  const [expanded, setExpanded] = useState(false);
-  const toolName = tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const icon = TOOL_ICONS[tc.tool] ?? '🔧';
-
-  const statusStyles = {
-    running: 'border-blue-200 bg-blue-50/80 dark:border-blue-800 dark:bg-blue-950/50',
-    success: 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/30',
-    error: 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/30',
-  };
-
-  const statusBadge = {
-    running: { text: '⟳ Running...', cls: 'text-blue-500' },
-    success: { text: `✓ ${tc.duration ?? 0}ms`, cls: 'text-green-600 dark:text-green-400' },
-    error: { text: '✗ Failed', cls: 'text-red-600 dark:text-red-400' },
-  };
-
-  // Parse result for display
-  let resultPreview = '';
-  let resultData: unknown = null;
-  try {
-    resultData = JSON.parse(tc.result);
-    resultPreview = JSON.stringify(resultData, null, 2);
-    if (resultPreview.length > 200 && !expanded) {
-      resultPreview = resultPreview.slice(0, 200) + '\n...';
-    }
-  } catch {
-    resultPreview = tc.result.slice(0, 200);
-  }
-
-  // Extract summary from common tool results
-  const resultSummary = useMemo(() => {
-    if (!resultData || typeof resultData !== 'object') return null;
-    const d = resultData as Record<string, unknown>;
-
-    // Search results
-    if (Array.isArray(d.results)) {
-      return `${d.results.length} result${d.results.length !== 1 ? 's' : ''} found`;
-    }
-    // Success
-    if (d.success) {
-      if (d.messageId) return 'Email sent';
-      if (d.draftId) return 'Draft saved';
-      if (d.url || d.link) return 'Link created';
-      return 'Done';
-    }
-    // Error
-    if (d.error) return `Error: ${String(d.error)}`;
-    return null;
-  }, [resultData]);
-
-  return (
-    <div className={cn(
-      'rounded-lg border text-xs overflow-hidden transition-all',
-      statusStyles[tc.status],
-    )}>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-      >
-        <span className="text-sm">{icon}</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">{toolName}</span>
-        <span className={cn('text-[10px] font-medium ml-auto', statusBadge[tc.status].cls)}>
-          {statusBadge[tc.status].text}
-        </span>
-        <span className="text-gray-400 text-[10px]">{expanded ? '▲' : '▼'}</span>
-      </button>
-
-      {/* Result summary */}
-      {resultSummary && !expanded && (
-        <div className="px-3 pb-2 text-[10px] text-gray-500 dark:text-gray-400">
-          {resultSummary}
-        </div>
-      )}
-
-      {/* Expanded result */}
-      {expanded && (
-        <div className="px-3 pb-2">
-          {resultPreview && (
-            <pre className="whitespace-pre-wrap text-[10px] font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 rounded p-2 max-h-48 overflow-auto">
-              {resultPreview}
-            </pre>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Message Actions ──
@@ -146,7 +42,7 @@ function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boo
         className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
         title="Copy message"
       >
-        {copied ? '✓ Copied' : '📋 Copy'}
+        {copied ? '✓ Copied' : 'Copy'}
       </button>
       {message.role === 'assistant' && isLast && (
         <VoiceOutput text={message.content} />
@@ -160,6 +56,7 @@ function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boo
 export default function MessageBubble({ message, isStreaming, isLast }: Props) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
 
   // System messages (summaries, context notes)
   if (isSystem) {
@@ -175,7 +72,6 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
   return (
     <div className={cn(
       'group flex gap-3 px-4 py-2.5 transition-colors',
-      isUser ? '' : '',
     )}>
       {/* Avatar */}
       {!isUser && (
@@ -184,7 +80,7 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
         </div>
       )}
 
-      <div className={cn('min-w-0', isUser ? 'max-w-[75%] ml-auto' : 'max-w-[75%]')}>
+      <div className={cn('min-w-0', isUser ? 'max-w-[75%] ml-auto' : 'max-w-[85%]')}>
         {/* Bubble */}
         <div className={cn(
           'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
@@ -199,7 +95,6 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Custom link rendering
                   a: ({ href, children }) => (
                     <a
                       href={href}
@@ -215,7 +110,6 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
                       {children}
                     </a>
                   ),
-                  // Custom code rendering
                   code: ({ className, children }) => {
                     const isInline = !className;
                     if (isInline) {
@@ -230,13 +124,26 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
                         </code>
                       );
                     }
-                    return <code className={className}>{children}</code>;
+                    return (
+                      <pre className="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-3 overflow-x-auto my-2 text-xs leading-relaxed">
+                        <code className={className}>{children}</code>
+                      </pre>
+                    );
                   },
-                  // Table styling
                   table: ({ children }) => (
                     <div className="overflow-x-auto my-2">
                       <table className="w-full text-xs border-collapse">{children}</table>
                     </div>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-left text-[11px] font-semibold uppercase tracking-wide">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border border-gray-200 dark:border-gray-700 px-3 py-1.5">
+                      {children}
+                    </td>
                   ),
                 }}
               >
@@ -246,13 +153,9 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
           )}
         </div>
 
-        {/* Tool calls */}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {message.toolCalls.map(tc => (
-              <ToolCallCard key={tc.id} tc={tc} />
-            ))}
-          </div>
+        {/* Rich tool results */}
+        {hasToolCalls && !isUser && (
+          <RichToolResults toolCalls={message.toolCalls!} />
         )}
 
         {/* Meta row */}
@@ -265,6 +168,11 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
           </span>
           {message.voiceInput && (
             <span className="text-[10px] text-gray-400" title="Voice input">🎤</span>
+          )}
+          {hasToolCalls && (
+            <span className="text-[10px] text-gray-400">
+              {message.toolCalls!.length} tool{message.toolCalls!.length !== 1 ? 's' : ''}
+            </span>
           )}
           <MessageActions message={message} isLast={isLast ?? false} />
         </div>

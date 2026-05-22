@@ -5,14 +5,16 @@
  * Mail, Drive, Calendar, and Docs with persistent memory.
  *
  * Features:
- * - Streaming AI responses with tool use visualization
+ * - Streaming AI responses with rich tool result cards
  * - Multi-step workflow execution with progress tracking
  * - Human-in-the-loop approval for high-risk actions
  * - Persistent conversation memory across sessions
  * - Context accumulation and user pattern learning
  * - Voice input/output
  * - Quick commands and slash commands
- * - Rich content rendering (email previews, file cards, etc.)
+ * - Premium welcome screen with smart suggestions
+ * - Conversation export (Markdown/JSON)
+ * - Keyboard shortcuts
  */
 
 'use client';
@@ -21,6 +23,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from '@/components/ChatSidebar';
 import MessageBubble from '@/components/MessageBubble';
 import ChatInput from '@/components/ChatInput';
+import StreamingMessage from '@/components/StreamingMessage';
+import WelcomeScreen from '@/components/WelcomeScreen';
+import ExportButton from '@/components/ExportButton';
 import AttentionPanel from '@/components/AttentionPanel';
 import SearchModal from '@/components/SearchModal';
 import ConversationActions from '@/components/ConversationActions';
@@ -71,20 +76,22 @@ export default function ChatPage() {
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowCommandPalette(prev => !prev);
       }
-      // New conversation
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         handleNewConversation();
       }
-      // Toggle attention
       if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
         e.preventDefault();
         setShowAttention(prev => !prev);
+      }
+      // Export current conversation
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        // Handled by ExportButton
       }
     };
     window.addEventListener('keydown', handler);
@@ -98,14 +105,12 @@ export default function ChatPage() {
       const convs = await listConversations();
       setConversations(convs);
 
-      // Restore last active conversation
       const activeId = await getActiveConversationId();
       if (activeId) {
         const conv = await getConversation(activeId);
         if (conv) setActiveConv(conv);
       }
 
-      // Load user patterns
       const patterns = loadPatterns();
       if (patterns) {
         setUserPatternSummary(
@@ -121,7 +126,7 @@ export default function ChatPage() {
   // ── Scroll to bottom ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeConv?.messages, streamingText]);
+  }, [activeConv?.messages, streamingText, activeToolCalls]);
 
   // ── Save patterns periodically ──
   useEffect(() => {
@@ -132,9 +137,7 @@ export default function ChatPage() {
         const existing = loadPatterns();
         const merged = existing ? { ...existing, ...patterns } : patterns;
         savePatterns(merged);
-        setUserPatternSummary(
-          buildContextSummary(activeConv.context, merged),
-        );
+        setUserPatternSummary(buildContextSummary(activeConv.context, merged));
       }
     }, 30_000);
     return () => clearInterval(interval);
@@ -192,14 +195,11 @@ export default function ChatPage() {
     }
   }, [activeConv]);
 
-  // ── Detect implicit preferences from message ──
   const detectAndStorePreferences = useCallback(async (text: string, convId: string) => {
     const prefs = detectPreferences(text);
     if (prefs.length === 0) return;
-
     const conv = await getConversation(convId);
     if (!conv) return;
-
     conv.context.preferences = [...new Set([...conv.context.preferences, ...prefs])].slice(-15);
     await saveConversation(conv);
   }, []);
@@ -215,10 +215,8 @@ export default function ChatPage() {
       setActiveConversationId(conv.id);
     }
 
-    // Detect implicit preferences
     detectAndStorePreferences(text, conv.id);
 
-    // Add user message locally
     const userMsg: ChatMessageType = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -232,10 +230,8 @@ export default function ChatPage() {
     setStreamingText('');
     setActiveToolCalls([]);
 
-    // Persist user message
     await addMessage(conv.id, { role: 'user', content: text });
 
-    // Call API with streaming
     const abortController = new AbortController();
     abortRef.current = abortController;
 
@@ -255,18 +251,24 @@ export default function ChatPage() {
 
       if (!res.ok || !res.body) throw new Error('Chat API error');
 
-      // Parse SSE stream with proper event handling
       let finalMessage: ChatMessageType | null = null;
 
       await parseChatStream(res, {
-        onStart: () => {
-          // Stream started
-        },
+        onStart: () => {},
         onDelta: (content) => {
           setStreamingText(prev => prev + content);
         },
         onTool: (toolCall) => {
-          setActiveToolCalls(prev => [...prev, toolCall]);
+          setActiveToolCalls(prev => {
+            // Update existing tool call or add new one
+            const existing = prev.findIndex(tc => tc.id === toolCall.id);
+            if (existing >= 0) {
+              const updated = [...prev];
+              updated[existing] = toolCall;
+              return updated;
+            }
+            return [...prev, toolCall];
+          });
 
           // Check if this tool needs approval
           if (chatSettings.requireApprovalForEmail &&
@@ -314,7 +316,6 @@ export default function ChatPage() {
       setActiveToolCalls([]);
       setPendingApproval(null);
 
-      // Reload conversation from storage
       const reloadedConv = await getConversation(conv.id);
       if (reloadedConv) {
         setActiveConv(reloadedConv);
@@ -344,8 +345,7 @@ export default function ChatPage() {
     }
   }, [activeConv, isLoading, userPatternSummary, chatSettings, detectAndStorePreferences]);
 
-  // ── Approval handlers ──
-  const handleApprove = useCallback((actionId: string, _modifications?: Record<string, unknown>) => {
+  const handleApprove = useCallback((actionId: string) => {
     setPendingApproval(null);
     toastSuccess('Action approved');
   }, []);
@@ -355,7 +355,6 @@ export default function ChatPage() {
     toastInfo('Action rejected');
   }, []);
 
-  // ── Attention action handler ──
   const handleAttentionAction = useCallback((tool: string, args: Record<string, unknown>) => {
     const actionMessages: Record<string, string> = {
       email_search: `Show me emails about ${args.query ?? 'this'}`,
@@ -364,13 +363,11 @@ export default function ChatPage() {
       file_search: `Find the file "${args.query ?? ''}"`,
       calendar_create_event: `Schedule: ${args.title ?? 'a meeting'}`,
     };
-
     const msg = actionMessages[tool] ?? `Use ${tool} with: ${JSON.stringify(args)}`;
     handleSend(msg);
     setShowAttention(false);
   }, [handleSend]);
 
-  // ── Cancel streaming ──
   const handleCancelStream = useCallback(() => {
     abortRef.current?.abort();
     setIsLoading(false);
@@ -381,7 +378,8 @@ export default function ChatPage() {
   // ── Render ──
 
   const messages = activeConv?.messages ?? [];
-  const showWelcome = messages.length === 0 && !streamingText && !isLoading;
+  const isStreaming = isLoading || streamingText.length > 0 || activeToolCalls.length > 0;
+  const showWelcome = messages.length === 0 && !isStreaming;
 
   return (
     <div className="h-screen flex flex-col">
@@ -400,19 +398,22 @@ export default function ChatPage() {
         {/* Main chat area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header bar */}
-          <div className="h-11 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0 bg-white dark:bg-gray-950">
+          <div className="h-11 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm">
             <div className="flex items-center gap-2 min-w-0">
               <h1 className="text-sm font-semibold truncate">
                 {activeConv?.title ?? 'Anvil AI'}
               </h1>
-              {activeConv && (
+              {activeConv && messages.length > 0 && (
                 <span className="text-[10px] text-gray-400 shrink-0">
-                  {messages.length > 0 && `${messages.length} messages`}
+                  {messages.length} msg{messages.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
+              {activeConv && messages.length > 0 && (
+                <ExportButton conversation={activeConv} />
+              )}
               {activeConv && (
                 <ConversationActions
                   conversation={activeConv}
@@ -424,7 +425,7 @@ export default function ChatPage() {
               <button
                 onClick={() => setShowCommandPalette(true)}
                 className="text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden sm:block"
-                title="Command palette (Ctrl+K)"
+                title="Command palette (⌘K)"
               >
                 ⌘K
               </button>
@@ -437,11 +438,12 @@ export default function ChatPage() {
               </button>
               <button
                 onClick={() => setShowAttention(!showAttention)}
-                className={showAttention
-                  ? 'text-[11px] px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium'
-                  : 'text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                className={
+                  showAttention
+                    ? 'text-[11px] px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium'
+                    : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
                 }
-                title="What needs attention (Ctrl+E)"
+                title="What needs attention (⌘E)"
               >
                 ⚡ Attention
               </button>
@@ -459,50 +461,19 @@ export default function ChatPage() {
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto chat-scroll">
             {showWelcome ? (
-              <div className="flex flex-col items-center justify-center h-full px-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold mb-4 shadow-lg">
-                  A
-                </div>
-                <h2 className="text-lg font-semibold mb-1">Anvil AI Command Center</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-sm text-center max-w-sm mb-6">
-                  Your intelligent assistant across Mail, Drive, Calendar, and Docs.
-                  Ask anything, or use the quick actions below.
-                </p>
-                <div className="grid grid-cols-2 gap-2.5 max-w-md w-full">
-                  {[
-                    { icon: '⚡', title: 'Attention scan', desc: 'Priority email & calendar digest', prompt: 'What needs my attention right now?' },
-                    { icon: '✉️', title: 'Draft reply', desc: 'AI-powered email response', prompt: 'Draft a reply to my latest unread email' },
-                    { icon: '📄', title: 'Find a file', desc: 'Search Drive instantly', prompt: 'Help me find a file on Drive' },
-                    { icon: '📅', title: 'Schedule', desc: 'Smart meeting scheduling', prompt: 'Help me schedule a meeting' },
-                    { icon: '📊', title: 'Weekly summary', desc: 'Activity across all apps', prompt: '__weekly_summary__' },
-                    { icon: '🔍', title: 'Search web', desc: 'Look up anything online', prompt: 'Search the web for ' },
-                  ].map(item => (
-                    <button
-                      key={item.title}
-                      onClick={() => {
-                        if (item.prompt === '__weekly_summary__') {
-                          setShowWeeklySummary(true);
-                        } else {
-                          handleSend(item.prompt);
-                        }
-                      }}
-                      className="text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all group"
-                      disabled={isLoading}
-                    >
-                      <span className="text-base group-hover:scale-110 inline-block transition-transform">{item.icon}</span>
-                      <p className="text-xs font-medium mt-1.5">{item.title}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{item.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <WelcomeScreen
+                onSend={handleSend}
+                onShowWeeklySummary={() => setShowWeeklySummary(true)}
+                recentConversations={conversations.slice(0, 3)}
+              />
             ) : (
               <div className="py-2">
+                {/* Pinned messages */}
                 {messages.map((msg, i) => (
                   <MessageBubble
                     key={msg.id}
                     message={msg}
-                    isLast={i === messages.length - 1}
+                    isLast={i === messages.length - 1 && !isStreaming}
                   />
                 ))}
 
@@ -515,51 +486,31 @@ export default function ChatPage() {
                   />
                 )}
 
-                {/* Active tool calls */}
-                {activeToolCalls.length > 0 && (
-                  <div className="px-4 py-2 space-y-2">
-                    {activeToolCalls.map(tc => (
-                      <div key={tc.id} className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-3 text-xs font-mono tool-card-enter">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-blue-700 dark:text-blue-300">
-                            {tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                          </span>
-                          <span className="text-blue-500 animate-pulse ml-auto">⟳ Running...</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                {/* Streaming response with rich tool cards */}
+                {(streamingText || activeToolCalls.length > 0) && (
+                  <StreamingMessage
+                    text={streamingText}
+                    toolCalls={activeToolCalls}
+                    onCancel={handleCancelStream}
+                  />
                 )}
 
-                {/* Streaming text */}
-                {streamingText && (
-                  <div className="flex gap-3 px-4 py-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 shadow-sm">
-                      A
-                    </div>
-                    <div className="max-w-[75%]">
-                      <div className="rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-2.5 text-sm prose-chat streaming-cursor">
-                        {streamingText}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Loading indicator */}
+                {/* Loading indicator (thinking, before any stream) */}
                 {isLoading && !streamingText && activeToolCalls.length === 0 && (
                   <div className="flex gap-3 px-4 py-2.5">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 shadow-sm">
                       A
                     </div>
-                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3">
+                    <div className="flex items-center gap-3 rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-3">
                       <div className="flex gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
+                      <span className="text-[10px] text-gray-400">Thinking...</span>
                       <button
                         onClick={handleCancelStream}
-                        className="text-[10px] text-gray-400 hover:text-red-500 transition-colors ml-1"
+                        className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
                       >
                         Cancel
                       </button>
@@ -627,7 +578,6 @@ export default function ChatPage() {
         <MeetingSchedulerModal onClose={() => setShowMeetingScheduler(false)} />
       )}
 
-      {/* Toasts */}
       <ToastContainer />
     </div>
   );
