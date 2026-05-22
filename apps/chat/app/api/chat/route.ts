@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ChatEngine } from '@/lib/chat-engine';
 
-export const runtime = 'edge';
+// Use Node.js runtime for full async support with tool execution
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
         send('done', {
           message: result.message,
           toolCalls: result.toolCalls,
+          contextUpdates: result.contextUpdates,
         });
       } catch (err) {
         send('error', { message: err instanceof Error ? err.message : 'Unknown error' });

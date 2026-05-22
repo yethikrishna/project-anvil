@@ -100,7 +100,7 @@ export interface ChatSSEEvents {
     status: 'running' | 'success' | 'error';
     duration?: number;
   }) => void;
-  onDone?: (data: { message: unknown; toolCalls: unknown[] }) => void;
+  onDone?: (data: { message: unknown; toolCalls: unknown[]; contextUpdates?: unknown }) => void;
   onError?: (data: { message: string }) => void;
   onProgress?: (data: { step: number; message: string }) => void;
 }
@@ -128,7 +128,7 @@ export async function parseChatStream(
         handlers.onTool?.(event.data as ChatSSEEvents['onTool'] extends (tc: infer T) => void ? T : never);
         break;
       case 'done':
-        handlers.onDone?.(event.data as { message: unknown; toolCalls: unknown[] });
+        handlers.onDone?.(event.data as { message: unknown; toolCalls: unknown[]; contextUpdates?: unknown });
         break;
       case 'error':
         handlers.onError?.(event.data as { message: string });

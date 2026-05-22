@@ -256,6 +256,21 @@ export const CALENDAR_CHECK_AVAILABILITY_TOOL: ToolDefinition = {
   },
 };
 
+export const EMAIL_ARCHIVE_TOOL: ToolDefinition = {
+  name: 'email_archive',
+  description: 'Archive an email thread to remove it from the inbox without deleting it.',
+  parameters: {
+    type: 'object',
+    properties: {
+      thread_id: {
+        type: 'string',
+        description: 'The thread ID to archive',
+      },
+    },
+    required: ['thread_id'],
+  },
+};
+
 /**
  * All built-in Anvil tools.
  */
@@ -268,6 +283,7 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   EMAIL_SEND_TOOL,
   EMAIL_READ_THREAD_TOOL,
   EMAIL_SAVE_DRAFT_TOOL,
+  EMAIL_ARCHIVE_TOOL,
   WEB_SEARCH_TOOL,
   CALENDAR_CREATE_TOOL,
   CALENDAR_CHECK_AVAILABILITY_TOOL,

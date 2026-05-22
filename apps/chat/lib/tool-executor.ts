@@ -396,6 +396,21 @@ class ToolExecutor {
             String(args.to ?? ''), String(args.subject ?? ''), String(args.body ?? ''),
           );
           break;
+        case 'email_archive': {
+          const threadId = String(args.thread_id ?? args.threadId ?? '');
+          try {
+            const res = await fetchWithRetry(
+              `${GMAIL_API}/threads/${encodeURIComponent(threadId)}/archive`,
+              { method: 'POST', headers: this.headers() },
+            );
+            result = JSON.stringify(res.ok
+              ? { success: true, message: 'Thread archived' }
+              : { success: false, message: `Archive failed: ${res.status}` });
+          } catch (err) {
+            result = JSON.stringify({ success: false, message: err instanceof Error ? err.message : 'Archive failed' });
+          }
+          break;
+        }
         case 'file_search':
           result = await this.searchFiles(
             String(args.query ?? ''), String(args.file_type ?? 'any'), Number(args.limit ?? 10),

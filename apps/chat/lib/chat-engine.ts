@@ -20,7 +20,31 @@ import { ANVIL_TOOLS } from '@anvil/ai';
 import { getToolExecutor } from './tool-executor';
 import { detectIntent, getIntentPrompt } from './intent-router';
 import type { ChatMessage, ToolCallResult, ConversationContext } from './types';
-import { addMessage, updateContext, extractContextFromToolCall } from './memory';
+import { extractContextFromToolCall } from './memory';
+
+// Server-side context accumulator (no IndexedDB — purely in-memory for the current request)
+const serverContextUpdates = new Map<string, Partial<ConversationContext>>();
+
+function accumulateContext(
+  convId: string,
+  tool: string,
+  args: Record<string, unknown>,
+  result: string,
+): void {
+  const ctxUpdate = extractContextFromToolCall(tool, args, result);
+  const existing = serverContextUpdates.get(convId) ?? {};
+  serverContextUpdates.set(convId, {
+    files: [...(existing.files ?? []), ...(ctxUpdate.files ?? [])].slice(-20),
+    people: [...new Set([...(existing.people ?? []), ...(ctxUpdate.people ?? [])])].slice(-20),
+    topics: [...new Set([...(existing.topics ?? []), ...(ctxUpdate.topics ?? [])])].slice(-20),
+  });
+}
+
+function getContextUpdates(convId: string): Partial<ConversationContext> {
+  const updates = serverContextUpdates.get(convId) ?? {};
+  serverContextUpdates.delete(convId);
+  return updates;
+}
 
 // ── System Prompt Builder ──
 
@@ -134,11 +158,8 @@ export class ChatEngine {
     context: ConversationContext,
     onStream?: (chunk: string) => void,
     onToolCall?: (toolCall: ToolCallResult) => void,
-  ): Promise<{ message: ChatMessage; toolCalls: ToolCallResult[] }> {
-    // 1. Save user message
-    await addMessage(convId, { role: 'user', content: userContent });
-
-    // 2. Detect intent for prompt optimization
+  ): Promise<{ message: ChatMessage; toolCalls: ToolCallResult[]; contextUpdates: Partial<ConversationContext> }> {
+    // 1. Detect intent for prompt optimization
     const intent = detectIntent(userContent);
     const intentExtra = getIntentPrompt(intent);
 
@@ -208,24 +229,8 @@ export class ChatEngine {
             content: toolResult.result,
           } as any);
 
-          // Update conversation context
-          const ctxUpdate = extractContextFromToolCall(tc.name, args, toolResult.result);
-          await updateContext(convId, (ctx) => ({
-            ...ctx,
-            files: [...ctx.files, ...(ctxUpdate.files ?? [])].slice(-20),
-            people: [...new Set([...ctx.people, ...(ctxUpdate.people ?? [])])].slice(-20),
-            topics: [...new Set([...ctx.topics, ...(ctxUpdate.topics ?? [])])].slice(-20),
-            preferences: [...new Set([...ctx.preferences, ...(ctxUpdate.preferences ?? [])])].slice(-15),
-            actions: [
-              ...ctx.actions,
-              {
-                tool: tc.name,
-                action: tc.name,
-                timestamp: Date.now(),
-                success: toolResult.status === 'success',
-              },
-            ].slice(-50),
-          }));
+          // Accumulate context updates (server-side, in-memory for this request)
+          accumulateContext(convId, tc.name, args, toolResult.result);
         }
       } else {
         finalText = response.text;
@@ -239,14 +244,17 @@ export class ChatEngine {
         : 'I\'m not sure how to help with that. Could you be more specific about what you need?';
     }
 
-    // 5. Save assistant message
-    const assistantMsg = await addMessage(convId, {
+    // 5. Build assistant message (client-side persistence handles saving)
+    const assistantMsg: ChatMessage = {
+      id: crypto.randomUUID(),
       role: 'assistant',
       content: finalText,
+      timestamp: Date.now(),
       toolCalls: allToolCalls,
-    });
+    };
 
-    return { message: assistantMsg, toolCalls: allToolCalls };
+    const contextUpdates = getContextUpdates(convId);
+    return { message: assistantMsg, toolCalls: allToolCalls, contextUpdates };
   }
 
   /**

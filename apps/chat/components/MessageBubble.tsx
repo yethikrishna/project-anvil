@@ -17,6 +17,17 @@ import { cn } from '@anvil/ui';
 import type { ChatMessage } from '@/lib/types';
 import VoiceOutput from './VoiceOutput';
 import RichToolResults from './RichToolResults';
+import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
+
+function toWorkflowStep(tc: import('@/lib/types').ToolCallResult): WorkflowStepResult {
+  return {
+    name: tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    tool: tc.tool,
+    success: tc.status === 'success',
+    result: typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result),
+    duration: tc.duration ?? 0,
+  };
+}
 
 interface Props {
   message: ChatMessage;
@@ -155,7 +166,16 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
 
         {/* Rich tool results */}
         {hasToolCalls && !isUser && (
-          <RichToolResults toolCalls={message.toolCalls!} />
+          message.toolCalls!.length > 1 ? (
+            <WorkflowProgress
+              steps={message.toolCalls!.map(toWorkflowStep)}
+              isRunning={false}
+              summary={`${message.toolCalls!.filter(tc => tc.status === 'success').length}/${message.toolCalls!.length} steps completed`}
+              totalDurationMs={message.toolCalls!.reduce((sum, tc) => sum + (tc.duration ?? 0), 0)}
+            />
+          ) : (
+            <RichToolResults toolCalls={message.toolCalls!} />
+          )
         )}
 
         {/* Meta row */}

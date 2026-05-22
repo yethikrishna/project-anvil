@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToolOrchestrator } from '@/lib/tool-orchestrator';
 
-export const runtime = 'edge';
+// Use Node.js runtime for full async support with tool chaining
 
 type WorkflowType =
   | 'find_and_share'

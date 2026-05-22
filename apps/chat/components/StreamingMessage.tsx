@@ -13,6 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { cn } from '@anvil/ui';
 import type { ToolCallResult } from '@/lib/types';
 import RichToolResults from './RichToolResults';
+import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
 
 interface Props {
   text: string;
@@ -20,9 +21,21 @@ interface Props {
   onCancel: () => void;
 }
 
+function toWorkflowStep(tc: ToolCallResult): WorkflowStepResult {
+  return {
+    name: tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    tool: tc.tool,
+    success: tc.status === 'success',
+    result: typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result),
+    duration: tc.duration ?? 0,
+  };
+}
+
 export default function StreamingMessage({ text, toolCalls, onCancel }: Props) {
   const completedTools = toolCalls.filter(tc => tc.status !== 'running');
   const runningTools = toolCalls.filter(tc => tc.status === 'running');
+  const isMultiStep = toolCalls.length > 1;
+  const currentStepIdx = completedTools.length;
 
   return (
     <div className="flex gap-3 px-4 py-2.5">
@@ -67,24 +80,37 @@ export default function StreamingMessage({ text, toolCalls, onCancel }: Props) {
           </div>
         )}
 
-        {/* Completed tool results */}
-        {completedTools.length > 0 && (
-          <RichToolResults toolCalls={completedTools} />
-        )}
-
-        {/* Running tools indicator */}
-        {runningTools.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {runningTools.map(tc => (
-              <div key={tc.id} className="tool-card-enter rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 px-3.5 py-2.5 flex items-center gap-2">
-                <span className="text-blue-500 animate-pulse text-xs">⟳</span>
-                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                  {tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                </span>
-                <span className="text-[10px] text-blue-400 ml-auto">Running...</span>
-              </div>
-            ))}
+        {/* Multi-step workflow progress — shown for chains of 2+ tools */}
+        {isMultiStep ? (
+          <div className="mt-2">
+            <WorkflowProgress
+              steps={toolCalls.map(toWorkflowStep)}
+              isRunning={runningTools.length > 0}
+              currentStep={currentStepIdx}
+            />
           </div>
+        ) : (
+          <>
+            {/* Completed tool results (single-tool) */}
+            {completedTools.length > 0 && (
+              <RichToolResults toolCalls={completedTools} />
+            )}
+
+            {/* Running tools indicator (single-tool) */}
+            {runningTools.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {runningTools.map(tc => (
+                  <div key={tc.id} className="tool-card-enter rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 px-3.5 py-2.5 flex items-center gap-2">
+                    <span className="text-blue-500 animate-pulse text-xs">⟳</span>
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      {tc.tool.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                    </span>
+                    <span className="text-[10px] text-blue-400 ml-auto">Running...</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Cancel + status */}

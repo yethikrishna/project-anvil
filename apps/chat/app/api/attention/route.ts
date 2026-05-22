@@ -222,10 +222,18 @@ Return ONLY a JSON array of numbers, nothing else.`,
 
 // ── Route Handler ──
 
+export async function GET(req: NextRequest) {
+  const authToken = req.headers.get('Authorization')?.replace('Bearer ', '') ?? undefined;
+  return handleScan(authToken);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const authToken = body.authToken as string | undefined;
+  return handleScan(authToken);
+}
 
+async function handleScan(authToken?: string): Promise<Response> {
   try {
     // Fetch in parallel
     const [emails, events] = await Promise.all([

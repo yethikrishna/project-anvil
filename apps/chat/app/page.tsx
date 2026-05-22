@@ -53,6 +53,7 @@ import {
 } from '@/lib/context-manager';
 import { parseChatStream } from '@/lib/sse-parser';
 import { generateAutoTitle } from '@/lib/rich-renderer';
+import { extractFullContext, mergeContext } from '@/lib/context-extractor';
 
 export default function ChatPage() {
   // ── State ──
@@ -299,6 +300,27 @@ export default function ChatPage() {
           if (data.message) {
             finalMessage = data.message as ChatMessageType;
           }
+          // Apply context updates from server-side tool execution
+          if (data.contextUpdates && conv) {
+            const updates = data.contextUpdates as {
+              files?: Array<{ id: string; name: string; type: string; lastAccessed: number }>;
+              people?: string[];
+              topics?: string[];
+            };
+            setActiveConv(prev => {
+              if (!prev) return prev;
+              const ctx = prev.context;
+              return {
+                ...prev,
+                context: {
+                  ...ctx,
+                  files: [...ctx.files, ...(updates.files ?? [])].slice(-20),
+                  people: [...new Set([...ctx.people, ...(updates.people ?? [])])].slice(-20),
+                  topics: [...new Set([...ctx.topics, ...(updates.topics ?? [])])].slice(-20),
+                },
+              };
+            });
+          }
         },
         onError: (data) => {
           console.error('Chat stream error:', data.message);
@@ -308,9 +330,20 @@ export default function ChatPage() {
       if (finalMessage) {
         setActiveConv(prev => {
           if (!prev) return prev;
+          // Extract context from the new message exchange and merge
+          const newMsgs = [{ ...finalMessage! }, { role: 'user' as const, id: '', content: text, timestamp: Date.now() }];
+          const extracted = extractFullContext(newMsgs);
+          const mergedCtx = mergeContext(prev.context, extracted);
+          // Auto-refine title after first exchange (first user + first AI message)
+          const isFirstExchange = prev.messages.length === 1 && prev.messages[0].role === 'user';
+          const refinedTitle = isFirstExchange
+            ? generateTitle(`${text}: ${finalMessage!.content.slice(0, 60)}`)
+            : prev.title;
           return {
             ...prev,
+            title: refinedTitle,
             messages: [...prev.messages, finalMessage!],
+            context: mergedCtx,
             updatedAt: Date.now(),
           };
         });
