@@ -34,6 +34,7 @@ interface Props {
   isStreaming?: boolean;
   isLast?: boolean;
   onSuggestionClick?: (text: string) => void;
+  onRegenerate?: () => void;
 }
 
 // ── Follow-up suggestion generator ──
@@ -66,7 +67,7 @@ function generateFollowUpSuggestions(message: ChatMessage): string[] {
 
 // ── Message Actions ──
 
-function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boolean }) {
+function MessageActions({ message, isLast, onRegenerate }: { message: ChatMessage; isLast: boolean; onRegenerate?: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -84,6 +85,15 @@ function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boo
       >
         {copied ? '✓ Copied' : 'Copy'}
       </button>
+      {message.role === 'assistant' && isLast && onRegenerate && (
+        <button
+          onClick={onRegenerate}
+          className="text-[10px] text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+          title="Regenerate response"
+        >
+          ↺ Retry
+        </button>
+      )}
       {message.role === 'assistant' && isLast && (
         <VoiceOutput text={message.content} />
       )}
@@ -93,7 +103,7 @@ function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boo
 
 // ── Main Component ──
 
-export default function MessageBubble({ message, isStreaming, isLast, onSuggestionClick }: Props) {
+export default function MessageBubble({ message, isStreaming, isLast, onSuggestionClick, onRegenerate }: Props) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
@@ -226,7 +236,7 @@ export default function MessageBubble({ message, isStreaming, isLast, onSuggesti
               {message.toolCalls!.length} tool{message.toolCalls!.length !== 1 ? 's' : ''}
             </span>
           )}
-          <MessageActions message={message} isLast={isLast ?? false} />
+          <MessageActions message={message} isLast={isLast ?? false} onRegenerate={onRegenerate} />
         </div>
       </div>
 

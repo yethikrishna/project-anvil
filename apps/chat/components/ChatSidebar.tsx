@@ -38,6 +38,8 @@ export default function ChatSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [keyboardIdx, setKeyboardIdx] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Filter conversations by search
   const filtered = useMemo(() => {
@@ -73,7 +75,37 @@ export default function ChatSidebar({
     return g;
   }, [filtered]);
 
-  // Delete confirmation timeout
+  // Flat sorted list for keyboard nav
+  const flatList = useMemo(() => [
+    ...filtered.slice().sort((a, b) => b.updatedAt - a.updatedAt),
+  ], [filtered]);
+
+  // Keyboard navigation within sidebar
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setKeyboardIdx(prev => {
+          const cur = prev ?? flatList.findIndex(c => c.id === activeId);
+          return Math.max(0, (cur ?? 0) - 1);
+        });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setKeyboardIdx(prev => {
+          const cur = prev ?? flatList.findIndex(c => c.id === activeId);
+          return Math.min(flatList.length - 1, (cur ?? -1) + 1);
+        });
+      } else if (e.key === 'Enter' && keyboardIdx !== null) {
+        const conv = flatList[keyboardIdx];
+        if (conv) onSelect(conv.id);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [flatList, activeId, keyboardIdx, onSelect]);
+
+  useEffect(() => { setKeyboardIdx(null); }, [activeId]);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (deleteConfirmId) {
@@ -202,6 +234,8 @@ export default function ChatSidebar({
                 const isActive = activeId === conv.id;
                 const isHovered = hoveredId === conv.id;
                 const isDeleting = deleteConfirmId === conv.id;
+                const kbIdx = flatList.findIndex(c => c.id === conv.id);
+                const isKeyboardFocused = keyboardIdx !== null && keyboardIdx === kbIdx;
 
                 return (
                   <div
@@ -212,7 +246,9 @@ export default function ChatSidebar({
                       'group relative transition-colors',
                       isActive
                         ? 'bg-blue-50 dark:bg-blue-950/50'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800/50',
+                        : isKeyboardFocused
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-inset ring-indigo-300 dark:ring-indigo-700'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800/50',
                     )}
                   >
                     <button

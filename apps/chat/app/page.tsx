@@ -402,6 +402,22 @@ export default function ChatPage() {
     toastInfo('Action rejected');
   }, []);
 
+  const handleRegenerate = useCallback(() => {
+    if (!activeConv) return;
+    // Find the last user message and re-send it
+    const msgs = activeConv.messages;
+    const lastUserMsg = [...msgs].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      // Remove last assistant message and re-send
+      setActiveConv(prev => {
+        if (!prev) return prev;
+        const withoutLastAI = prev.messages.filter((_, i) => i < prev.messages.length - 1);
+        return { ...prev, messages: withoutLastAI };
+      });
+      handleSend(lastUserMsg.content);
+    }
+  }, [activeConv, handleSend]);
+
   const handleAttentionAction = useCallback((tool: string, args: Record<string, unknown>) => {
     const actionMessages: Record<string, string> = {
       email_search: `Show me emails about ${args.query ?? 'this'}`,
@@ -545,6 +561,7 @@ export default function ChatPage() {
                     message={msg}
                     isLast={i === messages.length - 1 && !isStreaming}
                     onSuggestionClick={handleSend}
+                    onRegenerate={i === messages.length - 1 && msg.role === 'assistant' && !isStreaming ? handleRegenerate : undefined}
                   />
                 ))}
 
