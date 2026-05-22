@@ -112,13 +112,86 @@ project-anvil/
 
 ## Deployment
 
+### ☁️ One-Line Self-Hosted Install
+
+```bash
+# Standard install
+curl -fsSL https://get.anvil.dev | bash -s -- --domain your.domain.com --email admin@your.domain.com
+
+# HIPAA-compliant
+curl -fsSL https://get.anvil.dev | bash -s -- --domain your.domain.com --mode hipaa
+
+# GDPR (EU data residency)
+curl -fsSL https://get.anvil.dev | bash -s -- --domain your.domain.com --mode gdpr
+
+# Upgrade existing install
+curl -fsSL https://get.anvil.dev | bash -s -- --upgrade
+```
+
+### 🐳 Docker Compose
+
+```bash
+cp .env.example .env && nano .env
+docker compose up -d                      # Start full stack
+docker compose --profile monitoring up -d  # + Prometheus/Grafana
+docker compose --profile demo up -d        # + Demo data
+```
+
+### ☸️ Kubernetes (Helm)
+
+```bash
+helm repo add anvil https://anvil-org.github.io/project-anvil
+helm install anvil anvil/anvil \
+  --namespace anvil --create-namespace \
+  --set global.domain=your.domain.com \
+  --set postgresql.auth.password=changeme
+```
+
+### Legacy Cloud Targets
+
 ```bash
 # Frontend: Vercel (each app has vercel.json)
-# Backend: Render (render.yaml blueprint)
 # Database: Neon PostgreSQL (scripts/setup-neon.sh)
 # Storage: Supabase Storage (scripts/setup-supabase.sh)
-# API Client: Generate from OpenAPI spec (scripts/generate-api-client.sh)
 ```
+
+## Enterprise Features
+
+| Feature | Starter | Business | Enterprise |
+|---------|---------|----------|------------|
+| Users | 25 | 100 | Unlimited |
+| Storage | 50 GB | 500 GB | Custom |
+| **SAML 2.0 SSO** | — | — | ✅ |
+| **SCIM Provisioning** | — | — | ✅ (Okta, Azure AD, OneLogin) |
+| **LDAP / Active Directory** | — | — | ✅ |
+| **MFA Enforcement** | Optional | Optional | Required |
+| **HSM Key Management** | — | — | ✅ (AWS KMS, GCP, Azure) |
+| **Data Residency** | US | US/EU | Any region |
+| **HIPAA Compliance** | — | — | ✅ |
+| **GDPR Compliance** | ✅ | ✅ | ✅ |
+| **SOC 2 Type II** | — | — | ✅ |
+| **Google Workspace Migration** | — | ✅ | ✅ |
+| **Audit Log** | 30 days | 1 year | 6 years |
+| **SLA** | — | 99.5% | 99.9% |
+| **Support** | Community | Email | Dedicated CSM |
+
+### Enterprise Authentication
+
+```bash
+# SAML 2.0 — configure your IdP metadata at:
+# https://admin.your.domain.com/security (SSO tab)
+
+# SCIM provisioning endpoint for Okta/Azure:
+# https://admin.your.domain.com/api/scim/v2
+
+# LDAP sync — configure in Admin → Security → LDAP
+```
+
+## CI/CD
+
+- **[ci.yml](.github/workflows/ci.yml)** — Lint, type-check, Trivy security scan, build all 10 apps in parallel
+- **[release.yml](.github/workflows/release.yml)** — Semver tags → GitHub Release + Helm chart + Docker images
+- **[deploy.yml](.github/workflows/deploy.yml)** — Manual deploy to staging/production via Helm
 
 ## Features
 
