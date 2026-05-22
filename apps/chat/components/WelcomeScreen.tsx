@@ -18,6 +18,7 @@ import type { Conversation } from '@/lib/types';
 interface Props {
   onSend: (text: string) => void;
   onShowWeeklySummary: () => void;
+  onShowScheduler?: () => void;
   recentConversations: Conversation[];
 }
 
@@ -41,7 +42,7 @@ interface SuggestedPrompt {
   title: string;
   description: string;
   prompt: string;
-  special?: 'weekly_summary';
+  special?: 'weekly_summary' | 'schedule';
   accent: string;
 }
 
@@ -76,7 +77,8 @@ function getSuggestedPrompts(): SuggestedPrompt[] {
       icon: '📅',
       title: 'Schedule meeting',
       description: 'Smart calendar scheduling',
-      prompt: 'Check my calendar availability and help me schedule a meeting this week',
+      prompt: '',
+      special: 'schedule',
       accent: 'from-purple-500 to-violet-500',
     },
     {
@@ -99,7 +101,7 @@ function getSuggestedPrompts(): SuggestedPrompt[] {
   return prompts;
 }
 
-export default function WelcomeScreen({ onSend, onShowWeeklySummary, recentConversations }: Props) {
+export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, recentConversations }: Props) {
   const greeting = useMemo(getGreeting, []);
   const prompts = useMemo(getSuggestedPrompts, []);
 
@@ -129,6 +131,8 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, recentConve
             onClick={() => {
               if (item.special === 'weekly_summary') {
                 onShowWeeklySummary();
+              } else if (item.special === 'schedule') {
+                onShowScheduler?.();
               } else {
                 onSend(item.prompt);
               }

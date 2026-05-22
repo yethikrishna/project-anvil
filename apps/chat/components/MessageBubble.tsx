@@ -33,6 +33,35 @@ interface Props {
   message: ChatMessage;
   isStreaming?: boolean;
   isLast?: boolean;
+  onSuggestionClick?: (text: string) => void;
+}
+
+// ── Follow-up suggestion generator ──
+
+function generateFollowUpSuggestions(message: ChatMessage): string[] {
+  const toolNames = message.toolCalls?.map(tc => tc.tool) ?? [];
+  const content = message.content.toLowerCase();
+
+  if (toolNames.includes('email_search') || content.includes('email') || content.includes('inbox')) {
+    return ['Draft a reply to the most urgent one', 'Archive the low priority emails', 'Schedule a time to address these'];
+  }
+  if (toolNames.includes('file_search') || toolNames.includes('file_read')) {
+    return ['Summarize the key points', 'Share this with the team', 'Create a doc from this content'];
+  }
+  if (toolNames.includes('calendar_check_availability') || toolNames.includes('calendar_create_event')) {
+    return ['Send meeting invites', 'Add agenda to this event', 'Check next week\'s availability'];
+  }
+  if (toolNames.includes('email_save_draft')) {
+    return ['Review the draft', 'Send it now', 'Adjust the tone to be more casual'];
+  }
+  if (toolNames.includes('web_search')) {
+    return ['Tell me more about the top result', 'Save this to Drive', 'Find related articles'];
+  }
+  // Attention scan
+  if (content.includes('attention') || content.includes('urgent') || content.includes('priority')) {
+    return ['Draft replies for the urgent items', 'Mark the low-priority ones for later', 'Give me a summary of what to do today'];
+  }
+  return [];
 }
 
 // ── Message Actions ──
@@ -64,10 +93,13 @@ function MessageActions({ message, isLast }: { message: ChatMessage; isLast: boo
 
 // ── Main Component ──
 
-export default function MessageBubble({ message, isStreaming, isLast }: Props) {
+export default function MessageBubble({ message, isStreaming, isLast, onSuggestionClick }: Props) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
+  const suggestions = isLast && !isUser && !isStreaming && onSuggestionClick
+    ? generateFollowUpSuggestions(message)
+    : [];
 
   // System messages (summaries, context notes)
   if (isSystem) {
@@ -198,7 +230,20 @@ export default function MessageBubble({ message, isStreaming, isLast }: Props) {
         </div>
       </div>
 
-      {/* User avatar */}
+      {/* Follow-up suggestion chips */}
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => onSuggestionClick!(s)}
+                className="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       {isUser && (
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-xs font-bold shrink-0 mt-0.5 shadow-sm">
           U

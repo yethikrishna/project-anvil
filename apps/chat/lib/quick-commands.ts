@@ -38,14 +38,14 @@ export const QUICK_COMMANDS: QuickCommand[] = [
     icon: '📅',
     label: 'Schedule a meeting',
     description: 'Check calendars and find the best time',
-    prompt: 'I need to schedule a meeting. Who should attend and how long should it be? I\'ll check everyone\'s availability.',
+    prompt: '__schedule__',
   },
   {
     id: 'weekly-summary',
     icon: '📊',
     label: 'Weekly summary',
     description: 'Activity digest across all apps',
-    prompt: 'Generate a comprehensive weekly summary of my activity across Mail, Docs, and Calendar. Include top topics, key actions, and follow-up items for next week.',
+    prompt: '__weekly_summary__',
   },
   {
     id: 'share-file',

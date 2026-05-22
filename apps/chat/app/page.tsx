@@ -475,6 +475,20 @@ export default function ChatPage() {
                 ⚙️
               </button>
               <button
+                onClick={() => setShowMeetingScheduler(true)}
+                className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                title="Schedule a meeting"
+              >
+                📅 Schedule
+              </button>
+              <button
+                onClick={() => setShowWeeklySummary(true)}
+                className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden lg:block"
+                title="Weekly summary"
+              >
+                📊 Summary
+              </button>
+              <button
                 onClick={() => setShowAttention(!showAttention)}
                 className={
                   showAttention
@@ -502,6 +516,7 @@ export default function ChatPage() {
               <WelcomeScreen
                 onSend={handleSend}
                 onShowWeeklySummary={() => setShowWeeklySummary(true)}
+                onShowScheduler={() => setShowMeetingScheduler(true)}
                 recentConversations={conversations.slice(0, 3)}
               />
             ) : (
@@ -512,6 +527,7 @@ export default function ChatPage() {
                     key={msg.id}
                     message={msg}
                     isLast={i === messages.length - 1 && !isStreaming}
+                    onSuggestionClick={handleSend}
                   />
                 ))}
 
@@ -580,6 +596,7 @@ export default function ChatPage() {
           conversations={conversations}
           onCommand={(prompt) => {
             if (prompt === '__weekly_summary__') { setShowWeeklySummary(true); return; }
+            if (prompt === '__schedule__') { setShowMeetingScheduler(true); return; }
             handleSend(prompt);
           }}
           onSelectConversation={handleSelectConversation}
