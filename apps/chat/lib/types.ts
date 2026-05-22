@@ -123,7 +123,7 @@ export interface DraftReply {
   subject: string;
   body: string;
   threadId?: string;
-  tone: 'professional' | 'friendly' | 'concise' | 'formal';
+  tone: 'professional' | 'friendly' | 'concise' | 'formal' | 'casual';
 }
 
 // ── Meeting ──
@@ -163,4 +163,12 @@ export interface WeeklySummary {
   topTopics: string[];
   actionItems: string[];
   highlights: string[];
+  productivity?: {
+    avgResponseTimeHours: number;
+    meetingsPerDay: number;
+    emailsPerDay: number;
+  };
+  recommendations?: string[];
+  unreadEmails?: number;
+  meetingsUpcoming?: number;
 }

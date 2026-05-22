@@ -28,6 +28,9 @@ import ContextIndicator from '@/components/ContextIndicator';
 import CommandPalette from '@/components/CommandPalette';
 import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
 import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/components/ChatSettings';
+import WeeklySummaryWidget from '@/components/WeeklySummaryWidget';
+import DraftPreviewModal from '@/components/DraftPreviewModal';
+import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
@@ -54,6 +57,9 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+  const [showDraftPreview, setShowDraftPreview] = useState(false);
+  const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
@@ -468,12 +474,18 @@ export default function ChatPage() {
                     { icon: '✉️', title: 'Draft reply', desc: 'AI-powered email response', prompt: 'Draft a reply to my latest unread email' },
                     { icon: '📄', title: 'Find a file', desc: 'Search Drive instantly', prompt: 'Help me find a file on Drive' },
                     { icon: '📅', title: 'Schedule', desc: 'Smart meeting scheduling', prompt: 'Help me schedule a meeting' },
-                    { icon: '📊', title: 'Weekly summary', desc: 'Activity across all apps', prompt: 'Give me a comprehensive weekly summary' },
+                    { icon: '📊', title: 'Weekly summary', desc: 'Activity across all apps', prompt: '__weekly_summary__' },
                     { icon: '🔍', title: 'Search web', desc: 'Look up anything online', prompt: 'Search the web for ' },
                   ].map(item => (
                     <button
                       key={item.title}
-                      onClick={() => handleSend(item.prompt)}
+                      onClick={() => {
+                        if (item.prompt === '__weekly_summary__') {
+                          setShowWeeklySummary(true);
+                        } else {
+                          handleSend(item.prompt);
+                        }
+                      }}
                       className="text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all group"
                       disabled={isLoading}
                     >
@@ -577,7 +589,10 @@ export default function ChatPage() {
       {showCommandPalette && (
         <CommandPalette
           conversations={conversations}
-          onCommand={(prompt) => handleSend(prompt)}
+          onCommand={(prompt) => {
+            if (prompt === '__weekly_summary__') { setShowWeeklySummary(true); return; }
+            handleSend(prompt);
+          }}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewConversation}
           onOpenSettings={() => setShowSettings(true)}
@@ -598,6 +613,18 @@ export default function ChatPage() {
           onSelect={handleSelectConversation}
           onClose={() => setShowSearch(false)}
         />
+      )}
+
+      {showWeeklySummary && (
+        <WeeklySummaryWidget onClose={() => setShowWeeklySummary(false)} />
+      )}
+
+      {showDraftPreview && (
+        <DraftPreviewModal onClose={() => setShowDraftPreview(false)} />
+      )}
+
+      {showMeetingScheduler && (
+        <MeetingSchedulerModal onClose={() => setShowMeetingScheduler(false)} />
       )}
 
       {/* Toasts */}
