@@ -1,7 +1,7 @@
 /**
  * @anvil/security/privacy — Privacy-Preserving Primitives for Anvil
  *
- * 12 core + 4 novel privacy mechanisms for zero-knowledge, encrypted
+ * 12 core + 8 novel privacy mechanisms for zero-knowledge, encrypted
  * computation, and metadata protection across Docs, Drive, Mail, Calendar.
  *
  * Each module can be used independently or composed together.
@@ -124,6 +124,9 @@ export {
   PredictiveORAM,
   AccessPredictor,
   CoverTrafficGenerator,
+  type PredictiveORAMConfig,
+  type PrefetchResult,
+  type PredictionMetrics,
 } from './novel/predictive-oram.js';
 
 export {
@@ -131,4 +134,47 @@ export {
   ZKMergeVerifier,
   type MergeProof,
   type EncryptedOperationBatch,
+  type CRDTOperation,
+  type VerificationResult,
+  type CRDTType,
 } from './novel/zk-crdt-merge.js';
+
+// ── Novel #17: Threshold Document Encryption ──
+export {
+  ThresholdDocumentEncryption,
+  type ThresholdConfig,
+  type KeyShare,
+  type ThresholdEncryptionResult,
+  type DecryptionContribution,
+  type ReshareResult,
+} from './novel/threshold-encryption.js';
+
+// ── Novel #18: Forward-Secure Sealed Sender ──
+export {
+  SealedSender,
+  type SealedEnvelope,
+  type UnsealedMessage,
+  type SealedSenderConfig,
+  type SenderCertificate,
+} from './novel/sealed-sender.js';
+
+// ── Novel #19: Anonymous Credential RBAC ──
+export {
+  AnonymousCredentialRBAC,
+  type AnonymousCredential,
+  type AccessPolicy,
+  type AccessProof,
+  type CredentialIssuer,
+  type CredentialSpec,
+  type RevocationAccumulator,
+} from './novel/anonymous-rbac.js';
+
+// ── Novel #20: VRF-Based Conflict Resolution ──
+export {
+  VRFConflictResolver,
+  type VRFKeyPair,
+  type VRFOutput,
+  type ConflictResolution,
+  type PendingOperation,
+  type WeightedVRFConfig,
+} from './novel/vrf-conflict.js';
