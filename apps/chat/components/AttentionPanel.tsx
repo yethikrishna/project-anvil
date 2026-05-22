@@ -47,6 +47,12 @@ export default function AttentionPanel({ onAction, onClose }: Props) {
 
   useEffect(() => { fetchAttention(); }, [fetchAttention]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => fetchAttention(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchAttention]);
+
   // Filter items
   const filtered = items.filter(item => {
     if (filterType !== 'all' && item.type !== filterType) return false;

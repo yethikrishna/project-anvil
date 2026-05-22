@@ -255,6 +255,10 @@ export default function ChatPage() {
           history: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           context: conv.context,
           userPatterns: userPatternSummary,
+          settings: {
+            requireApprovalForEmail: chatSettings.requireApprovalForEmail,
+            requireApprovalForCalendar: chatSettings.requireApprovalForCalendar,
+          },
         }),
       });
 

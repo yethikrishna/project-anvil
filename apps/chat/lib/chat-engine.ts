@@ -48,7 +48,11 @@ function getContextUpdates(convId: string): Partial<ConversationContext> {
 
 // ── System Prompt Builder ──
 
-function buildSystemPrompt(context: ConversationContext, userPatterns?: string): string {
+function buildSystemPrompt(
+  context: ConversationContext,
+  userPatterns?: string,
+  settings?: ChatEngineConfig['settings'],
+): string {
   const sections: string[] = [];
 
   sections.push(`You are Anvil AI, an intelligent executive assistant embedded in the Anvil productivity suite.
@@ -121,11 +125,19 @@ Execute tools and report results progressively. Don't describe — do.`);
       .join('\n')}`);
   }
 
+  const approvalRules: string[] = [];
+  if (settings?.requireApprovalForEmail !== false) {
+    approvalRules.push('Always confirm with the user before calling email_send — preview the draft and say "Shall I send this?"');
+  }
+  if (settings?.requireApprovalForCalendar !== false) {
+    approvalRules.push('Always confirm with the user before calling calendar_create_event — show the proposed time and say "Shall I create this event?"');
+  }
+
   sections.push(`IMPORTANT:
 - Always prefer using tools over speculating
 - Show concise results, not raw API dumps
 - If a search returns no results, say so and suggest alternatives
-- For emails and calendar events, show a preview and ask for confirmation before sending`);
+${approvalRules.map(r => `- ${r}`).join('\n')}`);
 
   return sections.join('\n\n');
 }
@@ -139,6 +151,10 @@ export interface ChatEngineConfig {
   authToken?: string;
   userId?: string;
   userPatterns?: string;
+  settings?: {
+    requireApprovalForEmail?: boolean;
+    requireApprovalForCalendar?: boolean;
+  };
 }
 
 export class ChatEngine {
@@ -164,7 +180,7 @@ export class ChatEngine {
     const intentExtra = getIntentPrompt(intent);
 
     // 3. Build AI messages with system prompt
-    const systemPrompt = buildSystemPrompt(context, this.config.userPatterns)
+    const systemPrompt = buildSystemPrompt(context, this.config.userPatterns, this.config.settings)
       + (intentExtra ? `\n\nINTENT GUIDANCE:\n${intentExtra}` : '');
 
     const aiMessages: Message[] = [

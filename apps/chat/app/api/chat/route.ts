@@ -23,7 +23,7 @@ import { ChatEngine } from '@/lib/chat-engine';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { conversationId, message, history, context, userPatterns } = body as {
+  const { conversationId, message, history, context, userPatterns, settings } = body as {
     conversationId: string;
     message: string;
     history: Array<{ role: string; content: string }>;
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
     };
     userPatterns?: string;
+    settings?: { requireApprovalForEmail?: boolean; requireApprovalForCalendar?: boolean };
   };
 
   if (!conversationId || !message) {
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
     apiKey: process.env.OPENAI_API_KEY,
     model: process.env.AI_MODEL ?? 'gpt-4o',
     userPatterns,
+    settings,
   });
 
   // Set up SSE stream
