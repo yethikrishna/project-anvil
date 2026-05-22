@@ -703,3 +703,50 @@ CREATE TABLE IF NOT EXISTS demo_signups (
 CREATE INDEX IF NOT EXISTS idx_demo_signups_email ON demo_signups (email);
 CREATE INDEX IF NOT EXISTS idx_demo_signups_status ON demo_signups (status, created_at);
 
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Migration 004 — Stripe billing tables
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Stripe event idempotency log
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  stripe_event_id   TEXT        NOT NULL,
+  event_type        TEXT        NOT NULL,
+  status            TEXT        NOT NULL DEFAULT 'processed',
+  error_message     TEXT,
+  processed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (stripe_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_stripe_events_event_id ON stripe_events (stripe_event_id);
+
+-- Invoices
+CREATE TABLE IF NOT EXISTS invoices (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  billing_account_id  UUID        REFERENCES billing_accounts(id) ON DELETE SET NULL,
+  stripe_invoice_id   TEXT        NOT NULL,
+  amount_paid         INTEGER     NOT NULL DEFAULT 0,  -- cents
+  currency            TEXT        NOT NULL DEFAULT 'usd',
+  pdf_url             TEXT,
+  period_start        TIMESTAMPTZ,
+  period_end          TIMESTAMPTZ,
+  status              TEXT        NOT NULL DEFAULT 'paid',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (stripe_invoice_id)
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_billing_account ON invoices (billing_account_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices (created_at DESC);
+
+-- Usage records (metering)
+CREATE TABLE IF NOT EXISTS usage_records (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID        NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  metric        TEXT        NOT NULL,  -- ai_calls, storage_bytes, api_calls, etc.
+  quantity      BIGINT      NOT NULL DEFAULT 0,
+  recorded_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  period_start  TIMESTAMPTZ NOT NULL,
+  period_end    TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_usage_records_tenant ON usage_records (tenant_id, metric);
+CREATE INDEX IF NOT EXISTS idx_usage_records_period ON usage_records (period_start, period_end);
+

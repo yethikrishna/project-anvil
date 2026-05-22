@@ -1,14 +1,18 @@
 {{- if .Values.ingress.enabled -}}
+# Main ingress — routes by subdomain (subdomain per app)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "anvil.fullname" . }}
+  name: {{ include "anvil.fullname" . }}-main
   labels:
     {{- include "anvil.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    {{- if .Values.ingressNginx.annotations }}
+    {{- toYaml .Values.ingressNginx.annotations | nindent 4 }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
@@ -17,40 +21,142 @@ spec:
   tls:
     - hosts:
         - {{ .Values.global.domain }}
+        - "*.{{ .Values.global.domain }}"
       secretName: {{ include "anvil.fullname" . }}-tls
   {{- end }}
   rules:
+    # Root domain → blog/landing
     - host: {{ .Values.global.domain }}
       http:
         paths:
-          {{- range $name, $app := .Values.apps }}
-          {{- if $app.enabled }}
-          - path: /{{ $name }}
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "anvil.fullname" $ }}-{{ $name }}
-                port:
-                  number: {{ $app.port }}
-          {{- end }}
-          {{- end }}
           - path: /
             pathType: Prefix
             backend:
               service:
                 name: {{ include "anvil.fullname" . }}-blog
                 port:
-                  number: {{ .Values.apps.blog.port }}
+                  number: 3009
+    # Admin console
+    - host: admin.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-admin
+                port:
+                  number: 3008
+    # Docs
+    - host: docs.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-docs
+                port:
+                  number: 3000
+    # Drive
+    - host: drive.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-drive
+                port:
+                  number: 3001
+    # Mail
+    - host: mail.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-gmail
+                port:
+                  number: 3002
+    # Calendar
+    - host: calendar.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-calendar
+                port:
+                  number: 3003
+    # Search
+    - host: search.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-search
+                port:
+                  number: 3004
+    # Chat
+    - host: chat.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-chat
+                port:
+                  number: 3006
+    # Tasks
+    - host: tasks.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-tasks
+                port:
+                  number: 3007
+    # Marketplace
+    - host: marketplace.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-marketplace
+                port:
+                  number: 3010
+    # Keycloak SSO
+    - host: auth.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-keycloak
+                port:
+                  number: 8080
+    # Additional custom hosts
     {{- range .Values.ingress.hosts }}
     - host: {{ .host }}
       http:
         paths:
           {{- range .paths }}
           - path: {{ .path }}
-            pathType: {{ .pathType }}
+            pathType: {{ .pathType | default "Prefix" }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ include "anvil.fullname" $ }}-{{ .service }}
                 port:
                   number: {{ .port }}
           {{- end }}

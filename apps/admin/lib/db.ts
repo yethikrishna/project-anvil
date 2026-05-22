@@ -720,20 +720,189 @@ export class AdminDB {
   }
 
   async writeAuditLog(
-    tenantId: string,
-    userId: string | null,
-    action: string,
-    resourceType: string,
-    resourceId: string,
-    details: Record<string, unknown>,
+    tenantIdOrParams: string | {
+      tenantId: string;
+      userId: string | null;
+      action: string;
+      resourceType: string;
+      resourceId: string;
+      details: string | Record<string, unknown>;
+      ipAddress?: string;
+    },
+    userId?: string | null,
+    action?: string,
+    resourceType?: string,
+    resourceId?: string,
+    details?: Record<string, unknown>,
   ): Promise<void> {
+    let tenantId: string;
+    let uid: string | null;
+    let act: string;
+    let resType: string;
+    let resId: string;
+    let det: unknown;
+
+    if (typeof tenantIdOrParams === 'object') {
+      tenantId = tenantIdOrParams.tenantId;
+      uid = tenantIdOrParams.userId;
+      act = tenantIdOrParams.action;
+      resType = tenantIdOrParams.resourceType;
+      resId = tenantIdOrParams.resourceId;
+      det = tenantIdOrParams.details;
+    } else {
+      tenantId = tenantIdOrParams;
+      uid = userId ?? null;
+      act = action ?? 'unknown';
+      resType = resourceType ?? 'unknown';
+      resId = resourceId ?? '-';
+      det = details ?? {};
+    }
+
     const sql = `
       INSERT INTO audit_log (tenant_id, user_id, action, resource_type, resource_id, details)
       VALUES ($1, $2, $3, $4, $5, $6)
     `;
     await this.queryWithTenant(tenantId, sql, [
-      tenantId, userId, action, resourceType, resourceId, JSON.stringify(details),
+      tenantId, uid, act, resType, resId,
+      typeof det === 'string' ? det : JSON.stringify(det),
     ]).catch((e) => console.error('[audit] write failed:', e));
+  }
+
+  // ── Stripe / Billing Methods ──
+
+  async stripeEventProcessed(eventId: string): Promise<boolean> {
+    const sql = `SELECT 1 FROM stripe_events WHERE stripe_event_id = $1 AND status = 'processed'`;
+    const rows = await this.query(sql, [eventId]).catch(() => ({rows: []}));
+    return (rows as any).rows?.length > 0;
+  }
+
+  async recordStripeEvent(
+    eventId: string,
+    eventType: string,
+    status: 'processed' | 'failed',
+    errorMessage?: string,
+  ): Promise<void> {
+    const sql = `
+      INSERT INTO stripe_events (stripe_event_id, event_type, status, error_message, processed_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (stripe_event_id) DO UPDATE SET status = $3, error_message = $4, processed_at = NOW()
+    `;
+    await this.query(sql, [eventId, eventType, status, errorMessage ?? null]).catch(() => {});
+  }
+
+  async linkStripeCustomer(tenantId: string, customerId: string, subscriptionId: string): Promise<void> {
+    const sql = `
+      UPDATE billing_accounts SET stripe_customer_id = $1, stripe_subscription_id = $2
+      WHERE tenant_id = $3
+    `;
+    await this.query(sql, [customerId, subscriptionId, tenantId]).catch(() => {});
+  }
+
+  async linkStripeCustomerByEmail(email: string, customerId: string, subscriptionId: string): Promise<void> {
+    const sql = `
+      UPDATE billing_accounts ba
+      SET stripe_customer_id = $1, stripe_subscription_id = $2
+      FROM tenants t
+      WHERE ba.tenant_id = t.id AND t.owner_email = $3
+    `;
+    await this.query(sql, [customerId, subscriptionId, email]).catch(() => {});
+  }
+
+  async createOrUpdateBillingAccount(params: {
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+    planId: string;
+    seats: number;
+    status: string;
+    trialEndsAt: string | null;
+    currentPeriodEnd: string;
+  }): Promise<void> {
+    const sql = `
+      INSERT INTO billing_accounts
+        (id, tenant_id, stripe_customer_id, stripe_subscription_id, plan_id, seats, status, trial_ends_at, current_period_end)
+      VALUES
+        (gen_random_uuid(), (SELECT tenant_id FROM billing_accounts WHERE stripe_customer_id = $1 LIMIT 1),
+         $1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (stripe_customer_id) DO UPDATE SET
+        stripe_subscription_id = $2,
+        plan_id = $3,
+        seats = $4,
+        status = $5,
+        trial_ends_at = $6,
+        current_period_end = $7,
+        updated_at = NOW()
+    `;
+    await this.query(sql, [
+      params.stripeCustomerId, params.stripeSubscriptionId, params.planId,
+      params.seats, params.status, params.trialEndsAt, params.currentPeriodEnd,
+    ]).catch(() => {});
+  }
+
+  async updateBillingStatus(stripeCustomerId: string, status: string): Promise<void> {
+    const sql = `UPDATE billing_accounts SET status = $1, updated_at = NOW() WHERE stripe_customer_id = $2`;
+    await this.query(sql, [status, stripeCustomerId]).catch(() => {});
+  }
+
+  async updateTenantPlan(stripeCustomerId: string, planId: string): Promise<void> {
+    const sql = `
+      UPDATE tenants t SET plan_id = $1
+      FROM billing_accounts ba
+      WHERE ba.tenant_id = t.id AND ba.stripe_customer_id = $2
+    `;
+    await this.query(sql, [planId, stripeCustomerId]).catch(() => {});
+  }
+
+  async getTenantByStripeCustomer(stripeCustomerId: string): Promise<{id: string; email: string} | null> {
+    const sql = `
+      SELECT t.id, t.owner_email AS email
+      FROM tenants t
+      JOIN billing_accounts ba ON ba.tenant_id = t.id
+      WHERE ba.stripe_customer_id = $1
+      LIMIT 1
+    `;
+    const result = await this.query(sql, [stripeCustomerId]).catch(() => ({rows: []}));
+    const rows = (result as any).rows ?? [];
+    return rows[0] ?? null;
+  }
+
+  async recordInvoice(params: {
+    stripeCustomerId: string;
+    stripeInvoiceId: string;
+    amountPaid: number;
+    currency: string;
+    pdfUrl: string | null;
+    period: {start: string; end: string};
+    status: string;
+  }): Promise<void> {
+    const sql = `
+      INSERT INTO invoices
+        (id, billing_account_id, stripe_invoice_id, amount_paid, currency, pdf_url, period_start, period_end, status)
+      VALUES (
+        gen_random_uuid(),
+        (SELECT id FROM billing_accounts WHERE stripe_customer_id = $1 LIMIT 1),
+        $2, $3, $4, $5, $6, $7, $8
+      )
+      ON CONFLICT (stripe_invoice_id) DO UPDATE SET status = $8, pdf_url = $5
+    `;
+    await this.query(sql, [
+      params.stripeCustomerId, params.stripeInvoiceId,
+      params.amountPaid, params.currency, params.pdfUrl,
+      params.period.start, params.period.end, params.status,
+    ]).catch(() => {});
+  }
+
+  async updateStripeCustomerEmail(stripeCustomerId: string, email: string): Promise<void> {
+    const sql = `
+      UPDATE tenants t SET owner_email = $1
+      FROM billing_accounts ba
+      WHERE ba.tenant_id = t.id AND ba.stripe_customer_id = $2
+    `;
+    await this.query(sql, [email, stripeCustomerId]).catch(() => {});
+  }
+
+  private async query(sql: string, params: unknown[]): Promise<unknown> {
+    // Direct query without RLS for billing operations (system-level)
+    return this.queryWithTenant('system', sql, params);
   }
 }
 
