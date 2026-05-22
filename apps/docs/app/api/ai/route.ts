@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find';
   payload: Record<string, unknown>;
 }
 
@@ -496,6 +496,32 @@ Rules:
   return {response: result.text.trim()};
 }
 
+// ── Semantic Find ──
+
+async function handleSemanticFind(ai: ReturnType<typeof getAI>, payload: {
+  query: string;
+  sentences: string[];
+}): Promise<{matches: Array<{index: number; score: number; reason: string}>}> {
+  const sentenceList = payload.sentences
+    .slice(0, 50)
+    .map((s, i) => `${i}: ${s.trim().slice(0, 200)}`)
+    .join('\n');
+
+  const result = await ai.generate([
+    {role: 'system', content: `You are a document search engine. Given a semantic query and a list of numbered sentences, return which sentences best match the query.
+Output JSON: {"matches": [{"index": N, "score": 0.0-1.0, "reason": "short reason"}]}
+Return up to 10 best matches sorted by score descending. Only include sentences with score >= 0.4.`},
+    {role: 'user', content: `Query: "${payload.query}"\n\nSentences:\n${sentenceList}`},
+  ], {temperature: 0.1, maxTokens: 600});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {matches: []};
+  }
+}
+
 // ── Writing Coach (AI deep analysis) ──
 
 async function handleWritingCoach(ai: ReturnType<typeof getAI>, payload: {
@@ -573,6 +599,8 @@ export async function POST(request: Request) {
         return Response.json(await handleGrammarCheck(ai, body.payload as any));
       case 'writing-coach':
         return Response.json(await handleWritingCoach(ai, body.payload as any));
+      case 'semantic-find':
+        return Response.json(await handleSemanticFind(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

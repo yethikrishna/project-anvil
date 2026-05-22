@@ -37,6 +37,7 @@ import ContactsView from './components/contacts-view';
 import { SenderContextBadge } from './lib/sender-context';
 import { AIAttachmentList } from './components/ai-attachment-summarizer';
 import { SmartSnoozeMenu, SendTimeOptimizer } from './lib/snooze-intelligence';
+import { AIContactCard, extractContactFromEmail } from './components/ai-contact-intelligence';
 
 // ─── Types ───
 
@@ -429,6 +430,16 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
                         Forward
                       </button>
                     </div>
+                    {/* AI Contact Intelligence */}
+                    {msg.from.email !== 'me@anvil.local' && (() => {
+                      const contact = extractContactFromEmail(msg.from.name, msg.from.email, msg.body);
+                      return (
+                        <AIContactCard
+                          contact={contact}
+                          onSave={(c) => console.log('Saving contact:', c)}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               )}

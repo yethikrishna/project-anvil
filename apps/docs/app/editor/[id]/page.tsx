@@ -33,6 +33,7 @@ import {SmartTemplateBrowser} from '../../../lib/ai/smart-template-browser';
 import {AIContextMenu, useAIContextMenu} from '../../../lib/ai/ai-context-menu';
 import {AIFloatingToolbar} from '../../../lib/ai/ai-floating-toolbar';
 import {useWritingScore, WritingScoreBadge, WritingScorePanel} from '../../../lib/ai/writing-score';
+import {AIFindReplace} from '../../../lib/ai/ai-find-replace';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -203,6 +204,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const [showWritingScore, setShowWritingScore] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -377,6 +379,18 @@ export default function EditorPage({params}: EditorPageProps) {
     });
   };
 
+  // Keyboard shortcut: Ctrl+H / Cmd+H → Find & Replace
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        setShowFindReplace(f => !f);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Auto-generate summary for display
   const handleGenerateSummary = useCallback(async () => {
     if (!editor) return;
@@ -469,6 +483,13 @@ export default function EditorPage({params}: EditorPageProps) {
         </button>
         {/* Writing Score Badge */}
         <WritingScoreBadge score={writingScore} onClick={() => setShowWritingScore(s => !s)} />
+        <button
+          onClick={() => setShowFindReplace(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="AI Find & Replace (Ctrl+H)"
+        >
+          🔍 Find
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -550,6 +571,13 @@ export default function EditorPage({params}: EditorPageProps) {
         position={contextMenuPos}
         onClose={closeContextMenu}
       />
+
+      {/* AI Find & Replace */}
+      {showFindReplace && editor && (
+        <AIErrorBoundary featureName="AI Find & Replace">
+          <AIFindReplace editor={editor} onClose={() => setShowFindReplace(false)} />
+        </AIErrorBoundary>
+      )}
 
       {/* Writing Score Panel */}
       {showWritingScore && writingScore && (
