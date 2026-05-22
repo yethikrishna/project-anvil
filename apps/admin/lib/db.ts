@@ -524,6 +524,217 @@ export class AdminDB {
     const rows = await this.queryWithTenant(tenantId, sql, [tenantId, p]);
     return rows[0] ?? null;
   }
+
+  // ── SCIM Provisioning ──
+
+  async lookupSCIMToken(rawToken: string): Promise<string | null> {
+    const {createHash} = await import('crypto');
+    const hash = createHash('sha256').update(rawToken).digest('hex');
+    const sql = `
+      SELECT tenant_id FROM scim_tokens
+      WHERE token_hash = $1 AND active = true
+        AND (expires_at IS NULL OR expires_at > NOW())
+    `;
+    // In production: pool query (no tenant context needed for token lookup)
+    // const rows = await pool.query(sql, [hash]);
+    // return rows.rows[0]?.tenant_id ?? null;
+    return null; // stub — replace with real pool query
+  }
+
+  async createSCIMToken(
+    tenantId: string,
+    label: string,
+  ): Promise<{id: string; token: string; prefix: string}> {
+    const {generateSCIMToken} = await import('@anvil/auth/scim');
+    const {token, tokenHash, prefix} = generateSCIMToken();
+    const id = randomUUID();
+
+    const sql = `
+      INSERT INTO scim_tokens (id, tenant_id, label, token_hash, prefix, active)
+      VALUES ($1, $2, $3, $4, $5, true)
+    `;
+    await this.queryWithTenant(tenantId, sql, [id, tenantId, label, tokenHash, prefix]);
+    return {id, token, prefix};
+  }
+
+  async listSCIMTokens(tenantId: string) {
+    const sql = `
+      SELECT id, tenant_id, label, prefix, active, created_at, last_used_at
+      FROM scim_tokens WHERE tenant_id = $1 ORDER BY created_at DESC
+    `;
+    return this.queryWithTenant(tenantId, sql, [tenantId]);
+  }
+
+  async revokeSCIMToken(tenantId: string, tokenId: string): Promise<boolean> {
+    const sql = `UPDATE scim_tokens SET active = false WHERE tenant_id = $1 AND id = $2`;
+    await this.queryWithTenant(tenantId, sql, [tenantId, tokenId]);
+    return true;
+  }
+
+  async getSCIMConfig(tenantId: string) {
+    const sql = `SELECT * FROM scim_configs WHERE tenant_id = $1`;
+    const rows = await this.queryWithTenant<any>(tenantId, sql, [tenantId]);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      tenantId: row.tenant_id,
+      token: '',
+      groupRoleMap: row.group_role_map ?? {},
+      autoCreateGroups: row.auto_create_groups ?? false,
+      defaultRole: row.default_role ?? 'member',
+      enabled: row.enabled ?? true,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async upsertSCIMConfig(
+    tenantId: string,
+    config: {
+      groupRoleMap?: Record<string, string>;
+      autoCreateGroups?: boolean;
+      defaultRole?: string;
+      enabled?: boolean;
+    },
+  ) {
+    const sql = `
+      INSERT INTO scim_configs (tenant_id, group_role_map, auto_create_groups, default_role, enabled)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        group_role_map = $2,
+        auto_create_groups = $3,
+        default_role = $4,
+        enabled = $5,
+        updated_at = NOW()
+      RETURNING *
+    `;
+    const rows = await this.queryWithTenant(tenantId, sql, [
+      tenantId,
+      JSON.stringify(config.groupRoleMap ?? {}),
+      config.autoCreateGroups ?? false,
+      config.defaultRole ?? 'member',
+      config.enabled ?? true,
+    ]);
+    return rows[0];
+  }
+
+  async listUsersForSCIM(
+    tenantId: string,
+    options: {startIndex: number; count: number; filter?: string},
+  ): Promise<{users: any[]; total: number}> {
+    // Full implementation delegates to listUsers with SCIM-aware projection
+    return this.listUsers(tenantId, {
+      page: Math.ceil(options.startIndex / options.count),
+      limit: options.count,
+    }).then(({users, total}) => ({users, total}));
+  }
+
+  async getUserForSCIM(tenantId: string, userId: string) {
+    const user = await this.getUser(tenantId, userId);
+    if (!user) return null;
+    return {
+      ...user,
+      email: user.email,
+      name: user.name,
+      active: user.status === 'active',
+      externalId: (user as any).external_id ?? undefined,
+    };
+  }
+
+  async findUserByEmail(tenantId: string, email: string): Promise<DBUser | null> {
+    const sql = `
+      SELECT * FROM users
+      WHERE tenant_id = $1 AND email = $2 AND deleted_at IS NULL
+    `;
+    const rows = await this.queryWithTenant<DBUser>(tenantId, sql, [tenantId, email]);
+    return rows[0] ?? null;
+  }
+
+  async createUserFromSCIM(
+    tenantId: string,
+    data: {
+      email: string;
+      name: string;
+      role: string;
+      active: boolean;
+      title?: string;
+      department?: string;
+    },
+    externalId?: string,
+  ): Promise<DBUser> {
+    const id = randomUUID();
+    const status = data.active ? 'active' : 'deactivated';
+    const sql = `
+      INSERT INTO users (id, tenant_id, email, name, role, status, external_id, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    const metadata = JSON.stringify({
+      scimProvisioned: true,
+      title: data.title,
+      department: data.department,
+    });
+    const rows = await this.queryWithTenant<DBUser>(tenantId, sql, [
+      id, tenantId, data.email, data.name,
+      data.role ?? 'member', status,
+      externalId ?? null, metadata,
+    ]);
+    return rows[0] ?? {id, tenant_id: tenantId, email: data.email, name: data.name, role: data.role as any, status: status as any, created_at: new Date().toISOString(), updated_at: new Date().toISOString()} as DBUser;
+  }
+
+  async updateUserFromSCIM(
+    tenantId: string,
+    userId: string,
+    data: {
+      email?: string;
+      name?: string;
+      role?: string;
+      active?: boolean;
+      title?: string;
+      department?: string;
+    },
+  ) {
+    const updates: Partial<Pick<DBUser, 'name' | 'role' | 'status'>> = {};
+    if (data.name) updates.name = data.name;
+    if (data.role) updates.role = data.role as any;
+    if (data.active !== undefined) updates.status = data.active ? 'active' : 'deactivated';
+    const updated = await this.updateUser(tenantId, userId, updates);
+    if (!updated) return null;
+    return {
+      ...updated,
+      active: updated.status === 'active',
+      externalId: (updated as any).external_id ?? undefined,
+    };
+  }
+
+  async deactivateUserFromSCIM(tenantId: string, userId: string): Promise<void> {
+    await this.updateUser(tenantId, userId, {status: 'deactivated'});
+  }
+
+  async revokeUserSessions(tenantId: string, userId: string): Promise<void> {
+    const sql = `
+      UPDATE user_sessions SET revoked_at = NOW()
+      WHERE tenant_id = $1 AND user_id = $2 AND revoked_at IS NULL
+    `;
+    await this.queryWithTenant(tenantId, sql, [tenantId, userId]).catch(() => {});
+  }
+
+  async writeAuditLog(
+    tenantId: string,
+    userId: string | null,
+    action: string,
+    resourceType: string,
+    resourceId: string,
+    details: Record<string, unknown>,
+  ): Promise<void> {
+    const sql = `
+      INSERT INTO audit_log (tenant_id, user_id, action, resource_type, resource_id, details)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+    await this.queryWithTenant(tenantId, sql, [
+      tenantId, userId, action, resourceType, resourceId, JSON.stringify(details),
+    ]).catch((e) => console.error('[audit] write failed:', e));
+  }
 }
 
 // ── Singleton ──

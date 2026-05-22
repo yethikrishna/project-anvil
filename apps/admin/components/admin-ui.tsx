@@ -34,6 +34,8 @@ export function useAdminAuth() {
 const NAV_ITEMS = [
   {href: '/', label: 'Dashboard', icon: '📊'},
   {href: '/users', label: 'Users', icon: '👥'},
+  {href: '/provisioning', label: 'SCIM Provisioning', icon: '🔄'},
+  {href: '/migration', label: 'Migration', icon: '📦'},
   {href: '/audit', label: 'Audit Log', icon: '📋'},
   {href: '/security', label: 'Security', icon: '🛡️'},
   {href: '/billing', label: 'Billing', icon: '💳'},

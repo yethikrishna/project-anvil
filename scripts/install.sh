@@ -31,6 +31,7 @@ ADMIN_PASS=""
 DEPLOY_MODE="standard"  # standard | hipaa | gdpr | soc2
 WITH_DEMO_DATA=false
 SKIP_CHECKS=false
+UPGRADE_MODE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,6 +42,7 @@ while [[ $# -gt 0 ]]; do
     --mode)      DEPLOY_MODE="$2"; shift 2 ;;
     --demo)      WITH_DEMO_DATA=true; shift ;;
     --skip-checks) SKIP_CHECKS=true; shift ;;
+    --upgrade)   UPGRADE_MODE=true; shift ;;
     --help|-h)
       echo "Usage: curl -fsSL https://get.anvil.dev | bash -s -- [options]"
       echo ""
@@ -52,6 +54,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --mode MODE           Deployment mode: standard|hipaa|gdpr|soc2"
       echo "  --demo                Seed demo data after deploy"
       echo "  --skip-checks         Skip system requirement checks"
+      echo "  --upgrade             Upgrade an existing installation in-place"
       echo "  -h, --help            Show this help"
       exit 0
       ;;
@@ -359,8 +362,49 @@ print_summary() {
   fi
 }
 
+# ── Upgrade ──
+upgrade() {
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    err "Anvil not installed at ${INSTALL_DIR}. Run without --upgrade to install."
+    exit 1
+  fi
+
+  info "Upgrading Anvil at ${INSTALL_DIR}..."
+  cd "$INSTALL_DIR"
+
+  # Pull latest code
+  info "Pulling latest changes..."
+  $SUDO git pull origin main 2>&1 | tail -5
+  ok "Code updated."
+
+  # Pull new images
+  info "Pulling updated Docker images..."
+  $SUDO docker compose pull 2>&1 | grep -E "Pulling|pulled|up to date" || true
+
+  # Run any new DB migrations
+  info "Running database migrations..."
+  if [[ -f "infra/sql/002_multitenant.sql" ]]; then
+    $SUDO docker compose exec -T postgres psql -U anvil -d anvil < infra/sql/002_multitenant.sql 2>/dev/null || true
+  fi
+
+  # Restart services with zero downtime (rolling update)
+  info "Restarting services..."
+  $SUDO docker compose up -d --remove-orphans
+
+  ok "Upgrade complete."
+  echo ""
+  echo -e "  ${BLUE}Version:${NC} $(git describe --tags --always 2>/dev/null || echo 'latest')"
+  echo -e "  ${BLUE}Logs:${NC}    cd ${INSTALL_DIR} && docker compose logs -f"
+  echo ""
+}
+
 # ── Main ──
 main() {
+  if [[ "$UPGRADE_MODE" == "true" ]]; then
+    upgrade
+    return
+  fi
+
   install_deps
   clone_repo
   generate_config

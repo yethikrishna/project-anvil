@@ -304,6 +304,78 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* Self-Hosted Install */}
+      <section className="py-20 bg-gray-950">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-white">Own your data. Self-host in minutes.</h2>
+            <p className="mt-3 text-gray-400 text-lg">One command deploys the full Anvil stack on any Linux server.</p>
+          </div>
+
+          {/* One-liner */}
+          <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden mb-8">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500" />
+                <span className="w-3 h-3 rounded-full bg-yellow-500" />
+                <span className="w-3 h-3 rounded-full bg-green-500" />
+              </div>
+              <span className="text-xs text-gray-400 font-mono">Terminal</span>
+              <span className="text-xs text-gray-500">bash</span>
+            </div>
+            <div className="p-6 space-y-5">
+              <div>
+                <p className="text-gray-500 text-xs font-mono mb-2"># Standard deployment</p>
+                <p className="text-green-400 font-mono text-sm break-all select-all">
+                  {'curl -fsSL https://get.anvil.dev | bash -s -- --domain anvil.company.com --email admin@company.com'}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs font-mono mb-2"># HIPAA-compliant deployment</p>
+                <p className="text-green-400 font-mono text-sm break-all select-all">
+                  {'curl -fsSL https://get.anvil.dev | bash -s -- --domain anvil.company.com --mode hipaa'}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs font-mono mb-2"># GDPR (EU data residency)</p>
+                <p className="text-green-400 font-mono text-sm break-all select-all">
+                  {'curl -fsSL https://get.anvil.dev | bash -s -- --domain anvil.company.com --mode gdpr'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* What gets deployed */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {[
+              {icon: '📧', title: 'Email Server', desc: 'Stalwart Mail — IMAP, SMTP, JMAP. Full webmail.'},
+              {icon: '🗄️', title: 'Object Storage', desc: 'MinIO S3-compatible. Drive, attachments, backups.'},
+              {icon: '🔍', title: 'Search Engine', desc: 'Meilisearch — instant full-text across all apps.'},
+              {icon: '🔐', title: 'Identity (SSO)', desc: 'Keycloak — SAML, OIDC, LDAP, MFA, brute-force protection.'},
+              {icon: '🗂️', title: 'Database', desc: 'PostgreSQL 16 with per-tenant row-level security.'},
+              {icon: '⚡', title: 'Cache & Queues', desc: 'Valkey (Redis-compatible) — sessions, rate limits, jobs.'},
+            ].map(item => (
+              <div key={item.title} className="p-4 rounded-lg bg-gray-900 border border-gray-800">
+                <div className="text-2xl mb-2">{item.icon}</div>
+                <div className="font-medium text-white text-sm">{item.title}</div>
+                <div className="text-gray-400 text-xs mt-1">{item.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* System requirements */}
+          <div className="p-5 rounded-xl bg-gray-900 border border-gray-800">
+            <h3 className="text-sm font-semibold text-white mb-3">Minimum Requirements</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div><span className="text-gray-400">OS: </span><span className="text-gray-200">Ubuntu 22.04+ / Debian 12+</span></div>
+              <div><span className="text-gray-400">CPU: </span><span className="text-gray-200">4+ vCPUs</span></div>
+              <div><span className="text-gray-400">RAM: </span><span className="text-gray-200">8 GB minimum</span></div>
+              <div><span className="text-gray-400">Disk: </span><span className="text-gray-200">50 GB SSD</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="py-20 bg-blue-600 dark:bg-blue-700">
         <div className="max-w-3xl mx-auto px-6 text-center">

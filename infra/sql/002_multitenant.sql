@@ -510,3 +510,196 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grants for application role (adjust to your setup)
 -- GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO anvil_app;
 -- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anvil_app;
+
+-- ═══════════════════════════════════════════════════════════════
+-- Migration 003: SCIM 2.0 Provisioning
+-- ═══════════════════════════════════════════════════════════════
+
+-- ── SCIM tokens (per-tenant bearer tokens for IdP provisioning) ──
+
+CREATE TABLE IF NOT EXISTS scim_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    label           TEXT NOT NULL DEFAULT 'Default',
+    token_hash      TEXT NOT NULL UNIQUE,
+    prefix          TEXT NOT NULL,
+    active          BOOLEAN NOT NULL DEFAULT true,
+    last_used_at    TIMESTAMPTZ,
+    expires_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scim_tokens_tenant ON scim_tokens (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_scim_tokens_hash ON scim_tokens (token_hash) WHERE active = true;
+
+-- ── SCIM configuration ──
+
+CREATE TABLE IF NOT EXISTS scim_configs (
+    tenant_id           UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+    group_role_map      JSONB NOT NULL DEFAULT '{}',
+    auto_create_groups  BOOLEAN NOT NULL DEFAULT false,
+    default_role        TEXT NOT NULL DEFAULT 'member'
+                            CHECK (default_role IN ('admin','member','viewer')),
+    enabled             BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── External ID column on users (for SCIM ExternalId) ──
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS external_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_id)
+    WHERE external_id IS NOT NULL AND deleted_at IS NULL;
+
+-- ── User sessions (for session revocation on SCIM deprovision) ──
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash      TEXT NOT NULL UNIQUE,
+    ip_address      INET,
+    user_agent      TEXT,
+    revoked_at      TIMESTAMPTZ,
+    expires_at      TIMESTAMPTZ NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_tenant_user ON user_sessions (tenant_id, user_id)
+    WHERE revoked_at IS NULL;
+
+-- ── Invitations (for user invite flow) ──
+
+CREATE TABLE IF NOT EXISTS invitations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email           TEXT NOT NULL,
+    role            TEXT NOT NULL DEFAULT 'member',
+    invited_by      UUID REFERENCES users(id),
+    token           TEXT NOT NULL UNIQUE,
+    expires_at      TIMESTAMPTZ NOT NULL,
+    accepted_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations (token)
+    WHERE accepted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_invitations_tenant ON invitations (tenant_id, email);
+
+-- ── Billing accounts ──
+
+CREATE TABLE IF NOT EXISTS billing_accounts (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id               UUID NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+    plan_id                 TEXT NOT NULL DEFAULT 'free',
+    stripe_customer_id      TEXT UNIQUE,
+    stripe_subscription_id  TEXT UNIQUE,
+    current_period_start    TIMESTAMPTZ,
+    current_period_end      TIMESTAMPTZ,
+    seats                   INT NOT NULL DEFAULT 1,
+    status                  TEXT NOT NULL DEFAULT 'active'
+                                CHECK (status IN ('active','past_due','canceled','trialing','paused')),
+    trial_ends_at           TIMESTAMPTZ,
+    cancel_at_period_end    BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_stripe_customer ON billing_accounts (stripe_customer_id)
+    WHERE stripe_customer_id IS NOT NULL;
+
+-- ── SAML IdP configurations ──
+
+CREATE TABLE IF NOT EXISTS saml_idps (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    entity_id       TEXT NOT NULL,
+    sso_url         TEXT NOT NULL,
+    slo_url         TEXT,
+    certificate     TEXT NOT NULL,
+    attribute_map   JSONB NOT NULL DEFAULT '{}',
+    active          BOOLEAN NOT NULL DEFAULT true,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, entity_id)
+);
+
+-- ── LDAP connections ──
+
+CREATE TABLE IF NOT EXISTS ldap_connections (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    url             TEXT NOT NULL,
+    bind_dn         TEXT NOT NULL,
+    bind_password   TEXT NOT NULL,   -- encrypted at rest via tenant DEK
+    search_base     TEXT NOT NULL,
+    search_filter   TEXT NOT NULL DEFAULT '(mail={{username}})',
+    group_base      TEXT,
+    use_tls         BOOLEAN NOT NULL DEFAULT true,
+    active_directory BOOLEAN NOT NULL DEFAULT false,
+    role_mappings   JSONB NOT NULL DEFAULT '[]',
+    sync_interval   INT NOT NULL DEFAULT 3600,  -- seconds
+    last_sync_at    TIMESTAMPTZ,
+    active          BOOLEAN NOT NULL DEFAULT true,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── MFA policies ──
+
+CREATE TABLE IF NOT EXISTS mfa_policies (
+    tenant_id               UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+    policy                  TEXT NOT NULL DEFAULT 'disabled'
+                                CHECK (policy IN ('disabled','optional','required','required_with_grace')),
+    allowed_methods         TEXT[] NOT NULL DEFAULT '{totp,webauthn}',
+    grace_period_days       INT NOT NULL DEFAULT 14,
+    excluded_roles          TEXT[] NOT NULL DEFAULT '{}',
+    enforcement_started     TIMESTAMPTZ,
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Tenant encryption keys (DEK metadata — key material in HSM/KMS) ──
+
+CREATE TABLE IF NOT EXISTS tenant_keys (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    purpose         TEXT NOT NULL
+                        CHECK (purpose IN ('files','emails','documents','database','backups')),
+    key_version     INT NOT NULL DEFAULT 1,
+    kms_key_id      TEXT,           -- AWS KMS / GCP KMS key reference
+    encrypted_dek   BYTEA,          -- DEK encrypted by KEK (envelope encryption)
+    active          BOOLEAN NOT NULL DEFAULT true,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    rotated_at      TIMESTAMPTZ,
+    expires_at      TIMESTAMPTZ,
+    UNIQUE (tenant_id, purpose, key_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_keys_active ON tenant_keys (tenant_id, purpose)
+    WHERE active = true;
+
+-- ── Demo signups (for landing page trials) ──
+
+CREATE TABLE IF NOT EXISTS demo_signups (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trial_id        TEXT NOT NULL UNIQUE,
+    email           TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    company         TEXT,
+    team_size       TEXT,
+    use_case        TEXT,
+    plan_id         TEXT NOT NULL DEFAULT 'starter',
+    deploy_type     TEXT NOT NULL DEFAULT 'cloud'
+                        CHECK (deploy_type IN ('cloud','self-hosted')),
+    status          TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending','provisioning','active','expired')),
+    tenant_id       UUID REFERENCES tenants(id),
+    ip_hash         TEXT,   -- hashed for rate limiting / abuse detection
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_demo_signups_email ON demo_signups (email);
+CREATE INDEX IF NOT EXISTS idx_demo_signups_status ON demo_signups (status, created_at);
+

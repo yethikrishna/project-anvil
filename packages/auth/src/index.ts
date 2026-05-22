@@ -265,3 +265,4 @@ export * from './par';
 export * from './saml';
 export * from './ldap';
 export * from './mfa';
+export * from './scim';
