@@ -1,7 +1,7 @@
 'use client';
 
 import {useState} from 'react';
-import {ThemeProvider} from '@anvil/ui';
+import {AdminLayout, StatCard, Card, Badge, Button} from '../components/admin-ui';
 
 // ── Types ──
 
