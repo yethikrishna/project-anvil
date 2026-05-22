@@ -248,3 +248,124 @@ securityContext:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# ── Autoscaling ──
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ── Network Policy ──
+
+networkPolicy:
+  enabled: false  # Enable in production for zero-trust networking
+
+# ── Redis ──
+
+redis:
+  enabled: true
+  image:
+    repository: valkey/valkey
+    tag: "8-alpine"
+  password: ""  # Auto-generated if empty
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "128Mi", cpu: "50m" }
+    limits: { memory: "512Mi", cpu: "250m" }
+
+# ── MinIO ──
+
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: "RELEASE.2025-04-22T22-12-26Z"
+  rootUser: anvil
+  rootPassword: ""  # Auto-generated if empty
+  defaultBuckets: "anvil-drive,anvil-mail-attachments,anvil-backups,anvil-exports"
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "512Mi", cpu: "250m" }
+    limits: { memory: "2Gi", cpu: "1000m" }
+
+# ── Meilisearch ──
+
+meilisearch:
+  enabled: true
+  image:
+    repository: getmeili/meilisearch
+    tag: "v1.12"
+  masterKey: ""  # Auto-generated if empty
+  environment: production
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "500m" }
+
+# ── Stalwart Mail ──
+
+stalwart:
+  enabled: true
+  image:
+    repository: stalwartlabs/mail-server
+    tag: "latest"
+  hostname: ""  # Defaults to mail.<global.domain>
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "500m" }
+
+# ── NextAuth ──
+
+nextauth:
+  secret: ""  # Auto-generated if empty
+
+# ── Stripe ──
+
+stripe:
+  secretKey: ""
+  publishableKey: ""
+  webhookSecret: ""
+
+# ── License ──
+
+license:
+  secret: ""  # Used for self-hosted license key signing
+
+# ── Ingress (extended) ──
+
+ingressNginx:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10g"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://*.{{ .Values.global.domain }}"
+
+# ── Backup ──
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # 2 AM daily
+  retention: 30  # days
+  s3:
+    bucket: ""
+    region: "us-east-1"
+    prefix: "anvil-backups"
+    accessKeyId: ""
+    secretAccessKey: ""

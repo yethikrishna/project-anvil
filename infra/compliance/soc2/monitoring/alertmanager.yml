@@ -1,0 +1,69 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@anvil.dev'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'pagerduty-critical'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+    - match:
+        alertname: SecurityAlert
+      receiver: 'security-team'
+      group_wait: 0s
+
+receivers:
+  - name: 'default'
+    email_configs:
+      - to: 'ops@anvil.dev'
+        subject: '[Anvil] {{ .GroupLabels.alertname }}'
+        require_tls: false
+
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_KEY}'
+        description: '{{ .CommonAnnotations.summary }}'
+        severity: '{{ .CommonLabels.severity }}'
+
+  - name: 'slack-warnings'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#anvil-alerts'
+        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  - name: 'security-team'
+    email_configs:
+      - to: 'security@anvil.dev'
+        subject: '[SECURITY ALERT] {{ .GroupLabels.alertname }}'
+        require_tls: true
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_SECURITY_KEY}'
+        severity: critical
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

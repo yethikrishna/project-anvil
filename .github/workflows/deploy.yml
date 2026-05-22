@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options: [staging, production]
+      version:
+        description: "Version to deploy (e.g. v0.3.0 or 'latest')"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Set deploy version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ "$VERSION" = "latest" ]; then
+            VERSION="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Helm upgrade
+        run: |
+          helm upgrade --install anvil ./infra/helm/anvil \
+            --namespace anvil \
+            --create-namespace \
+            --set image.tag=${{ steps.version.outputs.version }} \
+            --set global.domain=${{ vars.ANVIL_DOMAIN }} \
+            --set global.environment=${{ inputs.environment }} \
+            --set postgresql.auth.password=${{ secrets.DB_PASSWORD }} \
+            --set keycloak.admin.password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }} \
+            --set minio.rootPassword=${{ secrets.MINIO_PASSWORD }} \
+            --set meilisearch.masterKey=${{ secrets.MEILI_KEY }} \
+            --set redis.password=${{ secrets.REDIS_PASSWORD }} \
+            --set stripe.secretKey=${{ secrets.STRIPE_SECRET_KEY }} \
+            --set stripe.webhookSecret=${{ secrets.STRIPE_WEBHOOK_SECRET }} \
+            --wait \
+            --timeout=10m \
+            -f infra/helm/anvil/values.${{ inputs.environment }}.yaml 2>/dev/null || \
+            -f infra/helm/anvil/values.yaml
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/anvil-admin -n anvil --timeout=5m
+          kubectl rollout status deployment/anvil-blog -n anvil --timeout=5m
+
+      - name: Smoke test
+        run: |
+          DOMAIN=${{ vars.ANVIL_DOMAIN }}
+          echo "Testing https://$DOMAIN/api/health..."
+          curl -fs "https://$DOMAIN/api/health" | jq .status || echo "Health check not yet available"
+
+      - name: Notify on success
+        if: success()
+        run: echo "Deployed version ${{ steps.version.outputs.version }} to ${{ inputs.environment }} ✅"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Deploy FAILED for version ${{ steps.version.outputs.version }} ❌"

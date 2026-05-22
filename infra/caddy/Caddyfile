@@ -1,0 +1,132 @@
+# Anvil Caddyfile — TLS-terminating reverse proxy
+# Handles all Anvil service routing with automatic HTTPS via Let's Encrypt.
+# Loaded with ANVIL_DOMAIN and ACME_EMAIL from environment.
+
+{
+	email {$ACME_EMAIL:admin@localhost}
+	admin off
+	# Grace period for graceful shutdown
+	grace_period 30s
+}
+
+# ── Landing / Blog ──
+{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy blog:3009
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 100mb
+			roll_keep 14
+		}
+	}
+}
+
+# ── Admin Console ──
+admin.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy admin:3008
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.stripe.com;"
+		-Server
+	}
+}
+
+# ── Docs ──
+docs.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy docs:3000
+	encode gzip zstd
+}
+
+# ── Drive ──
+drive.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy drive:3001
+	encode gzip zstd
+	# Large file uploads
+	request_body {
+		max_size 10GB
+	}
+}
+
+# ── Mail ──
+mail.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy gmail:3002
+	encode gzip zstd
+}
+
+# ── Calendar ──
+calendar.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy calendar:3003
+	encode gzip zstd
+}
+
+# ── Search ──
+search.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy search:3004
+	encode gzip zstd
+}
+
+# ── Chat ──
+chat.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy chat:3006
+	encode gzip zstd
+	# WebSocket support
+	@ws {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	handle @ws {
+		reverse_proxy chat:3006
+	}
+}
+
+# ── Tasks ──
+tasks.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy tasks:3007
+	encode gzip zstd
+}
+
+# ── Marketplace ──
+marketplace.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy marketplace:3010
+	encode gzip zstd
+}
+
+# ── Keycloak SSO ──
+auth.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy keycloak:8080
+	encode gzip zstd
+	header {
+		X-Frame-Options SAMEORIGIN
+	}
+}
+
+# ── MinIO Console ──
+storage.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy minio:9001
+	encode gzip zstd
+}
+
+# ── Monitoring (internal — restrict by IP in production) ──
+monitoring.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy grafana:3000
+	encode gzip zstd
+}
+
+# ── Multi-tenant wildcard routing ──
+# Routes *.tenant.anvil.dev → blog app which handles tenant resolution
+*.{$ANVIL_DOMAIN:localhost} {
+	reverse_proxy blog:3009
+	encode gzip zstd
+}

@@ -1,0 +1,18 @@
+{{- range $name, $app := .Values.apps }}
+{{- if $app.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "anvil.fullname" $ }}-{{ $name }}-pdb
+  labels:
+    {{- include "anvil.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  minAvailable: {{ if gt (int $app.replicas) 1 }}1{{ else }}0{{ end }}
+  selector:
+    matchLabels:
+      {{- include "anvil.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $name }}
+{{- end }}
+{{- end }}

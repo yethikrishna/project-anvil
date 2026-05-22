@@ -1,0 +1,192 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default deny-all ingress policy
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "anvil.fullname" . }}-default-deny
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvil.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# Allow ingress from ingress controller to all app pods
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "anvil.fullname" . }}-allow-ingress
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvil.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 3002
+        - protocol: TCP
+          port: 3003
+        - protocol: TCP
+          port: 3004
+        - protocol: TCP
+          port: 3006
+        - protocol: TCP
+          port: 3007
+        - protocol: TCP
+          port: 3008
+        - protocol: TCP
+          port: 3009
+        - protocol: TCP
+          port: 3010
+
+# Allow app pods egress to infrastructure services
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "anvil.fullname" . }}-allow-infra-egress
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvil.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Redis/Valkey
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # MinIO
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Meilisearch
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: meilisearch
+      ports:
+        - protocol: TCP
+          port: 7700
+    # Keycloak
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: keycloak
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Stalwart mail
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: stalwart
+      ports:
+        - protocol: TCP
+          port: 143
+        - protocol: TCP
+          port: 587
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS egress (for external APIs: Stripe, SMTP, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+# Postgres only accepts from app pods and admin
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "anvil.fullname" . }}-postgres-policy
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "anvil.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+
+# Redis only accepts from app pods
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "anvil.fullname" . }}-redis-policy
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "anvil.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 6379
+{{- end }}

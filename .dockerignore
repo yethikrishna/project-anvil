@@ -1,0 +1,66 @@
+# Anvil .dockerignore — keeps build context lean
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Node modules (reinstalled in image)
+node_modules
+**/node_modules
+
+# Next.js build outputs (except what's needed)
+**/.next
+!apps/*/.next/standalone
+!apps/*/.next/static
+
+# Dev/test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/coverage
+**/__tests__
+**/__mocks__
+**/*.stories.tsx
+
+# CI/CD
+.github
+
+# Docs
+README.md
+CHANGELOG.md
+docs/
+*.md
+!apps/*/public/**/*.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Infra (not needed in app images)
+infra/
+scripts/
+docker-compose*.yml
+Caddyfile
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+dist/
+build/
+out/

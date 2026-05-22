@@ -1,0 +1,53 @@
+#:schema node_modules/wrangler/config-schema.json
+# Anvil Tenant Router Worker
+
+name = "anvil-tenant-router"
+main = "workers/tenant-router.ts"
+compatibility_date = "2026-04-21"
+compatibility_flags = ["nodejs_compat"]
+
+# Routes all *.anvil.dev and custom domain traffic
+routes = [
+  { pattern = "*.anvil.dev/*", zone_name = "anvil.dev" },
+  { pattern = "anvil.dev/*", zone_name = "anvil.dev" },
+]
+
+# ── KV Namespaces ──
+
+[[kv_namespaces]]
+binding = "TENANT_MAP"
+id = "placeholder_tenant_map_id"
+preview_id = "placeholder_tenant_map_preview"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "placeholder_rate_limit_id"
+preview_id = "placeholder_rate_limit_preview"
+
+[[kv_namespaces]]
+binding = "SESSION_CACHE"
+id = "placeholder_session_cache_id"
+preview_id = "placeholder_session_cache_preview"
+
+# ── Environment Variables ──
+
+[vars]
+CLOUD_DOMAIN = "anvil.dev"
+ENABLE_RATE_LIMIT = "true"
+ENABLE_GEO_ROUTING = "false"
+
+# Set via: wrangler secret put ORIGIN_URL
+# Set via: wrangler secret put WORKER_SECRET
+
+# ── Staging ──
+
+[env.staging]
+name = "anvil-tenant-router-staging"
+routes = [
+  { pattern = "*.staging.anvil.dev/*", zone_name = "anvil.dev" },
+]
+
+[env.staging.vars]
+CLOUD_DOMAIN = "staging.anvil.dev"
+ENABLE_RATE_LIMIT = "false"
+ENABLE_GEO_ROUTING = "false"
