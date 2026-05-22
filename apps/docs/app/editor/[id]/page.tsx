@@ -30,6 +30,7 @@ import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
 import {DocumentHealthDashboard} from '../../../lib/ai/document-health-dashboard';
 import {AITranslationDropdown} from '../../../lib/ai/ai-translation';
 import {SmartTemplateBrowser} from '../../../lib/ai/smart-template-browser';
+import {AIContextMenu, useAIContextMenu} from '../../../lib/ai/ai-context-menu';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -315,6 +316,9 @@ export default function EditorPage({params}: EditorPageProps) {
     }).catch(() => {});
   });
 
+  // AI Context Menu
+  const {menuPosition: contextMenuPos, closeMenu: closeContextMenu} = useAIContextMenu(editor);
+
   // Handle AI command dispatch from slash menu
   useEffect(() => {
     if (!editor) return;
@@ -521,6 +525,13 @@ export default function EditorPage({params}: EditorPageProps) {
           />
         </AIErrorBoundary>
       )}
+
+      {/* AI Context Menu (right-click) */}
+      <AIContextMenu
+        editor={editor}
+        position={contextMenuPos}
+        onClose={closeContextMenu}
+      />
     </div>
   );
 }
