@@ -416,13 +416,14 @@ export class Session {
     session.data.createdAt = typeof json.createdAt === 'number' ? json.createdAt : Date.now();
     session.data.lastActivityAt = typeof json.lastActivityAt === 'number' ? json.lastActivityAt : Date.now();
     session.data.completedAt = typeof json.completedAt === 'number' ? json.completedAt : undefined;
-    session.data.tokenBudget = json.tokenBudget && typeof json.tokenBudget === 'object'
-      ? {
-          used: typeof (json.tokenBudget as any).used === 'number' ? (json.tokenBudget as any).used : 0,
-          remaining: typeof (json.tokenBudget as any).remaining === 'number' ? (json.tokenBudget as any).remaining : 0,
-          total: typeof (json.tokenBudget as any).total === 'number' ? (json.tokenBudget as any).total : 128000,
-        }
-      : { used: 0, remaining: 128000, total: 128000 };
+    interface TokenBudgetJSON { used?: number; remaining?: number; total?: number }
+    const tb = (typeof json.tokenBudget === 'object' && json.tokenBudget !== null)
+      ? json.tokenBudget as TokenBudgetJSON : {} as TokenBudgetJSON;
+    session.data.tokenBudget = {
+      used: typeof tb.used === 'number' ? tb.used : 0,
+      remaining: typeof tb.remaining === 'number' ? tb.remaining : 0,
+      total: typeof tb.total === 'number' ? tb.total : 128000,
+    };
     return session;
   }
 
