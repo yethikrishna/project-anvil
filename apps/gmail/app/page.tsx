@@ -44,6 +44,7 @@ import { SmartLabelBadges } from './lib/smart-labels';
 import { KeyPointsCard } from './components/ai-key-points';
 import { WaitingReplyBadge, calculateWaitTime } from './components/ai-response-intelligence';
 import { EmailEmotionBadge } from './components/ai-emotion-detector';
+import { DigestPanel } from './components/ai-digest-panel';
 
 // ─── Types ───
 
