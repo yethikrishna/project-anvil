@@ -146,7 +146,7 @@ function checkLocalGrammar(text: string, docOffset: number): GrammarIssue[] {
       {
         pattern: /\b(should|would|could|might) of\b/gi,
         message: 'Use "have" instead of "of"',
-        replacement: (m: string) => m.replace(/ of/i, ' have'),
+        replacement: 'should have',
       },
       {
         pattern: /\btheir\s+is\b/gi,
@@ -204,7 +204,7 @@ function checkLocalGrammar(text: string, docOffset: number): GrammarIssue[] {
           type: 'grammar',
           severity: 'warning',
           message,
-          replacement: typeof replacement === 'function' ? replacement(match[0]) : replacement || null,
+          replacement: replacement || null,
           originalText: match[0],
         });
       }

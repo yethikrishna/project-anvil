@@ -1,0 +1,218 @@
+/* AI feature styles for Anvil Docs */
+
+/* Inline AI suggestion (ghost text) */
+.ai-suggestion-inline {
+  color: #9ca3af;
+  font-style: italic;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.ai-suggestion-inline:hover {
+  color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.06);
+  border-radius: 2px;
+}
+
+/* AI slash command trigger */
+.ai-slash-trigger {
+  color: #6366f1;
+  font-weight: 500;
+  background-color: rgba(99, 102, 241, 0.08);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* AI command menu */
+.ai-command-menu {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+  width: 340px;
+}
+
+.ai-command-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ai-command-header-icon {
+  font-size: 14px;
+}
+
+.ai-command-header-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.ai-command-empty {
+  padding: 16px 12px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.ai-command-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s ease;
+}
+
+.ai-command-item:hover,
+.ai-command-item.is-selected {
+  background-color: #f0f0ff;
+}
+
+.ai-command-icon {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ai-command-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-command-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.ai-command-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+.ai-command-shortcut {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+/* AI suggestion bar */
+.ai-suggestion-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(to right, #f0f0ff, #faf5ff);
+  border-bottom: 1px solid #e9e5ff;
+  font-size: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* AI loading shimmer */
+.ai-loading {
+  background: linear-gradient(90deg, #f0f0ff 25%, #e9e5ff 50%, #f0f0ff 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Grammar underline styles */
+.ai-grammar-error {
+  text-decoration: wavy underline #ef4444;
+  text-underline-offset: 3px;
+}
+
+.ai-grammar-warning {
+  text-decoration: wavy underline #f59e0b;
+  text-underline-offset: 3px;
+}
+
+.ai-grammar-info {
+  text-decoration: wavy underline #3b82f6;
+  text-underline-offset: 3px;
+}
+
+/* Autocorrect highlight flash */
+.ai-autocorrect-flash {
+  background-color: rgba(99, 102, 241, 0.15);
+  border-radius: 2px;
+  transition: background-color 0.5s ease;
+}
+
+/* Quick action floating button */
+.ai-quick-action {
+  position: absolute;
+  z-index: 20;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.ai-quick-action.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ai-quick-action button {
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.1s ease;
+}
+
+.ai-quick-action button:hover {
+  background-color: #f0f0ff;
+}
+
+/* Tiptap theme for AI command suggestions */
+.tippy-box[data-theme~='ai-commands'] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.tippy-box[data-theme~='ai-commands'] .tippy-content {
+  padding: 0;
+}
+
+.tippy-box[data-theme~='ai-commands'] .tippy-arrow {
+  display: none;
+}

@@ -75,8 +75,14 @@ export function AIComposeWithStyle({
 
   const styleHints = useMemo(() => {
     if (!styleProfile) return [];
-    return getStyleHints(styleProfile, tone);
-  }, [styleProfile, tone]);
+    const hints = getStyleHints(styleProfile);
+    const notes: string[] = [];
+    if (hints.tone) notes.push(`Tone: ${hints.tone}`);
+    if (hints.greeting) notes.push(`Greeting: ${hints.greeting}`);
+    if (hints.signOff) notes.push(`Sign-off: ${hints.signOff}`);
+    if (hints.avgLength) notes.push(`Length: ${hints.avgLength}`);
+    return [...notes, ...hints.notes];
+  }, [styleProfile]);
 
   // Thread context
   const threadContext = useMemo(() => {
@@ -89,15 +95,13 @@ export function AIComposeWithStyle({
 
   // Build compose prompt
   const composePrompt = useMemo(() => {
-    return buildComposePrompt({
-      subject,
-      recipientName: context.to?.name || recipient,
-      tone,
-      length,
-      threadContext,
+    if (!styleProfile) return '';
+    return buildComposePrompt(
       styleProfile,
-    });
-  }, [subject, recipient, tone, length, threadContext, styleProfile, context.to]);
+      threadContext,
+      context.isReply ? 'reply' : 'new'
+    );
+  }, [threadContext, styleProfile, context.isReply]);
 
   // Editor
   const editor = useEditor({

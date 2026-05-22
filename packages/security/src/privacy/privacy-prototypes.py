@@ -219,8 +219,10 @@ class PathORAM:
     
     def _encrypt_block(self, data: bytes, block_id: int) -> bytes:
         """XOR stream cipher (simplified)."""
+        # Use abs(block_id) for sentinel blocks (id=-1)
+        bid_bytes = struct.pack('>I', abs(block_id) & 0xFFFFFFFF)
         stream = hashlib.sha256(
-            self.key + struct.pack('>I', block_id)
+            self.key + bid_bytes
         ).digest()
         stream = stream * (len(data) // 32 + 1)
         return bytes(a ^ b for a, b in zip(data, stream[:len(data)]))

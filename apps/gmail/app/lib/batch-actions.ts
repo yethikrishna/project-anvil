@@ -159,7 +159,7 @@ export function useBatchSelection(messages: MailMessage[]) {
   const selectByCategory = useCallback((category: string) => {
     const ids = messages
       .filter(m => {
-        const result = classifyEnhanced(m.subject, m.from.email, m.body);
+        const result = classifyEnhanced({subject: m.subject, from: m.from.email, body: m.body});
         return result.category === category;
       })
       .map(m => m.id);

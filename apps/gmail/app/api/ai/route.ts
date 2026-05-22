@@ -179,7 +179,7 @@ async function handleEmbedEmails(ai: ReturnType<typeof getAI>, payload: {
       const emb = await ai.embed(email.text.slice(0, 500));
       results.push({
         id: email.id,
-        embedding: emb.vector,
+        embedding: emb.embedding,
         text: email.text.slice(0, 200),
       });
     } catch {

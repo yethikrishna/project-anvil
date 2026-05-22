@@ -76,7 +76,10 @@ export function EmailRulesManager({messages, onClose, onRuleApplied}: EmailRules
 
   // Generate AI suggestions
   const aiSuggestions = useMemo(
-    () => generateRulesFromPatterns(messages, rules),
+    () => generateRulesFromPatterns(
+      messages.map(m => ({from: m.from.email, subject: m.subject, body: m.body, category: m.labels?.[0]})),
+      rules
+    ),
     [messages, rules]
   );
 

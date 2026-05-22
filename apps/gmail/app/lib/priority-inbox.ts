@@ -11,7 +11,7 @@
  */
 
 import {useState, useMemo, useCallback} from 'react';
-import type {MailMessage} from './lib/ai-mail';
+import type {MailMessage} from './ai-mail';
 
 // ── Types ──
 
@@ -82,7 +82,7 @@ function scoreEmailPriority(email: MailMessage, allEmails: MailMessage[]): Prior
   }
 
   // 5. Attachments
-  if (email.hasAttachments) {
+  if (email.attachments && email.attachments.length > 0) {
     score += 5;
     signals.push({type: 'attachment', weight: 5, description: 'Has attachments'});
     reasons.push('Contains attachments');

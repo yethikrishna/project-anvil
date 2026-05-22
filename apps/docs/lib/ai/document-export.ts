@@ -86,7 +86,7 @@ function htmlToMarkdown(html: string): string {
   md = md.replace(/<img[^>]*src="([^"]*)"[^>]*\/?>/gi, '![]($1)');
 
   // Blockquotes
-  md = md.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (_, content) => {
+  md = md.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, content) => {
     return content.split('\n').map((line: string) => `> ${line}`).join('\n') + '\n\n';
   });
 
@@ -94,12 +94,12 @@ function htmlToMarkdown(html: string): string {
   md = md.replace(/<hr[^>]*\/?>/gi, '---\n\n');
 
   // Code blocks
-  md = md.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gis, '```\n$1\n```\n\n');
+  md = md.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```\n$1\n```\n\n');
   md = md.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
 
   // Tables (basic)
-  md = md.replace(/<table[^>]*>(.*?)<\/table>/gis, (match, content) => {
-    const rows = content.match(/<tr[^>]*>(.*?)<\/tr>/gis) || [];
+  md = md.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (match, content) => {
+    const rows = content.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
     let tableMd = '';
     rows.forEach((row: string, i: number) => {
       const cells = (row.match(/<t[hd][^>]*>(.*?)<\/t[hd]>/gi) || [])

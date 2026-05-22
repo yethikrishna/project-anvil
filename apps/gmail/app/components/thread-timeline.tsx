@@ -211,7 +211,7 @@ export function ThreadTimeline({messages, onReply, onForward, currentUserEmail}:
                   >
                     → Forward
                   </button>
-                  {msg.hasAttachments && (
+                  {msg.attachments && msg.attachments.length > 0 && (
                     <span className="text-[10px] text-gray-400">📎 {msg.attachments?.length || 1}</span>
                   )}
                 </div>

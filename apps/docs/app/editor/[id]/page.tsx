@@ -412,6 +412,7 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📑 Outline
         </button>
+        <button
           onClick={() => setShowAnalytics(!showAnalytics)}
           className={`px-2 py-1 rounded text-xs transition-colors ${showAnalytics ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100'}`}
           title="Collaboration Analytics"

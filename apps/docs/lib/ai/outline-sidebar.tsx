@@ -20,8 +20,8 @@ import {
   getSectionStatusIcon,
   getSectionStatusColor,
   type OutlineSection,
-} from '../../../lib/ai/use-document-outline';
-import {analyzeReadability} from '../../../lib/ai/readability-analyzer';
+} from './use-document-outline';
+import {analyzeReadability} from './readability-analyzer';
 
 // ── Props ──
 
