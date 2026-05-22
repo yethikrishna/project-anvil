@@ -42,6 +42,7 @@ import {AIOutlineBuilder} from '../../../lib/ai/ai-outline-builder';
 import {WordChoicePanel} from '../../../lib/ai/word-choice-suggester';
 import {ContentTransformer} from '../../../lib/ai/content-transformer';
 import {HeadingSuggestionsPanel} from '../../../lib/ai/heading-suggestions';
+import {ContentBriefGenerator} from '../../../lib/ai/content-brief-generator';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -221,6 +222,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showWordChoice, setShowWordChoice] = useState(false);
   const [showTransformer, setShowTransformer] = useState(false);
   const [showHeadingSuggestions, setShowHeadingSuggestions] = useState(false);
+  const [showBriefGenerator, setShowBriefGenerator] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -557,6 +559,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📌 Headings
         </button>
+        <button
+          onClick={() => setShowBriefGenerator(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Generate Content Brief before writing"
+        >
+          📝 Brief
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -712,6 +721,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showHeadingSuggestions && editor && (
         <AIErrorBoundary featureName="Heading Suggestions">
           <HeadingSuggestionsPanel editor={editor} onClose={() => setShowHeadingSuggestions(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Content Brief Generator */}
+      {showBriefGenerator && editor && (
+        <AIErrorBoundary featureName="Content Brief">
+          <ContentBriefGenerator editor={editor} onClose={() => setShowBriefGenerator(false)} />
         </AIErrorBoundary>
       )}
 
