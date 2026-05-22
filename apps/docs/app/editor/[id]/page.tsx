@@ -39,6 +39,7 @@ import {AIFocusMode} from '../../../lib/ai/ai-focus-mode';
 import {ToneAnalyzerPanel} from '../../../lib/ai/tone-analyzer';
 import {ReadingMetricsBadge, ReadingMetricsPanel} from '../../../lib/ai/reading-metrics';
 import {AIOutlineBuilder} from '../../../lib/ai/ai-outline-builder';
+import {WordChoicePanel} from '../../../lib/ai/word-choice-suggester';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -215,6 +216,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showToneAnalyzer, setShowToneAnalyzer] = useState(false);
   const [showReadingMetrics, setShowReadingMetrics] = useState(false);
   const [showOutlineBuilder, setShowOutlineBuilder] = useState(false);
+  const [showWordChoice, setShowWordChoice] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -530,6 +532,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📀 Outline
         </button>
+        <button
+          onClick={() => setShowWordChoice(w => !w)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Word Choice Suggestions"
+        >
+          ✍️ Words
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -664,6 +673,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showOutlineBuilder && editor && (
         <AIErrorBoundary featureName="Outline Builder">
           <AIOutlineBuilder editor={editor} onClose={() => setShowOutlineBuilder(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Word Choice Suggester */}
+      {showWordChoice && editor && (
+        <AIErrorBoundary featureName="Word Choice">
+          <WordChoicePanel editor={editor} onClose={() => setShowWordChoice(false)} />
         </AIErrorBoundary>
       )}
 

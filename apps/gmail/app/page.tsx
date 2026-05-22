@@ -41,6 +41,7 @@ import { AIContactCard, extractContactFromEmail } from './components/ai-contact-
 import { MeetingDetectorCard } from './components/ai-meeting-detector';
 import { UnsubscribeBanner, detectUnsubscribeInfo } from './components/ai-unsubscribe';
 import { SmartLabelBadges } from './lib/smart-labels';
+import { KeyPointsCard } from './components/ai-key-points';
 
 // ─── Types ───
 
@@ -374,6 +375,16 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
       <div className="px-6">
         <ThreadSummaryPanel messages={messages} />
       </div>
+
+      {/* AI Key Points */}
+      {messages.length >= 2 && (
+        <div className="px-6 pb-2">
+          <KeyPointsCard
+            messages={messages}
+            onAddToTasks={(point) => console.log('Adding task:', point)}
+          />
+        </div>
+      )}
 
       {/* Sender Context (Conversation Memory) */}
       {messages[0] && (
