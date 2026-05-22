@@ -904,6 +904,101 @@ export class AdminDB {
     // Direct query without RLS for billing operations (system-level)
     return this.queryWithTenant('system', sql, params);
   }
+
+  // ── Usage Metering Methods ──
+
+  async getTenantById(tenantId: string): Promise<{id: string; ownerEmail: string | null; slug: string} | null> {
+    const sql = `SELECT id, owner_email, slug FROM tenants WHERE id = $1`;
+    const result = await this.queryWithTenant(tenantId, sql, [tenantId]).catch(() => ({rows: []}));
+    const row = (result as any).rows?.[0];
+    if (!row) return null;
+    return {id: row.id, ownerEmail: row.owner_email, slug: row.slug};
+  }
+
+  async getBillingAccount(tenantId: string): Promise<{stripeCustomerId: string | null} | null> {
+    const sql = `SELECT stripe_customer_id FROM billing_accounts WHERE tenant_id = $1`;
+    const result = await this.queryWithTenant(tenantId, sql, [tenantId]).catch(() => ({rows: []}));
+    const row = (result as any).rows?.[0];
+    if (!row) return null;
+    return {stripeCustomerId: row.stripe_customer_id};
+  }
+
+  async getTenantPlan(tenantId: string): Promise<string | null> {
+    const sql = `SELECT plan_id FROM tenants WHERE id = $1`;
+    const result = await this.queryWithTenant(tenantId, sql, [tenantId]).catch(() => ({rows: []}));
+    return (result as any).rows?.[0]?.plan_id ?? null;
+  }
+
+  async getUsageForPeriod(
+    tenantId: string,
+    period: string, // YYYY-MM
+  ): Promise<{aiCalls: number; apiCalls: number; storageGB: number; activeUsers: number}> {
+    const sql = `
+      SELECT metric, SUM(quantity) AS total
+      FROM usage_records
+      WHERE tenant_id = $1
+        AND to_char(period_start, 'YYYY-MM') = $2
+      GROUP BY metric
+    `;
+    const result = await this.queryWithTenant(tenantId, sql, [tenantId, period]).catch(() => ({rows: []}));
+    const rows = (result as any).rows ?? [];
+    const map: Record<string, number> = {};
+    for (const row of rows) map[row.metric] = Number(row.total);
+
+    return {
+      aiCalls: map['ai_calls'] ?? 0,
+      apiCalls: map['api_calls'] ?? 0,
+      storageGB: (map['storage_bytes'] ?? 0) / (1024 ** 3),
+      activeUsers: map['active_users'] ?? 0,
+    };
+  }
+
+  async getDailyUsage(
+    tenantId: string,
+    period: string, // YYYY-MM
+  ): Promise<Array<{date: string; aiCalls: number; apiCalls: number}>> {
+    const sql = `
+      SELECT
+        to_char(period_start, 'YYYY-MM-DD') AS date,
+        SUM(CASE WHEN metric = 'ai_calls' THEN quantity ELSE 0 END) AS ai_calls,
+        SUM(CASE WHEN metric = 'api_calls' THEN quantity ELSE 0 END) AS api_calls
+      FROM usage_records
+      WHERE tenant_id = $1
+        AND to_char(period_start, 'YYYY-MM') = $2
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    const result = await this.queryWithTenant(tenantId, sql, [tenantId, period]).catch(() => ({rows: []}));
+    return ((result as any).rows ?? []).map((r: any) => ({
+      date: r.date,
+      aiCalls: Number(r.ai_calls),
+      apiCalls: Number(r.api_calls),
+    }));
+  }
+
+  async incrementUsage(
+    tenantId: string,
+    metric: string,
+    quantity: number,
+    period: string, // YYYY-MM
+  ): Promise<void> {
+    const now = new Date();
+    const periodStart = new Date(`${period}-01T00:00:00Z`);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    const sql = `
+      INSERT INTO usage_records (id, tenant_id, metric, quantity, recorded_at, period_start, period_end)
+      VALUES (gen_random_uuid(), $1, $2, $3, NOW(), $4, $5)
+      ON CONFLICT DO NOTHING
+    `;
+    // For high-frequency metrics, upsert by day bucket
+    const upsertSql = `
+      INSERT INTO usage_records (id, tenant_id, metric, quantity, recorded_at, period_start, period_end)
+      VALUES (gen_random_uuid(), $1, $2, $3, NOW(), date_trunc('day', NOW()), date_trunc('day', NOW()) + INTERVAL '1 day')
+    `;
+    await this.queryWithTenant(tenantId, upsertSql, [tenantId, metric, quantity]).catch(() => {});
+  }
 }
 
 // ── Singleton ──

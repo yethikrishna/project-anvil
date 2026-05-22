@@ -109,3 +109,29 @@ export function validateSlug(slug: string): boolean {
 export function sanitizeString(input: string, maxLength = 255): string {
   return input.trim().slice(0, maxLength).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
 }
+
+// ── Session Extraction (shared helper) ──
+
+import {NextRequest} from 'next/server';
+
+export function getAdminSession(request: NextRequest): AdminSession | null {
+  // Support both Authorization Bearer JWT and X-Admin-Session base64
+  const auth = request.headers.get('authorization');
+  if (auth?.startsWith('Bearer ')) {
+    try {
+      const token = auth.slice(7);
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        return JSON.parse(Buffer.from(parts[1], 'base64url').toString()) as AdminSession;
+      }
+    } catch { /* fall through */ }
+  }
+
+  const header = request.headers.get('x-admin-session');
+  if (!header) return null;
+  try {
+    return JSON.parse(Buffer.from(header, 'base64').toString()) as AdminSession;
+  } catch {
+    return null;
+  }
+}
