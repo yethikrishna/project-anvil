@@ -64,6 +64,8 @@ const ExportDocSchema = z.object({
 
 // ── Helper ─────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 async function docsFetch(
   path: string,
   options: {
@@ -81,16 +83,25 @@ async function docsFetch(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.context.authToken) headers['Authorization'] = `Bearer ${options.context.authToken}`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   try {
     const resp = await fetch(url.toString(), {
       method: options.method ?? 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
     });
     const data = await resp.json();
     return { ok: resp.ok, data, status: resp.status };
   } catch (err) {
+    if (controller.signal.aborted) {
+      return { ok: false, data: { error: 'Request timed out' }, status: 408 };
+    }
     return { ok: false, data: { error: err instanceof Error ? err.message : 'Network error' }, status: 0 };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

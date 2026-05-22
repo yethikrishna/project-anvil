@@ -468,10 +468,24 @@ export class UserContext {
       sections.push(`Recent activity: ${summaries}`);
     }
 
-    return sections.join('\n');
+    // Enforce token budget (~4 chars per token)
+    const maxChars = maxTokens * 4;
+    let result = sections.join('\n');
+    if (result.length > maxChars) {
+      // Drop sections from least important to most important until we fit
+      const dropOrder = ['Recent activity', 'Recent topics', 'Active documents', 'Frequent contacts', 'Known jargon'];
+      for (const prefix of dropOrder) {
+        if (result.length <= maxChars) break;
+        const lines = result.split('\n');
+        result = lines.filter(l => !l.startsWith(prefix)).join('\n');
+      }
+      // Final hard truncate if still too long
+      if (result.length > maxChars) {
+        result = result.slice(0, maxChars);
+      }
+    }
 
-    // Note: maxTokens is a soft limit — the caller should truncate if needed.
-    // A more accurate implementation would count tokens and trim sections.
+    return result;
   }
 
   // ── Serialization ──────────────────────────────

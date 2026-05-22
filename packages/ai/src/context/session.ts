@@ -501,10 +501,19 @@ export class Session {
 
 export class SessionStore {
   private sessions: Map<string, Session> = new Map();
+  private cleanupTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private maxSessions: number;
 
   constructor(options?: { maxSessions?: number }) {
     this.maxSessions = options?.maxSessions ?? 1000;
+  }
+
+  /** Clean up all pending timers (call on shutdown). */
+  dispose(): void {
+    for (const timer of this.cleanupTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.cleanupTimers.clear();
   }
 
   /**
@@ -520,10 +529,18 @@ export class SessionStore {
 
     const session = new Session(id, config, {
       userContext,
-      onStateChange: (s, oldState, newState) => {
+      onStateChange: (s, _oldState, newState) => {
         if (newState === 'completed' || newState === 'error') {
+          // Cancel any existing cleanup timer for this session
+          const existingTimer = this.cleanupTimers.get(s.id);
+          if (existingTimer) clearTimeout(existingTimer);
+
           // Auto-cleanup completed sessions after 5 minutes
-          setTimeout(() => this.sessions.delete(s.id), 5 * 60 * 1000);
+          const timer = setTimeout(() => {
+            this.sessions.delete(s.id);
+            this.cleanupTimers.delete(s.id);
+          }, 5 * 60 * 1000);
+          this.cleanupTimers.set(s.id, timer);
         }
       },
     });
@@ -579,6 +596,11 @@ export class SessionStore {
    * Delete a session.
    */
   delete(id: string): boolean {
+    const timer = this.cleanupTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.cleanupTimers.delete(id);
+    }
     return this.sessions.delete(id);
   }
 
