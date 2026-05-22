@@ -1,0 +1,250 @@
+# Anvil Helm Chart Values
+# Default configuration for self-hosted deployment.
+
+# ── Global ──
+
+global:
+  domain: anvil.local
+  environment: production
+  # Enable multi-tenant mode
+  multitenant: false
+
+# ── Image ──
+
+image:
+  registry: ghcr.io
+  repository: anvil-org
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Keycloak (Identity) ──
+
+keycloak:
+  enabled: true
+  replicas: 1
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: "26.0"
+  admin:
+    user: admin
+    password: ""  # Auto-generated if empty
+  database:
+    host: ""      # Defaults to internal PostgreSQL
+    name: keycloak_db
+    user: keycloak
+    password: ""  # Auto-generated
+  resources:
+    requests: { memory: "512Mi", cpu: "250m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+
+# ── PostgreSQL ──
+
+postgresql:
+  enabled: true
+  replicas: 1
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  auth:
+    database: anvil
+    username: anvil
+    password: ""  # Auto-generated if empty
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+  # TLS
+  tls:
+    enabled: false
+    certSecret: ""
+
+# ── Valkey (Redis fork) ──
+
+valkey:
+  enabled: true
+  replicas: 1
+  image:
+    repository: valkey/valkey
+    tag: "8-alpine"
+  password: ""  # Auto-generated if empty
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests: { memory: "128Mi", cpu: "50m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+
+# ── MinIO (Object Storage) ──
+
+minio:
+  enabled: true
+  replicas: 1
+  image:
+    repository: minio/minio
+    tag: "latest"
+  mode: standalone
+  rootUser: anvil
+  rootPassword: ""  # Auto-generated if empty
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: ""
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "1000m" }
+  # KMS encryption (for HIPAA mode)
+  kms:
+    enabled: false
+    secretKey: ""
+
+# ── Meilisearch ──
+
+meilisearch:
+  enabled: true
+  replicas: 1
+  image:
+    repository: getmeili/meilisearch
+    tag: "v1.10"
+  masterKey: ""  # Auto-generated if empty
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "500m" }
+
+# ── Stalwart Mail Server ──
+
+stalwart:
+  enabled: true
+  replicas: 1
+  image:
+    repository: stalwartlabs/mail-server
+    tag: "latest"
+  hostname: mail.anvil.local
+  persistence:
+    enabled: true
+    size: 20Gi
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "1Gi", cpu: "500m" }
+
+# ── Anvil Apps ──
+
+apps:
+  docs:
+    enabled: true
+    replicas: 1
+    port: 3000
+  drive:
+    enabled: true
+    replicas: 1
+    port: 3001
+  gmail:
+    enabled: true
+    replicas: 1
+    port: 3002
+  calendar:
+    enabled: true
+    replicas: 1
+    port: 3003
+  search:
+    enabled: true
+    replicas: 1
+    port: 3004
+  maps:
+    enabled: true
+    replicas: 1
+    port: 3005
+  chat:
+    enabled: true
+    replicas: 1
+    port: 3006
+  tasks:
+    enabled: true
+    replicas: 1
+    port: 3007
+  admin:
+    enabled: true
+    replicas: 1
+    port: 3008
+  blog:
+    enabled: true
+    replicas: 1
+    port: 3009
+
+# ── Ingress ──
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls: true
+  # Additional hosts
+  hosts: []
+
+# ── Monitoring ──
+
+monitoring:
+  enabled: false
+  prometheus:
+    enabled: false
+  grafana:
+    enabled: false
+
+# ── Compliance ──
+
+compliance:
+  hipaa: false
+  gdpr: false
+  soc2: false
+  auditLog:
+    enabled: false
+    retentionDays: 2190  # 6 years
+  dataResidency:
+    enabled: false
+    region: "us-east-1"
+
+# ── Security ──
+
+security:
+  mfa:
+    policy: "disabled"  # disabled, optional, required
+  sso:
+    enabled: false
+  encryption:
+    hsm:
+      enabled: false
+      type: "aws-kms"  # aws-kms, gcp-kms, azure-keyvault, soft-hsm
+
+# ── Service Account ──
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# ── Pod Settings ──
+
+podAnnotations: {}
+podSecurityContext:
+  fsGroup: 1000
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

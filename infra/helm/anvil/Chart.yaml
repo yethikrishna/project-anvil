@@ -1,0 +1,20 @@
+apiVersion: v2
+name: anvil
+description: Anvil — Open source productivity suite (Docs, Drive, Mail, Calendar, Search, Maps)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://anvil.dev
+sources:
+  - https://github.com/anvil-org/anvil
+maintainers:
+  - name: Anvil Team
+    email: hello@anvil.dev
+keywords:
+  - productivity
+  - collaboration
+  - docs
+  - drive
+  - mail
+  - calendar
+  - self-hosted

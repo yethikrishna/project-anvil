@@ -1,0 +1,58 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "anvil.fullname" . }}
+  labels:
+    {{- include "anvil.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.global.domain }}
+      secretName: {{ include "anvil.fullname" . }}-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain }}
+      http:
+        paths:
+          {{- range $name, $app := .Values.apps }}
+          {{- if $app.enabled }}
+          - path: /{{ $name }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" $ }}-{{ $name }}
+                port:
+                  number: {{ $app.port }}
+          {{- end }}
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvil.fullname" . }}-blog
+                port:
+                  number: {{ .Values.apps.blog.port }}
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ .serviceName }}
+                port:
+                  number: {{ .port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
