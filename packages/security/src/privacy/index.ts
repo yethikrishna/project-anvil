@@ -1,10 +1,11 @@
 /**
  * @anvil/security/privacy — Privacy-Preserving Primitives for Anvil
  *
- * 12 novel privacy mechanisms for zero-knowledge, encrypted computation,
- * and metadata protection across Docs, Drive, Mail, and Calendar.
+ * 12 core + 4 novel privacy mechanisms for zero-knowledge, encrypted
+ * computation, and metadata protection across Docs, Drive, Mail, Calendar.
  *
  * Each module can be used independently or composed together.
+ * The PrivacyCompose framework (#14) enables safe cross-module composition.
  */
 
 // ── 1. Zero-Knowledge Document Access Proofs ──
@@ -103,3 +104,31 @@ export {
   type CRDTMetadata,
   type OperationReceipt,
 } from './encrypted-crdt.js';
+
+// ── Novel Innovations (Beyond State of the Art) ──
+
+export {
+  ZKAccessTree,
+  type ZKTreeProof,
+  type ZKTreeConfig,
+} from './novel/zk-access-tree.js';
+
+export {
+  PrivacyCompose,
+  type ModuleAdapter,
+  type ComposedBudget,
+  type CrossModuleLoss,
+} from './novel/privacy-compose.js';
+
+export {
+  PredictiveORAM,
+  AccessPredictor,
+  CoverTrafficGenerator,
+} from './novel/predictive-oram.js';
+
+export {
+  ZKMergeProver,
+  ZKMergeVerifier,
+  type MergeProof,
+  type EncryptedOperationBatch,
+} from './novel/zk-crdt-merge.js';

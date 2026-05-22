@@ -30,6 +30,8 @@ import {
 import { semanticSearch as semanticSearchAI } from './lib/semantic-email-search';
 import { EmailRulesManager } from './components/email-rules-manager';
 import { FollowUpPanel } from './components/follow-up-panel';
+import { SmartRulesManager, DeadlineExtractor } from './components/smart-rules-manager';
+import { scoreInbox, scoreEmailPriority, recordInteraction, loadPriorityConfig, type PriorityScore } from './lib/priority-inbox-scorer';
 import CalendarView from './components/calendar-view';
 import ContactsView from './components/contacts-view';
 
@@ -723,6 +725,24 @@ export default function GmailPage() {
                 const threadMsgs = MOCK_THREADS[mail.threadId] || [mail];
                 const hasReplies = threadMsgs.length > 1;
 
+                // Priority scoring
+                const priorityConfig = loadPriorityConfig();
+                const priority = scoreEmailPriority(mail, threadMsgs, priorityConfig);
+                const tierColors: Record<string, string> = {
+                  critical: 'text-red-600',
+                  high: 'text-orange-500',
+                  normal: 'text-gray-400',
+                  low: 'text-gray-300',
+                  bulk: 'text-gray-200',
+                };
+                const tierIcons: Record<string, string> = {
+                  critical: '🔴',
+                  high: '🟠',
+                  normal: '',
+                  low: '',
+                  bulk: '',
+                };
+
                 return (
                   <div
                     key={mail.id}
@@ -773,6 +793,7 @@ export default function GmailPage() {
                         )}
                       </div>
                       <p className={cn('text-sm truncate', !mail.read ? 'font-medium text-gray-800' : 'text-gray-600')}>
+                        {tierIcons[priority.tier] && <span className="mr-1" title={`Priority: ${priority.tier} (${priority.overall}/100) — ${priority.reasons.join(', ')}`}>{tierIcons[priority.tier]}</span>}
                         {mail.subject}
                       </p>
                       <p className="text-xs text-gray-400 truncate">{mail.body.slice(0, 80)}...</p>

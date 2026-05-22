@@ -1,77 +1,92 @@
-/**
- * Admin API — Billing status and management.
- */
+import {NextRequest} from 'next/server';
+import {getAdminDB} from '../../../lib/db';
+import {success, error} from '../../../lib/admin-api';
+import {getStripeClient} from '@anvil/billing/stripe';
 
-import {NextRequest, NextResponse} from 'next/server';
-import {PLANS, type PlanId} from '../../../../../../../packages/billing/src/index';
+// ── GET /api/admin/billing — Get billing status ──
 
-interface BillingStatus {
-  planId: PlanId;
-  planName: string;
-  seats: number;
-  maxSeats: number;
-  storageUsedGB: number;
-  maxStorageGB: number;
-  currentPeriodStart: string;
-  currentPeriodEnd: string;
-  stripeCustomerId?: string;
-  paymentMethod?: {brand: string; last4: string};
-  invoices: Array<{id: string; date: string; amount: number; status: string}>;
-}
+export async function GET(request: NextRequest) {
+  const session = getAdminSession(request);
+  if (!session) return error('Unauthorized', 401);
+  if (!isAdmin(session)) return error('Forbidden', 403);
 
-const billing: BillingStatus = {
-  planId: 'free',
-  planName: 'Free',
-  seats: 5,
-  maxSeats: 5,
-  storageUsedGB: 4.9,
-  maxStorageGB: 5,
-  currentPeriodStart: '2026-05-01',
-  currentPeriodEnd: '2026-06-01',
-  invoices: [],
-};
+  const db = getAdminDB();
 
-export async function GET() {
-  const plan = PLANS[billing.planId];
-  return NextResponse.json({
-    ...billing,
-    planDetails: plan,
-    usage: {
-      seats: {current: billing.seats, limit: billing.maxSeats, pct: Math.round(billing.seats / billing.maxSeats * 100)},
-      storage: {current: billing.storageUsedGB, limit: billing.maxStorageGB, pct: Math.round(billing.storageUsedGB / billing.maxStorageGB * 100)},
-    },
+  const [billingAccount, usage] = await Promise.all([
+    db.getBillingAccount(session.tenantId),
+    db.getUsage(session.tenantId),
+  ]);
+
+  return success({
+    billing: billingAccount,
+    usage,
   });
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {action, planId, seats} = body;
+// ── POST /api/admin/billing/checkout — Create checkout session ──
 
-  switch (action) {
-    case 'change_plan': {
-      if (!planId || !PLANS[planId as PlanId]) {
-        return NextResponse.json({error: 'Invalid plan'}, {status: 400});
-      }
-      // In production: Create Stripe checkout session
-      return NextResponse.json({
-        checkoutUrl: 'https://billing.stripe.com/session/xxx',
-        message: `Redirecting to checkout for ${PLANS[planId as PlanId].name} plan`,
+export async function POST(request: NextRequest) {
+  const session = getAdminSession(request);
+  if (!session) return error('Unauthorized', 401);
+  if (session.role !== 'owner') return error('Only owners can manage billing', 403);
+
+  const body = await request.json();
+  const {planId, seats} = body;
+
+  if (!planId) return error('planId is required');
+  if (!seats || seats < 1) return error('seats must be >= 1');
+
+  const db = getAdminDB();
+  const billingAccount = await db.getBillingAccount(session.tenantId);
+
+  let stripeCustomerId = billingAccount?.stripe_customer_id;
+
+  try {
+    const stripe = getStripeClient();
+
+    // Create customer if needed
+    if (!stripeCustomerId) {
+      const customer = await stripe.createCustomer({
+        email: session.email,
+        name: `Tenant ${session.tenantId}`,
+        orgId: session.tenantId,
       });
+      stripeCustomerId = customer.id;
     }
-    case 'update_seats': {
-      if (!seats || seats < 1) {
-        return NextResponse.json({error: 'Invalid seat count'}, {status: 400});
-      }
-      billing.seats = seats;
-      return NextResponse.json({seats});
-    }
-    case 'portal': {
-      // In production: Create Stripe customer portal session
-      return NextResponse.json({
-        portalUrl: 'https://billing.stripe.com/portal/xxx',
-      });
-    }
-    default:
-      return NextResponse.json({error: 'Unknown action'}, {status: 400});
+
+    // Map plan to Stripe price
+    const priceMap: Record<string, string> = {
+      starter: process.env.STRIPE_STARTER_PRICE_ID ?? 'price_starter_monthly',
+      business: process.env.STRIPE_BUSINESS_PRICE_ID ?? 'price_business_monthly',
+    };
+
+    const priceId = priceMap[planId];
+    if (!priceId) return error('Invalid plan for upgrade');
+
+    const checkout = await stripe.createCheckoutSession({
+      customerId: stripeCustomerId,
+      priceId,
+      mode: 'subscription',
+      seats,
+      successUrl: `${process.env.NEXT_PUBLIC_URL}/admin?billing=success`,
+      cancelUrl: `${process.env.NEXT_PUBLIC_URL}/admin?billing=cancelled`,
+      trialDays: 14,
+      allowPromotionCodes: true,
+      metadata: {tenantId: session.tenantId, planId},
+    });
+
+    return success({checkoutUrl: checkout.url});
+  } catch (err: any) {
+    return error(`Billing error: ${err.message}`, 500);
   }
+}
+
+function getAdminSession(request: NextRequest) {
+  const header = request.headers.get('x-admin-session');
+  if (!header) return null;
+  try { return JSON.parse(atob(header)); } catch { return null; }
+}
+
+function isAdmin(session: any): boolean {
+  return session?.role === 'owner' || session?.role === 'admin';
 }

@@ -1,83 +1,78 @@
-/**
- * Admin API — Audit log endpoint.
- */
+import {NextRequest} from 'next/server';
+import {getAdminDB} from '../../../lib/db';
+import {success, error, parsePagination} from '../../../lib/admin-api';
 
-import {NextRequest, NextResponse} from 'next/server';
+// ── GET /api/admin/audit — List audit log entries ──
 
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  action: string;
-  resource: string;
-  details: string;
-  ip: string;
-  userAgent: string;
-  severity: 'info' | 'warn' | 'error';
-}
+export async function GET(request: NextRequest) {
+  const session = getAdminSession(request);
+  if (!session) return error('Unauthorized', 401);
+  if (!isAdmin(session)) return error('Forbidden', 403);
 
-// In production: SELECT * FROM ${schema}.audit_log ORDER BY created_at DESC
-const auditLog: AuditEntry[] = [];
+  const url = new URL(request.url);
+  const {page, limit} = parsePagination(url.searchParams);
 
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const action = url.searchParams.get('action') ?? '';
-  const userId = url.searchParams.get('userId') ?? '';
-  const from = url.searchParams.get('from') ?? '';
-  const to = url.searchParams.get('to') ?? '';
-  const page = parseInt(url.searchParams.get('page') ?? '1');
-  const limit = parseInt(url.searchParams.get('limit') ?? '100');
-
-  let result = [...auditLog];
-
-  if (action) result = result.filter(e => e.action.startsWith(action));
-  if (userId) result = result.filter(e => e.userId === userId);
-  if (from) result = result.filter(e => e.timestamp >= from);
-  if (to) result = result.filter(e => e.timestamp <= to);
-
-  // Sort newest first
-  result.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
-  const total = result.length;
-  const offset = (page - 1) * limit;
-
-  return NextResponse.json({
-    entries: result.slice(offset, offset + limit),
-    total,
+  const db = getAdminDB();
+  const result = await db.listAuditLog(session.tenantId, {
     page,
     limit,
-    actions: [...new Set(auditLog.map(e => e.action))],
+    userId: url.searchParams.get('userId') ?? undefined,
+    action: url.searchParams.get('action') ?? undefined,
+    startDate: url.searchParams.get('startDate') ?? undefined,
+    endDate: url.searchParams.get('endDate') ?? undefined,
+  });
+
+  return success({
+    entries: result.entries,
+    pagination: {page, limit, total: result.total, hasMore: page * limit < result.total},
   });
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {userId, userName, action, resource, details, ip, userAgent, severity} = body;
+// ── POST /api/admin/audit — Export audit log ──
 
-  if (!action || !resource) {
-    return NextResponse.json({error: 'Missing required fields'}, {status: 400});
+export async function POST(request: NextRequest) {
+  const session = getAdminSession(request);
+  if (!session) return error('Unauthorized', 401);
+  if (session.role !== 'owner') return error('Only owners can export audit logs', 403);
+
+  const body = await request.json();
+  const {format = 'json', startDate, endDate} = body;
+
+  const db = getAdminDB();
+  const result = await db.listAuditLog(session.tenantId, {
+    page: 1,
+    limit: 10000,
+    startDate,
+    endDate,
+  });
+
+  if (format === 'csv') {
+    const csvHeader = 'ID,Timestamp,User,Email,Action,Resource Type,Resource ID,IP Address,Details\n';
+    const csvRows = result.entries.map((e: any) =>
+      `${e.id},"${e.created_at}","${e.user_name ?? 'system'}","${e.user_email ?? ''}","${e.action}","${e.resource_type}","${e.resource_id ?? ''}","${e.ip_address ?? ''}","${JSON.stringify(e.details).replace(/"/g, '""')}"`
+    ).join('\n');
+
+    return new Response(csvHeader + csvRows, {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="audit-log-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
   }
 
-  const entry: AuditEntry = {
-    id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    timestamp: new Date().toISOString(),
-    userId: userId ?? 'system',
-    userName: userName ?? 'System',
-    action,
-    resource,
-    details: details ?? '',
-    ip: ip ?? '127.0.0.1',
-    userAgent: userAgent ?? '',
-    severity: severity ?? 'info',
-  };
+  return success({
+    entries: result.entries,
+    exportedAt: new Date().toISOString(),
+    count: result.entries.length,
+  });
+}
 
-  auditLog.push(entry);
+function getAdminSession(request: NextRequest) {
+  const header = request.headers.get('x-admin-session');
+  if (!header) return null;
+  try { return JSON.parse(atob(header)); } catch { return null; }
+}
 
-  // Keep last 10,000 entries in memory
-  if (auditLog.length > 10000) {
-    auditLog.splice(0, auditLog.length - 10000);
-  }
-
-  return NextResponse.json({entry}, {status: 201});
+function isAdmin(session: any): boolean {
+  return session?.role === 'owner' || session?.role === 'admin';
 }

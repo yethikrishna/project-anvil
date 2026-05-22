@@ -26,6 +26,7 @@ import {AIQuickActions} from '../../../lib/ai/ai-quick-actions';
 import {AIGrammarChecker} from '../../../lib/ai/grammar-checker';
 import {AIAutocorrect} from '../../../lib/ai/ai-autocorrect';
 import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
+import {DocumentHealthDashboard} from '../../../lib/ai/document-health-dashboard';
 import '../../../ai-styles.css';
 
 // ── Toolbar ──
@@ -191,6 +192,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showAICommands, setShowAICommands] = useState(false);
   const [hasSuggestion, setHasSuggestion] = useState(false);
   const [suggestionText, setSuggestionText] = useState('');
+  const [showHealth, setShowHealth] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch document metadata
@@ -406,6 +408,13 @@ export default function EditorPage({params}: EditorPageProps) {
           ✨ AI Assist
         </button>
         <button
+          onClick={() => setShowHealth(!showHealth)}
+          className={`px-2 py-1 rounded text-xs transition-colors ${showHealth ? 'bg-green-100 text-green-700' : 'text-gray-500 hover:bg-gray-100'}`}
+          title="Document Health"
+        >
+          📊 Health
+        </button>
+        <button
           onClick={() => setShowOutline(!showOutline)}
           className={`px-2 py-1 rounded text-xs transition-colors ${showOutline ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
           title="Document Outline"
@@ -451,6 +460,11 @@ export default function EditorPage({params}: EditorPageProps) {
 
       {/* Analytics Side Panel */}
       <AnalyticsPanel documentId={paramsId} open={showAnalytics} onClose={() => setShowAnalytics(false)} />
+
+      {/* Document Health Dashboard */}
+      {showHealth && (
+        <DocumentHealthDashboard editor={editor} onClose={() => setShowHealth(false)} />
+      )}
 
       {/* AI Command Panel */}
       {showAICommands && editor && (

@@ -1,142 +1,120 @@
-/**
- * Admin API — User management routes.
- * Real CRUD operations for organization users.
- */
+import {NextRequest} from 'next/server';
+import {getAdminDB} from '../../../lib/db';
+import {success, error, notFound, parsePagination, createAuditEvent, type AdminSession} from '../../../lib/admin-api';
 
-import {NextRequest, NextResponse} from 'next/server';
+// ── GET /api/admin/users — List users ──
 
-interface UserPayload {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'editor' | 'viewer';
-  status: 'active' | 'suspended' | 'invited';
-  storageUsed: number;
-  appsUsed: string[];
-  lastActiveAt: string;
-  createdAt: string;
-  mfaEnabled: boolean;
-  ssoLinked: boolean;
-}
+export async function GET(request: NextRequest) {
+  const session = getSession(request);
+  if (!session) return error('Unauthorized', 401);
 
-// In production: PostgreSQL with tenant-scoped queries
-// SELECT * FROM ${schema}.users WHERE ...
-const users = new Map<string, UserPayload>();
+  const forbidden = requireAdminRole(session);
+  if (forbidden) return forbidden;
 
-// Seed demo data
-users.set('1', {
-  id: '1', email: 'indu@anvil.dev', name: 'Indu', role: 'admin', status: 'active',
-  storageUsed: 2400, appsUsed: ['Drive', 'Docs', 'Gmail', 'Calendar'],
-  lastActiveAt: new Date().toISOString(), createdAt: '2026-01-01T00:00:00Z',
-  mfaEnabled: true, ssoLinked: false,
-});
+  const url = new URL(request.url);
+  const {page, limit} = parsePagination(url.searchParams);
+  const search = url.searchParams.get('search') ?? undefined;
+  const role = url.searchParams.get('role') ?? undefined;
+  const status = url.searchParams.get('status') ?? undefined;
 
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const search = url.searchParams.get('search') ?? '';
-  const role = url.searchParams.get('role') ?? '';
-  const status = url.searchParams.get('status') ?? '';
-  const page = parseInt(url.searchParams.get('page') ?? '1');
-  const limit = parseInt(url.searchParams.get('limit') ?? '50');
+  const db = getAdminDB();
+  const result = await db.listUsers(session.tenantId, {page, limit, search, role, status});
 
-  let result = Array.from(users.values());
-
-  if (search) {
-    const q = search.toLowerCase();
-    result = result.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-  }
-  if (role) result = result.filter(u => u.role === role);
-  if (status) result = result.filter(u => u.status === status);
-
-  const total = result.length;
-  const offset = (page - 1) * limit;
-  result = result.slice(offset, offset + limit);
-
-  return NextResponse.json({
-    users: result,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
+  return success({
+    users: result.users,
+    pagination: {page, limit, total: result.total, hasMore: page * limit < result.total},
   });
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {email, name, role} = body;
+// ── POST /api/admin/users — Create/invite user ──
 
-  if (!email || !name || !role) {
-    return NextResponse.json({error: 'Missing required fields: email, name, role'}, {status: 400});
+export async function POST(request: NextRequest) {
+  const session = getSession(request);
+  if (!session) return error('Unauthorized', 401);
+
+  const forbidden = requireAdminRole(session);
+  if (forbidden) return forbidden;
+
+  const body = await request.json();
+  const {email, name, role = 'member', action = 'invite'} = body;
+
+  if (!email || !name) {
+    return error('email and name are required');
   }
 
-  if (!['admin', 'editor', 'viewer'].includes(role)) {
-    return NextResponse.json({error: 'Invalid role'}, {status: 400});
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return error('Invalid email format');
   }
 
-  // Check for duplicate email
-  for (const [, user] of users) {
-    if (user.email === email) {
-      return NextResponse.json({error: 'Email already exists'}, {status: 409});
+  const validRoles = ['admin', 'member', 'viewer', 'guest'];
+  if (!validRoles.includes(role)) {
+    return error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+  }
+
+  const db = getAdminDB();
+
+  if (action === 'invite') {
+    const invitation = await db.inviteUser(session.tenantId, email, role, session.userId);
+
+    await createAuditEvent({
+      tenantId: session.tenantId,
+      userId: session.userId,
+      action: 'user.invite',
+      resourceType: 'user',
+      resourceId: email,
+      details: {email, role, invitationToken: invitation.token},
+      ipAddress: request.headers.get('x-forwarded-for') ?? undefined,
+      userAgent: request.headers.get('user-agent') ?? undefined,
+    });
+
+    return success({invitation: {email, role, expiresAt: invitation.expires}}, 201);
+  }
+
+  // Direct create
+  const user = await db.createUser(session.tenantId, {email, name, role});
+
+  await createAuditEvent({
+    tenantId: session.tenantId,
+    userId: session.userId,
+    action: 'user.create',
+    resourceType: 'user',
+    resourceId: user.id,
+    details: {email, name, role},
+    ipAddress: request.headers.get('x-forwarded-for') ?? undefined,
+    userAgent: request.headers.get('user-agent') ?? undefined,
+  });
+
+  return success({user}, 201);
+}
+
+// ── Helpers ──
+
+function getSession(request: NextRequest): AdminSession | null {
+  // In production: validate JWT/session cookie via @anvil/auth
+  // This is a placeholder that reads from authorization header
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) return null;
+
+  // Decode and validate JWT
+  // const session = await validateToken(authHeader.replace('Bearer ', ''));
+  // return session;
+
+  // Demo: parse from header (X-Admin-Session for dev)
+  const sessionHeader = request.headers.get('x-admin-session');
+  if (sessionHeader) {
+    try {
+      return JSON.parse(atob(sessionHeader));
+    } catch {
+      return null;
     }
   }
 
-  const id = `user_${Date.now()}`;
-  const user: UserPayload = {
-    id,
-    email,
-    name,
-    role,
-    status: 'invited',
-    storageUsed: 0,
-    appsUsed: [],
-    lastActiveAt: '',
-    createdAt: new Date().toISOString(),
-    mfaEnabled: false,
-    ssoLinked: false,
-  };
-
-  users.set(id, user);
-
-  // In production: Send invite email via Stalwart SMTP
-  // await sendInviteEmail(email, name);
-
-  return NextResponse.json({user}, {status: 201});
+  return null;
 }
 
-export async function PATCH(req: NextRequest) {
-  const body = await req.json();
-  const {id, ...updates} = body;
-
-  if (!id) return NextResponse.json({error: 'Missing user id'}, {status: 400});
-
-  const user = users.get(id);
-  if (!user) return NextResponse.json({error: 'User not found'}, {status: 404});
-
-  // Only allow updating safe fields
-  const allowedFields = ['name', 'role', 'status'] as const;
-  for (const field of allowedFields) {
-    if (updates[field] !== undefined) {
-      (user as any)[field] = updates[field];
-    }
+function requireAdminRole(session: AdminSession): Response | null {
+  if (session.role !== 'owner' && session.role !== 'admin') {
+    return error('Forbidden: admin access required', 403);
   }
-
-  users.set(id, user);
-
-  return NextResponse.json({user});
-}
-
-export async function DELETE(req: NextRequest) {
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
-
-  if (!id) return NextResponse.json({error: 'Missing user id'}, {status: 400});
-
-  const user = users.get(id);
-  if (!user) return NextResponse.json({error: 'User not found'}, {status: 404});
-
-  // Soft delete: mark as suspended
-  user.status = 'suspended';
-  users.set(id, user);
-
-  return NextResponse.json({success: true});
+  return null;
 }

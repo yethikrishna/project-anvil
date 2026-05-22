@@ -9,6 +9,10 @@
  *   semantic-search    — AI-powered email search
  *   classify           — LLM-powered inbox categorization
  *   embed-emails       — Generate embeddings for email content
+ *   extract-deadlines  — Extract deadlines, meetings, action items from emails
+ *   learn-behavior     — Learn from user actions for smart filters
+ *   generate-rules     — Generate smart filter rules from learned behavior
+ *   match-style        — Analyze and return writing style profile
  */
 
 import {createAI} from '@anvil/ai';
@@ -27,7 +31,7 @@ function getAI() {
 async function handleThreadSummary(ai: ReturnType<typeof getAI>, payload: {
   messages: Array<{from: string; body: string; date: string}>;
   subject: string;
-}): Promise<{summary: string; keyPoints: string[]; actionItems: string[]; sentiment: string}> {
+}): Promise<{summary: string; keyPoints: string[]; actionItems: string[]; sentiment: string; deadlines: string[]; decisions: string[]}> {
   const threadText = payload.messages
     .map((m, i) => `[Message ${i + 1}] From: ${m.from} (${m.date})\n${m.body}`)
     .join('\n\n');
@@ -38,8 +42,18 @@ async function handleThreadSummary(ai: ReturnType<typeof getAI>, payload: {
 2. Key discussion points (as a JSON array of strings)
 3. Action items or to-dos mentioned (as a JSON array)
 4. Overall sentiment: positive, neutral, negative, or urgent
+5. Any deadlines or due dates mentioned (as a JSON array of strings)
+6. Decisions that were made (as a JSON array of strings)
 
-Output as JSON: {"summary": "...", "keyPoints": [...], "actionItems": [...], "sentiment": "..."}`},
+Output as JSON:
+{
+  "summary": "...",
+  "keyPoints": ["..."],
+  "actionItems": ["..."],
+  "sentiment": "positive|neutral|negative|urgent",
+  "deadlines": ["..."],
+  "decisions": ["..."]
+}`},
     {role: 'user', content: `Thread subject: ${payload.subject}\n\n${threadText}`},
   ], {temperature: 0.2, maxTokens: 1000});
 
@@ -47,64 +61,117 @@ Output as JSON: {"summary": "...", "keyPoints": [...], "actionItems": [...], "se
     const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    return {summary: result.text.slice(0, 300), keyPoints: [], actionItems: [], sentiment: 'neutral'};
+    return {
+      summary: result.text.slice(0, 300),
+      keyPoints: [],
+      actionItems: [],
+      sentiment: 'neutral',
+      deadlines: [],
+      decisions: [],
+    };
   }
 }
 
 // ── AI Compose ──
 
 async function handleCompose(ai: ReturnType<typeof getAI>, payload: {
-  threadMessages: Array<{from: string; body: string}>;
+  threadMessages: Array<{from: string; body: string; date: string}>;
   subject: string;
-  intent?: string;
+  intent: 'reply' | 'new' | 'forward';
   writingStyle?: string;
-}): Promise<{draft: string; tone: string}> {
+  tone?: 'professional' | 'friendly' | 'casual' | 'direct' | 'empathetic';
+  length?: 'brief' | 'medium' | 'detailed';
+}): Promise<{draft: string; subjectSuggestion?: string}> {
   const threadContext = payload.threadMessages
-    .map(m => `${m.from}: ${m.body.slice(0, 200)}`)
+    .slice(-5)
+    .map((m, i) => `[${m.from}]: ${m.body}`)
     .join('\n');
 
-  const intent = payload.intent || 'reply';
-  const style = payload.writingStyle || 'professional and concise';
+  const tone = payload.tone || 'professional';
+  const length = payload.length || 'medium';
+  const styleHint = payload.writingStyle ? `\nMatch the user's writing style: ${payload.writingStyle}` : '';
+
+  const lengthGuide = length === 'brief' ? '2-3 sentences' :
+    length === 'detailed' ? '5-8 sentences with detail' : '3-5 sentences';
 
   const result = await ai.generate([
-    {role: 'system', content: `You are an email composer. Write a ${intent} email that is ${style}.
-Rules:
-- Be natural and contextually appropriate
-- Reference specific points from the thread when relevant
-- Don't be overly formal unless the thread warrants it
-- Keep it concise — aim for 3-5 sentences for replies
-- Output ONLY the email body, no subject line or signature`},
-    {role: 'user', content: `Thread: ${payload.subject}\n\n${threadContext}\n\nWrite a ${intent}.`},
-  ], {temperature: 0.4, maxTokens: 800});
+    {role: 'system', content: `You are composing a ${tone} email reply.
+Thread context (for reference, do NOT quote directly):
+${threadContext}
+${styleHint}
 
-  return {draft: result.text.trim(), tone: style};
+Rules:
+- Write ${lengthGuide}
+- Be natural and specific
+- Address the key points from the thread
+- Include a proper greeting and sign-off matching the ${tone} tone
+- Output the email body as plain text (no HTML)
+- If the subject needs a Re: prefix, suggest it on the first line as: Subject: Re: ...`},
+    {role: 'user', content: `Subject: ${payload.subject}\nIntent: ${payload.intent}\nCompose the email.`},
+  ], {temperature: 0.4, maxTokens: 600});
+
+  // Extract subject suggestion if present
+  const subjectMatch = result.text.match(/^Subject: (.+?)$/m);
+  const body = subjectMatch ? result.text.replace(/^Subject: .+?\n/, '').trim() : result.text.trim();
+
+  return {
+    draft: body,
+    subjectSuggestion: subjectMatch?.[1],
+  };
 }
 
 // ── Unread Digest ──
 
 async function handleDigest(ai: ReturnType<typeof getAI>, payload: {
   unreadEmails: Array<{from: string; subject: string; body: string; date: string}>;
-}): Promise<{digest: string; categories: Record<string, string[]>; priorities: string[]}> {
+}): Promise<{
+  digest: string;
+  priorities: string[];
+  actionItems: string[];
+  deadlines: string[];
+  categories: Record<string, string[]>;
+}> {
   const emailList = payload.unreadEmails
-    .map(e => `- From: ${e.from} | Subject: ${e.subject} | Preview: ${e.body.slice(0, 100)}`)
-    .join('\n');
+    .slice(0, 30) // Limit to avoid context overflow
+    .map((e, i) => `[${i + 1}] From: ${e.from}\nSubject: ${e.subject}\n${e.body.slice(0, 200)}`)
+    .join('\n\n');
 
   const result = await ai.generate([
-    {role: 'system', content: `Create a concise email digest from these unread emails.
-Output JSON:
+    {role: 'system', content: `Analyze these unread emails and provide:
+1. A 3-4 sentence digest summarizing the most important items
+2. Priority list: the top 3-5 most important emails (by number reference)
+3. Action items extracted from the emails
+4. Deadlines or due dates mentioned
+5. Categorize emails into: urgent, work, personal, newsletters, follow-up-needed
+
+Output as JSON:
 {
-  "digest": "2-3 sentence overview of what's new",
-  "categories": {"Action Needed": ["subject1"], "FYI": ["subject2"], "Updates": ["subject3"]},
-  "priorities": ["Most urgent subject", "Second priority"]
+  "digest": "...",
+  "priorities": ["[N] Subject — reason"],
+  "actionItems": ["..."],
+  "deadlines": ["..."],
+  "categories": {
+    "urgent": ["[N] Subject"],
+    "work": ["[N] Subject"],
+    "personal": ["[N] Subject"],
+    "newsletters": ["[N] Subject"],
+    "follow-up-needed": ["[N] Subject"]
+  }
 }`},
-    {role: 'user', content: `${payload.unreadEmails.length} unread emails:\n\n${emailList}`},
+    {role: 'user', content: `Unread emails:\n\n${emailList}`},
   ], {temperature: 0.2, maxTokens: 1500});
 
   try {
     const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    return {digest: result.text.slice(0, 500), categories: {}, priorities: []};
+    return {
+      digest: result.text.slice(0, 500),
+      priorities: [],
+      actionItems: [],
+      deadlines: [],
+      categories: {},
+    };
   }
 }
 
@@ -113,181 +180,229 @@ Output JSON:
 async function handleSemanticSearch(ai: ReturnType<typeof getAI>, payload: {
   query: string;
   emails: Array<{id: string; from: string; subject: string; body: string}>;
-}): Promise<{results: Array<{id: string; relevance: number; reason: string}>}> {
-  // Use AI for semantic understanding
-  const emailPreviews = payload.emails
-    .map((e, i) => `[${i}] From: ${e.from} | ${e.subject}: ${e.body.slice(0, 150)}`)
-    .join('\n');
+}): Promise<{results: Array<{id: string; relevance: number; reason: string; snippet: string}>}> {
+  const emailBlock = payload.emails
+    .slice(0, 50)
+    .map((e, i) => `[${i}] ID:${e.id} From:${e.from} Subject:${e.subject}\n${e.body.slice(0, 300)}`)
+    .join('\n\n');
 
   const result = await ai.generate([
-    {role: 'system', content: `Given the query, find the most relevant emails. Output JSON array:
-[{"index": 0, "relevance": 0.9, "reason": "why it matches"}]
-Max 10 results. Only include emails with relevance > 0.3.`},
-    {role: 'user', content: `Query: "${payload.query}"\n\nEmails:\n${emailPreviews}`},
-  ], {temperature: 0.1, maxTokens: 1500});
+    {role: 'system', content: `Search these emails for the query. Return matching emails with relevance scores.
+Output JSON array: [{"id": "...", "relevance": 0.0-1.0, "reason": "why it matches", "snippet": "relevant excerpt"}]
+Sort by relevance, max 10 results.`},
+    {role: 'user', content: `Query: ${payload.query}\n\nEmails:\n${emailBlock}`},
+  ], {temperature: 0.1, maxTokens: 2000});
 
   try {
     const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(cleaned);
-    return {
-      results: parsed.map((r: any) => ({
-        id: payload.emails[r.index]?.id || '',
-        relevance: r.relevance || 0.5,
-        reason: r.reason || '',
-      })),
-    };
+    return {results: Array.isArray(parsed) ? parsed : parsed.results || []};
   } catch {
     return {results: []};
   }
 }
 
-// ── LLM Classification ──
+// ── Classify Email ──
 
 async function handleClassify(ai: ReturnType<typeof getAI>, payload: {
-  subject: string;
-  from: string;
-  bodyPreview: string;
-  categories: string[];
-}): Promise<{category: string; confidence: number; reasoning: string; subCategory?: string; priority?: string}> {
-  const result = await ai.generate([
-    {role: 'system', content: `Classify this email into exactly one of these categories: ${payload.categories.join(', ')}.
-Also determine:
-- Sub-category (dev-tools, newsletter, transaction, social, calendar, education, health, finance, travel, general)
-- Priority (low, medium, high, urgent)
+  emails: Array<{subject: string; from: string; body: string}>;
+}): Promise<Array<{category: string; confidence: number; reasoning: string; priority: string}>> {
+  const emailList = payload.emails
+    .map((e, i) => `[${i}] From: ${e.from}\nSubject: ${e.subject}\n${e.body.slice(0, 300)}`)
+    .join('\n\n');
 
-Output JSON: {"category": "...", "confidence": 0.9, "reasoning": "...", "subCategory": "...", "priority": "..."}`},
-    {role: 'user', content: `From: ${payload.from}\nSubject: ${payload.subject}\nBody preview: ${payload.bodyPreview}`},
-  ], {temperature: 0.1, maxTokens: 300});
+  const result = await ai.generate([
+    {role: 'system', content: `Classify each email into one of: primary, updates, action-needed, fyi
+Also assign priority: low, medium, high, urgent
+
+Output JSON array: [{"category": "primary|updates|action-needed|fyi", "confidence": 0.0-1.0, "reasoning": "...", "priority": "low|medium|high|urgent"}]
+Order matches input order.`},
+    {role: 'user', content: emailList},
+  ], {temperature: 0.1, maxTokens: 1000});
 
   try {
     const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);
   } catch {
-    return {category: 'primary', confidence: 0.4, reasoning: 'LLM parse error, fallback'};
+    return payload.emails.map(() => ({
+      category: 'primary',
+      confidence: 0.5,
+      reasoning: 'Classification failed',
+      priority: 'medium',
+    }));
   }
 }
 
-// ── Email Embeddings ──
+// ── Extract Deadlines & Events ──
 
-async function handleEmbedEmails(ai: ReturnType<typeof getAI>, payload: {
-  emails: Array<{id: string; text: string}>;
-}): Promise<{embeddings: Array<{id: string; embedding: number[]; text: string}>}> {
-  const results: Array<{id: string; embedding: number[]; text: string}> = [];
-
-  for (const email of payload.emails) {
-    try {
-      const emb = await ai.embed(email.text.slice(0, 500));
-      results.push({
-        id: email.id,
-        embedding: emb.embedding,
-        text: email.text.slice(0, 200),
-      });
-    } catch {
-      // Skip emails that fail to embed
-    }
-  }
-
-  return {embeddings: results};
-}
-
-// ── Compose Email with Style ──
-
-async function handleComposeEmail(ai: ReturnType<typeof getAI>, payload: {
-  subject: string;
-  recipientName: string;
-  tone: string;
-  length: string;
-  threadContext?: string;
-  styleProfile?: {avgSentenceLength: number; formality: string; commonGreetings: string[]; commonClosings: string[]; avgEmailLength: number};
-  keyPoints?: string[];
-  intent?: string;
-}): Promise<{html: string; suggestedSubject?: string}> {
-  const toneGuide: Record<string, string> = {
-    professional: 'Professional and respectful. Use formal greetings and closings.',
-    friendly: 'Warm and personable. Use first names and a conversational tone.',
-    casual: 'Relaxed and informal. Short sentences, conversational.',
-    direct: 'Concise and action-oriented. Get to the point quickly.',
-    empathetic: 'Understanding and supportive. Acknowledge feelings.',
-  };
-
-  const lengthGuide: Record<string, string> = {
-    brief: '2-3 sentences, max 75 words.',
-    medium: '3-5 paragraphs, 150-250 words.',
-    detailed: 'Comprehensive, 300-500 words with full context.',
-  };
-
-  const toneDesc = toneGuide[payload.tone] || toneGuide.professional;
-  const lengthDesc = lengthGuide[payload.length] || lengthGuide.medium;
-
-  let systemPrompt = `Write an email that is ${toneDesc}. Length: ${lengthDesc}.`;
-
-  if (payload.styleProfile) {
-    systemPrompt += `\nMatch this writing style:
-- Average sentence length: ${payload.styleProfile.avgSentenceLength} words
-- Formality level: ${payload.styleProfile.formality}
-- Common greetings: ${payload.styleProfile.commonGreetings?.slice(0, 3).join(', ') || 'Hi'}
-- Common closings: ${payload.styleProfile.commonClosings?.slice(0, 3).join(', ') || 'Best'}`;
-  }
-
-  systemPrompt += '\nOutput valid HTML (p, ul, ol, li, strong, em, br only). No subject line.';
-
-  let userPrompt = `Write an email to ${payload.recipientName}.`;
-  if (payload.subject) userPrompt += ` Subject: ${payload.subject}`;
-  if (payload.threadContext) userPrompt += `\n\nThread context:\n${payload.threadContext}`;
-  if (payload.keyPoints?.length) userPrompt += `\n\nKey points to address: ${payload.keyPoints.join('; ')}`;
-  if (payload.intent) userPrompt += `\n\nIntent: ${payload.intent}`;
+async function handleExtractDeadlines(ai: ReturnType<typeof getAI>, payload: {
+  emails: Array<{subject: string; from: string; body: string; date: string}>;
+}): Promise<Array<{
+  emailSubject: string;
+  from: string;
+  deadlines: string[];
+  events: string[];
+  actionItems: string[];
+}>> {
+  const emailBlock = payload.emails
+    .map((e, i) => `[${i}] From: ${e.from} (${e.date})\nSubject: ${e.subject}\n${e.body.slice(0, 500)}`)
+    .join('\n\n');
 
   const result = await ai.generate([
-    {role: 'system', content: systemPrompt},
-    {role: 'user', content: userPrompt},
-  ], {temperature: 0.4, maxTokens: 1500});
+    {role: 'system', content: `Extract deadlines, events, and action items from these emails.
+Output JSON array, one per email:
+[{
+  "emailSubject": "...",
+  "from": "...",
+  "deadlines": ["deadline description with date"],
+  "events": ["event with date/time"],
+  "actionItems": ["action item description"]
+}]
+If nothing found for a category, use empty array.`},
+    {role: 'user', content: emailBlock},
+  ], {temperature: 0.1, maxTokens: 1500});
 
-  return {
-    html: result.text.trim(),
-    suggestedSubject: payload.subject ? undefined : `Re: ${payload.subject}`,
-  };
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return [];
+  }
 }
 
-// ── Improve Email ──
+// ── Learn Behavior ──
 
-async function handleImproveEmail(ai: ReturnType<typeof getAI>, payload: {
-  html: string;
-  tone: string;
-  styleProfile?: any;
-  threadContext?: string;
-}): Promise<{html: string; changes: string[]}> {
-  const toneGuide: Record<string, string> = {
-    professional: 'more professional and polished',
-    friendly: 'warmer and more personable',
-    casual: 'more relaxed and informal',
-    direct: 'more concise and action-oriented',
-    empathetic: 'more understanding and supportive',
-  };
+async function handleLearnBehavior(ai: ReturnType<typeof getAI>, payload: {
+  actions: Array<{
+    emailFrom: string;
+    emailSubject: string;
+    action: 'archive' | 'label' | 'star' | 'delete' | 'reply' | 'forward' | 'mark-read' | 'snooze';
+    label?: string;
+    timestamp: number;
+  }>;
+}): Promise<{
+  patterns: Array<{
+    description: string;
+    fromPattern: string;
+    suggestedAction: string;
+    suggestedLabel?: string;
+    confidence: number;
+    supportingActions: number;
+  }>;
+}> {
+  const actionLog = payload.actions
+    .slice(-50)
+    .map(a => `[${new Date(a.timestamp).toISOString()}] ${a.action} ${a.label ? `(${a.label})` : ''} — From: ${a.emailFrom}, Subject: ${a.emailSubject}`)
+    .join('\n');
 
   const result = await ai.generate([
-    {role: 'system', content: `Improve this email draft to be ${toneGuide[payload.tone] || 'better'}.
-Rules:
-- Fix any grammar or clarity issues
-- Improve flow and readability
-- Keep the same core message
-- Output ONLY the improved HTML (p, ul, ol, li, strong, em, br)
-- Then on a new line output: CHANGES: comma-separated list of what you changed`},
-    {role: 'user', content: payload.html},
-  ], {temperature: 0.3, maxTokens: 1500});
+    {role: 'system', content: `Analyze these email actions and find behavioral patterns.
+Output JSON: {"patterns": [{"description": "what the pattern is", "fromPattern": "email or domain pattern", "suggestedAction": "action", "suggestedLabel": "label or null", "confidence": 0.0-1.0, "supportingActions": N}]}
+Find patterns like: always archives newsletters, labels work emails, stars from boss, etc.`},
+    {role: 'user', content: actionLog},
+  ], {temperature: 0.2, maxTokens: 800});
 
-  const text = result.text.trim();
-  const changesMatch = text.match(/CHANGES:\s*(.+)/);
-  const html = text.replace(/CHANGES:\s*.+/, '').trim();
-  const changes = changesMatch?.[1]?.split(',').map(c => c.trim()) || [];
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {patterns: []};
+  }
+}
 
-  return {html, changes};
+// ── Generate Rules from Behavior ──
+
+async function handleGenerateRules(ai: ReturnType<typeof getAI>, payload: {
+  patterns: Array<{description: string; fromPattern: string; suggestedAction: string; suggestedLabel?: string; confidence: number}>;
+  existingRules: Array<{name: string; conditions: string[]}>;
+}): Promise<{
+  rules: Array<{
+    name: string;
+    description: string;
+    conditions: Array<{field: string; operator: string; value: string}>;
+    actions: Array<{type: string; value?: string}>;
+    confidence: number;
+  }>;
+}> {
+  const patternDesc = payload.patterns.map(p =>
+    `- ${p.description} (from: ${p.fromPattern}, action: ${p.suggestedAction}, confidence: ${p.confidence})`
+  ).join('\n');
+
+  const existingDesc = payload.existingRules.map(r =>
+    `- ${r.name}: ${r.conditions.join(' AND ')}`
+  ).join('\n') || 'No existing rules';
+
+  const result = await ai.generate([
+    {role: 'system', content: `Generate email filter rules based on learned behavioral patterns.
+Avoid duplicating existing rules.
+
+Output JSON: {"rules": [{"name": "short name", "description": "what it does", "conditions": [{"field": "from|subject|body", "operator": "contains|equals|starts-with", "value": "..."}], "actions": [{"type": "label|archive|star|mark-read|categorize", "value": "..."}], "confidence": 0.0-1.0}]}`},
+    {role: 'user', content: `Behavioral patterns:\n${patternDesc}\n\nExisting rules:\n${existingDesc}`},
+  ], {temperature: 0.2, maxTokens: 1000});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {rules: []};
+  }
+}
+
+// ── Match Writing Style ──
+
+async function handleMatchStyle(ai: ReturnType<typeof getAI>, payload: {
+  sentEmails: Array<{to: string; subject: string; body: string}>;
+}): Promise<{
+  formalityScore: number;
+  avgSentenceLength: number;
+  preferredGreeting: string;
+  preferredSignOff: string;
+  commonPhrases: string[];
+  tone: string;
+  suggestions: string[];
+}> {
+  const emails = payload.sentEmails.slice(-20)
+    .map(e => `To: ${e.to}\n${e.body}`)
+    .join('\n---\n');
+
+  const result = await ai.generate([
+    {role: 'system', content: `Analyze the writing style of these sent emails.
+Output JSON: {
+  "formalityScore": 0.0-1.0,
+  "avgSentenceLength": N,
+  "preferredGreeting": "...",
+  "preferredSignOff": "...",
+  "commonPhrases": ["..."],
+  "tone": "professional|friendly|casual|direct",
+  "suggestions": ["style tip for composing"]
+}`},
+    {role: 'user', content: emails},
+  ], {temperature: 0.1, maxTokens: 500});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {
+      formalityScore: 0.5,
+      avgSentenceLength: 15,
+      preferredGreeting: 'Hi',
+      preferredSignOff: 'Best',
+      commonPhrases: [],
+      tone: 'professional',
+      suggestions: [],
+    };
+  }
 }
 
 // ── Route Handler ──
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as {action: string; payload: Record<string, unknown>};
+    const body = await request.json() as {
+      action: string;
+      payload: Record<string, unknown>;
+    };
     const ai = getAI();
 
     switch (body.action) {
@@ -295,18 +410,20 @@ export async function POST(request: Request) {
         return Response.json(await handleThreadSummary(ai, body.payload as any));
       case 'compose':
         return Response.json(await handleCompose(ai, body.payload as any));
-      case 'compose-email':
-        return Response.json(await handleComposeEmail(ai, body.payload as any));
-      case 'improve-email':
-        return Response.json(await handleImproveEmail(ai, body.payload as any));
       case 'digest':
         return Response.json(await handleDigest(ai, body.payload as any));
       case 'semantic-search':
         return Response.json(await handleSemanticSearch(ai, body.payload as any));
       case 'classify':
         return Response.json(await handleClassify(ai, body.payload as any));
-      case 'embed-emails':
-        return Response.json(await handleEmbedEmails(ai, body.payload as any));
+      case 'extract-deadlines':
+        return Response.json(await handleExtractDeadlines(ai, body.payload as any));
+      case 'learn-behavior':
+        return Response.json(await handleLearnBehavior(ai, body.payload as any));
+      case 'generate-rules':
+        return Response.json(await handleGenerateRules(ai, body.payload as any));
+      case 'match-style':
+        return Response.json(await handleMatchStyle(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

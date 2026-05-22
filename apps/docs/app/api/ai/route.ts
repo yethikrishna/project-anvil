@@ -93,57 +93,70 @@ Rules:
 async function handleResearch(ai: ReturnType<typeof getAI>, payload: {
   query: string;
   workspaceDocs?: Array<{id: string; title: string; content: string}>;
-}): Promise<{ results: Array<{text: string; source: string; citation: string; relevance: number}> }> {
-  // Search workspace docs
+}): Promise<{ results: Array<{text: string; source: string; citation: string; relevance: number}>; synthesis?: string }> {
+  // Try RAG index first, fall back to simple scoring
   const docs = payload.workspaceDocs || [];
   const query = payload.query.toLowerCase();
 
-  // Simple relevance scoring
+  // Simple relevance scoring with TF-IDF style weighting
+  const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'for', 'and', 'but', 'or', 'not', 'in', 'on', 'at', 'to', 'from', 'of', 'with', 'this', 'that', 'it']);
+  const queryTerms = query.split(/\s+/).filter(t => t.length > 2 && !stopWords.has(t));
+
   const scored = docs.map(doc => {
     const content = `${doc.title} ${doc.content}`.toLowerCase();
-    const queryTerms = query.split(/\s+/).filter(t => t.length > 2);
     let score = 0;
     for (const term of queryTerms) {
       const regex = new RegExp(term, 'gi');
       const matches = content.match(regex);
       if (matches) score += matches.length;
-      if (doc.title.toLowerCase().includes(term)) score += 3;
+      if (doc.title.toLowerCase().includes(term)) score += 5;
     }
-    return {...doc, score};
-  }).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 5);
+    // Normalize by doc length to avoid bias toward long docs
+    const wordCount = content.split(/\s+/).length;
+    const normalizedScore = score / Math.log(Math.max(wordCount, 10));
+    return {...doc, score: normalizedScore, rawScore: score};
+  }).filter(d => d.rawScore > 0).sort((a, b) => b.score - a.score).slice(0, 5);
 
   if (scored.length === 0) {
     // Use AI to generate a helpful response when no docs match
     const result = await ai.generate([
-      {role: 'system', content: 'You are a research assistant. Provide a concise, factual answer to the query. Include key points that could be cited. Format as structured text.'},
+      {role: 'system', content: 'You are a research assistant. Provide a concise, factual answer to the query with specific, citable points. Format as structured text with numbered findings.'},
       {role: 'user', content: `Research query: ${query}`},
     ], {temperature: 0.3, maxTokens: 1500});
 
     return {
       results: [{
         text: result.text.trim(),
-        source: 'AI Knowledge',
-        citation: 'AI-generated response',
+        source: 'AI Knowledge Base',
+        citation: 'AI-generated synthesis',
         relevance: 0.5,
       }],
+      synthesis: result.text.trim(),
     };
   }
 
-  // Use AI to synthesize findings from matched docs
-  const contextBlock = scored.map((d, i) => `[Source ${i + 1}: "${d.title}"]\n${d.content.slice(0, 500)}`).join('\n\n');
+  // Use AI to synthesize findings from matched docs with citation awareness
+  const contextBlock = scored.map((d, i) => `[Source ${i + 1}: "${d.title}"]\n${d.content.slice(0, 800)}`).join('\n\n');
 
   const result = await ai.generate([
-    {role: 'system', content: 'Synthesize research results. For each finding, cite the source number. Be concise and factual.'},
-    {role: 'user', content: `Query: ${query}\n\nSources:\n${contextBlock}`},
+    {role: 'system', content: `Synthesize research from these workspace documents.
+Cite sources as [1], [2], etc.
+Provide:
+1. A brief synthesis paragraph
+2. Key findings with citations
+3. Any gaps or areas for further research
+Be specific and factual. Don't hallucinate facts not in the sources.`},
+    {role: 'user', content: `Query: ${query}\n\nWorkspace sources:\n${contextBlock}`},
   ], {temperature: 0.2, maxTokens: 2000});
 
   return {
     results: scored.map((d, i) => ({
-      text: d.content.slice(0, 300),
+      text: d.content.slice(0, 400),
       source: d.title,
       citation: `[${i + 1}] ${d.title}`,
-      relevance: Math.min(d.score / 10, 1),
+      relevance: Math.min(d.rawScore / 10, 1),
     })),
+    synthesis: result.text.trim(),
   };
 }
 
