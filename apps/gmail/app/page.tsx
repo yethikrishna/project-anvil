@@ -39,6 +39,7 @@ import { AIAttachmentList } from './components/ai-attachment-summarizer';
 import { SmartSnoozeMenu, SendTimeOptimizer } from './lib/snooze-intelligence';
 import { AIContactCard, extractContactFromEmail } from './components/ai-contact-intelligence';
 import { MeetingDetectorCard } from './components/ai-meeting-detector';
+import { UnsubscribeBanner, detectUnsubscribeInfo } from './components/ai-unsubscribe';
 
 // ─── Types ───
 
@@ -373,6 +374,22 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
           />
         </div>
       )}
+
+      {/* Unsubscribe Banner */}
+      {messages[0] && messages[0].from.email !== 'me@anvil.local' && (() => {
+        const info = detectUnsubscribeInfo(messages[0].subject, messages[0].body);
+        if (!info) return null;
+        return (
+          <div className="px-6 pb-2">
+            <UnsubscribeBanner
+              info={info}
+              senderName={messages[0].from.name}
+              senderEmail={messages[0].from.email}
+              onUnsubscribe={(method, target) => console.log('Unsubscribed:', method, target)}
+            />
+          </div>
+        );
+      })()}
 
       {/* Messages */}
       <div className="flex-1 overflow-auto px-6 pb-4">

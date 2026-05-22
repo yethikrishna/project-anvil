@@ -35,6 +35,9 @@ import {AIFloatingToolbar} from '../../../lib/ai/ai-floating-toolbar';
 import {useWritingScore, WritingScoreBadge, WritingScorePanel} from '../../../lib/ai/writing-score';
 import {AIFindReplace} from '../../../lib/ai/ai-find-replace';
 import {DocumentComparisonPanel} from '../../../lib/ai/document-comparison';
+import {AIFocusMode} from '../../../lib/ai/ai-focus-mode';
+import {ToneAnalyzerPanel} from '../../../lib/ai/tone-analyzer';
+import {ReadingMetricsBadge, ReadingMetricsPanel} from '../../../lib/ai/reading-metrics';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -207,6 +210,9 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showWritingScore, setShowWritingScore] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showFocusMode, setShowFocusMode] = useState(false);
+  const [showToneAnalyzer, setShowToneAnalyzer] = useState(false);
+  const [showReadingMetrics, setShowReadingMetrics] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -485,6 +491,8 @@ export default function EditorPage({params}: EditorPageProps) {
         </button>
         {/* Writing Score Badge */}
         <WritingScoreBadge score={writingScore} onClick={() => setShowWritingScore(s => !s)} />
+        {/* Reading Metrics Badge */}
+        {editor && <ReadingMetricsBadge text={editor.getText()} onClick={() => setShowReadingMetrics(r => !r)} />}
         <button
           onClick={() => setShowFindReplace(true)}
           className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
@@ -498,6 +506,20 @@ export default function EditorPage({params}: EditorPageProps) {
           title="Compare Documents with AI"
         >
           📄 Compare
+        </button>
+        <button
+          onClick={() => setShowFocusMode(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Focus Mode — distraction-free writing"
+        >
+          🎯 Focus
+        </button>
+        <button
+          onClick={() => setShowToneAnalyzer(t => !t)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Tone Analyzer"
+        >
+          🎭 Tone
         </button>
       </div>
 
@@ -592,6 +614,40 @@ export default function EditorPage({params}: EditorPageProps) {
       {showComparison && editor && (
         <AIErrorBoundary featureName="Document Comparison">
           <DocumentComparisonPanel editor={editor} onClose={() => setShowComparison(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* AI Focus Mode */}
+      {showFocusMode && editor && (
+        <AIErrorBoundary featureName="Focus Mode">
+          <AIFocusMode editor={editor} onClose={() => setShowFocusMode(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Tone Analyzer */}
+      {showToneAnalyzer && editor && (
+        <AIErrorBoundary featureName="Tone Analyzer">
+          <ToneAnalyzerPanel
+            editor={editor}
+            onClose={() => setShowToneAnalyzer(false)}
+            onApplyShift={async (shiftLabel, text) => {
+              await fetch('/api/ai', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                  action: 'rewrite',
+                  payload: {text, instruction: `Rewrite this to be ${shiftLabel.toLowerCase()}.`},
+                }),
+              });
+            }}
+          />
+        </AIErrorBoundary>
+      )}
+
+      {/* Reading Metrics Panel */}
+      {showReadingMetrics && editor && (
+        <AIErrorBoundary featureName="Reading Metrics">
+          <ReadingMetricsPanel text={editor.getText()} onClose={() => setShowReadingMetrics(false)} />
         </AIErrorBoundary>
       )}
 
