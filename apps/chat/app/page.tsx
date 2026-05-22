@@ -88,6 +88,10 @@ export default function ChatPage() {
         e.preventDefault();
         handleNewConversation();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(prev => !prev);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
         e.preventDefault();
         setShowAttention(prev => !prev);
@@ -460,6 +464,13 @@ export default function ChatPage() {
                   onClose={() => setActiveConv(null)}
                 />
               )}
+              <button
+                onClick={() => setShowSearch(true)}
+                className="text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden sm:block"
+                title="Search conversations (⌘F)"
+              >
+                🔍
+              </button>
               <button
                 onClick={() => setShowCommandPalette(true)}
                 className="text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden sm:block"

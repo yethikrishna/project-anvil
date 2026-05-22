@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'edge';
+// Uses Node.js runtime (AbortSignal.timeout + parallel fetch)
 
 // ── Priority levels ──
 
