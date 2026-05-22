@@ -34,6 +34,7 @@ import {AIContextMenu, useAIContextMenu} from '../../../lib/ai/ai-context-menu';
 import {AIFloatingToolbar} from '../../../lib/ai/ai-floating-toolbar';
 import {useWritingScore, WritingScoreBadge, WritingScorePanel} from '../../../lib/ai/writing-score';
 import {AIFindReplace} from '../../../lib/ai/ai-find-replace';
+import {DocumentComparisonPanel} from '../../../lib/ai/document-comparison';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -205,6 +206,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const [showWritingScore, setShowWritingScore] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -490,6 +492,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           🔍 Find
         </button>
+        <button
+          onClick={() => setShowComparison(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Compare Documents with AI"
+        >
+          📄 Compare
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -576,6 +585,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showFindReplace && editor && (
         <AIErrorBoundary featureName="AI Find & Replace">
           <AIFindReplace editor={editor} onClose={() => setShowFindReplace(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Document Comparison */}
+      {showComparison && editor && (
+        <AIErrorBoundary featureName="Document Comparison">
+          <DocumentComparisonPanel editor={editor} onClose={() => setShowComparison(false)} />
         </AIErrorBoundary>
       )}
 

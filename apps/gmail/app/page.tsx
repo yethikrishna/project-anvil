@@ -38,6 +38,7 @@ import { SenderContextBadge } from './lib/sender-context';
 import { AIAttachmentList } from './components/ai-attachment-summarizer';
 import { SmartSnoozeMenu, SendTimeOptimizer } from './lib/snooze-intelligence';
 import { AIContactCard, extractContactFromEmail } from './components/ai-contact-intelligence';
+import { MeetingDetectorCard } from './components/ai-meeting-detector';
 
 // ─── Types ───
 
@@ -440,6 +441,15 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
                         />
                       );
                     })()}
+                    {/* AI Meeting Detector */}
+                    {msg.from.email !== 'me@anvil.local' && (
+                      <MeetingDetectorCard
+                        subject={msg.subject}
+                        body={msg.body}
+                        fromName={msg.from.name}
+                        onAddToCalendar={(meeting) => console.log('Adding to calendar:', meeting)}
+                      />
+                    )}
                   </div>
                 </div>
               )}
