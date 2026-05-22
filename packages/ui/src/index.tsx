@@ -287,3 +287,7 @@ export type {DashboardWidget, DashboardLayout, WidgetType} from './dashboard';
 // ── AI Error Boundary ──
 export {AIErrorBoundary, queueFailedRequest, getQueuedRequests, clearQueue, useAIWithErrorHandling} from "./ai-error-boundary";
 
+
+// ── AI Feature Configuration ──
+export {AIFeaturePanel, useAIConfig, loadAIConfig, saveAIConfig, DEFAULT_CONFIG, type AIFeatureConfig} from "./ai-feature-config";
+
