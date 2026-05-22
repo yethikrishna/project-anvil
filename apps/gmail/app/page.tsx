@@ -42,6 +42,7 @@ import { MeetingDetectorCard } from './components/ai-meeting-detector';
 import { UnsubscribeBanner, detectUnsubscribeInfo } from './components/ai-unsubscribe';
 import { SmartLabelBadges } from './lib/smart-labels';
 import { KeyPointsCard } from './components/ai-key-points';
+import { WaitingReplyBadge, calculateWaitTime } from './components/ai-response-intelligence';
 
 // ─── Types ───
 
@@ -409,6 +410,25 @@ function ThreadView({ messages, allMessages, onBack, onStar, onArchive, onDelete
               senderName={messages[0].from.name}
               senderEmail={messages[0].from.email}
               onUnsubscribe={(method, target) => console.log('Unsubscribed:', method, target)}
+            />
+          </div>
+        );
+      })()}
+
+      {/* Waiting Reply Badge */}
+      {(() => {
+        const waitInfo = calculateWaitTime(messages);
+        if (!waitInfo) return null;
+        const lastMsg = messages[messages.length - 1];
+        const recipients = lastMsg?.to || [];
+        const recipientName = recipients[0]?.name || recipients[0]?.email || 'recipient';
+        return (
+          <div className="px-6 pb-2">
+            <WaitingReplyBadge
+              info={waitInfo}
+              recipientName={recipientName}
+              subject={messages[0]?.subject || ''}
+              onFollowUp={() => console.log('Follow up requested')}
             />
           </div>
         );

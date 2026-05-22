@@ -40,6 +40,7 @@ import {ToneAnalyzerPanel} from '../../../lib/ai/tone-analyzer';
 import {ReadingMetricsBadge, ReadingMetricsPanel} from '../../../lib/ai/reading-metrics';
 import {AIOutlineBuilder} from '../../../lib/ai/ai-outline-builder';
 import {WordChoicePanel} from '../../../lib/ai/word-choice-suggester';
+import {ContentTransformer} from '../../../lib/ai/content-transformer';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -217,6 +218,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showReadingMetrics, setShowReadingMetrics] = useState(false);
   const [showOutlineBuilder, setShowOutlineBuilder] = useState(false);
   const [showWordChoice, setShowWordChoice] = useState(false);
+  const [showTransformer, setShowTransformer] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -539,6 +541,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           ✍️ Words
         </button>
+        <button
+          onClick={() => setShowTransformer(true)}
+          className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+          title="Transform Content (expand/compress/bullets)"
+        >
+          ✨ Transform
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -680,6 +689,13 @@ export default function EditorPage({params}: EditorPageProps) {
       {showWordChoice && editor && (
         <AIErrorBoundary featureName="Word Choice">
           <WordChoicePanel editor={editor} onClose={() => setShowWordChoice(false)} />
+        </AIErrorBoundary>
+      )}
+
+      {/* Content Transformer */}
+      {showTransformer && editor && (
+        <AIErrorBoundary featureName="Content Transformer">
+          <ContentTransformer editor={editor} onClose={() => setShowTransformer(false)} />
         </AIErrorBoundary>
       )}
 
