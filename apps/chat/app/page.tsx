@@ -20,6 +20,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import ChatSidebar from '@/components/ChatSidebar';
 import MessageBubble from '@/components/MessageBubble';
 import ChatInput from '@/components/ChatInput';
@@ -40,6 +41,7 @@ import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/component
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
+import { useAutoTitle } from '@/lib/use-auto-title';
 import {
   listConversations, getConversation, createConversation,
   deleteConversation, saveConversation, addMessage,
@@ -72,6 +74,7 @@ export default function ChatPage() {
   const [chatSettings, setChatSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const { generateTitle } = useAutoTitle();
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -209,7 +212,8 @@ export default function ChatPage() {
 
     let conv = activeConv;
     if (!conv) {
-      conv = await createConversation(generateAutoTitle(text));
+      const title = generateTitle(text);
+      conv = await createConversation(title);
       setConversations(prev => [conv!, ...prev]);
       setActiveConv(conv);
       setActiveConversationId(conv.id);
@@ -382,6 +386,7 @@ export default function ChatPage() {
   const showWelcome = messages.length === 0 && !isStreaming;
 
   return (
+    <ErrorBoundary>
     <div className="h-screen flex flex-col">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
@@ -580,5 +585,6 @@ export default function ChatPage() {
 
       <ToastContainer />
     </div>
+    </ErrorBoundary>
   );
 }
