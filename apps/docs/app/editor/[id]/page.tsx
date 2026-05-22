@@ -25,6 +25,7 @@ import {AIAssistantPanel} from '../../../lib/ai/ai-assistant-panel';
 import {AIQuickActions} from '../../../lib/ai/ai-quick-actions';
 import {AIGrammarChecker} from '../../../lib/ai/grammar-checker';
 import {AIAutocorrect} from '../../../lib/ai/ai-autocorrect';
+import {AIWritingCoach} from '../../../lib/ai/writing-coach';
 import {OutlineSidebar} from '../../../lib/ai/outline-sidebar';
 import {DocumentHealthDashboard} from '../../../lib/ai/document-health-dashboard';
 import '../../../ai-styles.css';
@@ -275,6 +276,7 @@ export default function EditorPage({params}: EditorPageProps) {
       AIQuickActions,
       AIGrammarChecker,
       AIAutocorrect,
+      AIWritingCoach,
       ...(provider ? [
         Collaboration.configure({document: provider.document}),
         CollaborationCaret.configure({provider, user: {name: user?.name ?? 'Anonymous', color: getRandomColor()}}),
