@@ -7,6 +7,7 @@
  * 3. Streaming response with tool call visualization
  * 4. Agent runtime for autonomous multi-step actions
  * 5. Context accumulation across conversations
+ * 6. Intent-aware system prompt optimization
  *
  * Integrates @anvil/ai for:
  * - Tool definitions (ANVIL_TOOLS)
@@ -17,6 +18,7 @@
 import type { Message } from '@anvil/ai';
 import { ANVIL_TOOLS } from '@anvil/ai';
 import { getToolExecutor } from './tool-executor';
+import { detectIntent, getIntentPrompt } from './intent-router';
 import type { ChatMessage, ToolCallResult, ConversationContext } from './types';
 import { addMessage, updateContext, extractContextFromToolCall } from './memory';
 
@@ -25,40 +27,48 @@ import { addMessage, updateContext, extractContextFromToolCall } from './memory'
 function buildSystemPrompt(context: ConversationContext, userPatterns?: string): string {
   const sections: string[] = [];
 
-  sections.push(`You are Anvil AI, an intelligent assistant embedded in the Anvil productivity suite.
+  sections.push(`You are Anvil AI, an intelligent executive assistant embedded in the Anvil productivity suite.
 
-CORE BEHAVIORS:
-- Be direct and concise. No fluff, no filler, no "Great question!" or "I'd be happy to help!"
-- When you can ACT, act. Use tools to search emails, find files, create events, send messages.
-- Always confirm before sending emails or making calendar events.
-- If you need more info, ask specifically — don't give vague "please provide" responses.
-- Use markdown formatting for structured responses.
-- Show tool results, not descriptions of what you *would* do.
+CORE PERSONALITY:
+- Be direct and concise. No filler phrases like "Great question!" or "I'd be happy to help!"
+- When you can ACT, act. Use tools instead of describing what you would do.
+- Always confirm before sending emails or creating calendar events (say "I'll send/reply" and wait).
+- If you need more info, ask specific questions — not vague "please provide" requests.
+- Use markdown for structured responses. Use tables for comparisons.
+- Show tool results inline when they're useful to the user.
 
-CAPABILITIES:
-- email_search: Search emails by subject, sender, or content
-- email_send: Send emails (requires confirmation)
+CAPABILITIES (use tools for these):
+📧 Mail:
+- email_search: Search emails by subject, sender, content, date
+- email_send: Send emails (always confirm first)
 - email_read_thread: Read full email thread
-- email_save_draft: Save a draft reply
+- email_save_draft: Save draft reply
+
+📁 Drive:
 - file_search: Search Drive files by name or content
-- file_read: Read file contents from Drive
-- file_share: Create a shareable link for a file
-- document_write: Create or edit documents in Docs
-- calendar_create_event: Create calendar events and send invites
+- file_read: Read file contents
+- file_share: Create shareable link
+
+📝 Docs:
+- document_write: Create or edit documents
+
+📅 Calendar:
+- calendar_create_event: Create events, send invites (always confirm first)
 - calendar_check_availability: Find free time slots
-- web_search: Search the web for current information
 
-MULTI-STEP ACTIONS:
-You can chain multiple tools in one response. Examples:
-- "Find the Q3 report → summarize → email to team" (file_search → file_read → email_send)
-- "Check my schedule → find free time → book meeting" (calendar_check_availability → calendar_create_event)
-- "Read email thread → draft reply → save to drafts" (email_read_thread → email_save_draft)
+🌐 Web:
+- web_search: Search the internet
 
-When executing multi-step actions, run the tools and report results progressively.`);
+MULTI-STEP ACTIONS — chain tools when needed:
+- "Find Q3 report → summarize → email to team": file_search → file_read → email_send
+- "Check schedule → find free time → book meeting": calendar_check_availability → calendar_create_event
+- "Read thread → draft reply → save draft": email_read_thread → email_save_draft
+
+Execute tools and report results progressively. Don't describe — do.`);
 
   // Dynamic context sections
   if (context.files.length > 0) {
-    const recent = context.files.slice(-10);
+    const recent = context.files.slice(-8);
     sections.push(`RECENTLY REFERENCED FILES:\n${recent.map(f => `- ${f.name} (${f.type})`).join('\n')}`);
   }
 
@@ -67,7 +77,7 @@ When executing multi-step actions, run the tools and report results progressivel
   }
 
   if (context.topics.length > 0) {
-    const uniqueTopics = [...new Set(context.topics)].slice(-10);
+    const uniqueTopics = [...new Set(context.topics)].slice(-8);
     sections.push(`TOPICS DISCUSSED:\n${uniqueTopics.join(', ')}`);
   }
 
@@ -87,7 +97,11 @@ When executing multi-step actions, run the tools and report results progressivel
       .join('\n')}`);
   }
 
-  sections.push(`IMPORTANT: Always use tools when you can help by doing, not just talking. The user's time is valuable.`);
+  sections.push(`IMPORTANT:
+- Always prefer using tools over speculating
+- Show concise results, not raw API dumps
+- If a search returns no results, say so and suggest alternatives
+- For emails and calendar events, show a preview and ask for confirmation before sending`);
 
   return sections.join('\n\n');
 }
@@ -124,8 +138,13 @@ export class ChatEngine {
     // 1. Save user message
     await addMessage(convId, { role: 'user', content: userContent });
 
-    // 2. Build AI messages with system prompt
-    const systemPrompt = buildSystemPrompt(context, this.config.userPatterns);
+    // 2. Detect intent for prompt optimization
+    const intent = detectIntent(userContent);
+    const intentExtra = getIntentPrompt(intent);
+
+    // 3. Build AI messages with system prompt
+    const systemPrompt = buildSystemPrompt(context, this.config.userPatterns)
+      + (intentExtra ? `\n\nINTENT GUIDANCE:\n${intentExtra}` : '');
 
     const aiMessages: Message[] = [
       { role: 'system', content: systemPrompt },
@@ -140,7 +159,7 @@ export class ChatEngine {
     let finalText = '';
     let maxRounds = 5;
 
-    // 3. Tool use loop
+    // 4. Tool use loop
     while (maxRounds-- > 0) {
       const response = await this.callAI(aiMessages, onStream);
 
@@ -217,10 +236,10 @@ export class ChatEngine {
     if (!finalText) {
       finalText = allToolCalls.length > 0
         ? 'I\'ve completed the requested actions. Let me know if you need anything else.'
-        : 'I\'m not sure how to help with that. Could you be more specific?';
+        : 'I\'m not sure how to help with that. Could you be more specific about what you need?';
     }
 
-    // 4. Save assistant message
+    // 5. Save assistant message
     const assistantMsg = await addMessage(convId, {
       role: 'assistant',
       content: finalText,

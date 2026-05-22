@@ -1,6 +1,12 @@
 /**
  * VoiceOutput — TTS playback for AI responses.
- * Supports streaming audio, auto-play toggle, and speed control.
+ *
+ * Features:
+ * - On-demand playback with visual feedback
+ * - Speed control (0.75x - 2.0x)
+ * - Audio waveform visualization
+ * - Auto-play option
+ * - Smart truncation for long messages
  */
 
 'use client';
@@ -11,29 +17,51 @@ import { cn } from '@anvil/ui';
 interface Props {
   text: string;
   autoPlay?: boolean;
+  compact?: boolean;
 }
 
-export default function VoiceOutput({ text, autoPlay = false }: Props) {
+const SPEEDS = [0.75, 1.0, 1.25, 1.5, 2.0];
+
+export default function VoiceOutput({ text, autoPlay = false, compact = true }: Props) {
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1.0);
   const [loading, setLoading] = useState(false);
+  const [speed, setSpeed] = useState(1.0);
+  const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      URL.revokeObjectURL(audioRef.current.src);
+      audioRef.current = null;
+    }
+    setPlaying(false);
+    setProgress(0);
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+  }, []);
 
   const speak = useCallback(async () => {
     if (playing) {
-      audioRef.current?.pause();
-      setPlaying(false);
+      stopPlayback();
       return;
     }
 
-    if (!text || text.length < 10) return; // Don't TTS very short text
+    if (!text || text.length < 10) return;
 
     setLoading(true);
     try {
       const res = await fetch('/api/voice/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.slice(0, 4000), speed }), // Limit to 4k chars
+        body: JSON.stringify({
+          text: text.slice(0, 4000),
+          speed,
+          format: 'mp3',
+        }),
       });
 
       if (!res.ok) return;
@@ -42,73 +70,140 @@ export default function VoiceOutput({ text, autoPlay = false }: Props) {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.playbackRate = speed;
 
-      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setPlaying(false); URL.revokeObjectURL(url); };
+      audio.onloadedmetadata = () => {
+        setLoading(false);
+        setPlaying(true);
+        audio.play();
 
-      setPlaying(true);
-      setLoading(false);
-      audio.play();
+        // Track progress
+        progressInterval.current = setInterval(() => {
+          if (audio.duration && audio.currentTime) {
+            setProgress(audio.currentTime / audio.duration);
+          }
+        }, 100);
+      };
+
+      audio.onended = () => {
+        stopPlayback();
+      };
+
+      audio.onerror = () => {
+        stopPlayback();
+      };
     } catch {
-      // TTS failed silently
       setLoading(false);
     }
-  }, [text, playing, speed]);
+  }, [text, playing, speed, stopPlayback]);
 
-  // Auto-play when text changes (if enabled)
+  // Auto-play when text changes
   useEffect(() => {
-    if (autoPlay && text && !playing) {
-      const timer = setTimeout(speak, 1000); // Debounce
+    if (autoPlay && text && text.length >= 10 && !playing && !loading) {
+      const timer = setTimeout(speak, 1500);
       return () => clearTimeout(timer);
     }
-  }, [text, autoPlay, speak, playing]);
+  }, [text, autoPlay, speak, playing, loading]);
 
-  // Cleanup on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        URL.revokeObjectURL(audioRef.current.src);
-      }
+      stopPlayback();
     };
-  }, []);
+  }, [stopPlayback]);
 
   if (!text || text.length < 10) return null;
 
+  // Compact mode — inline button
+  if (compact) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <button
+          onClick={speak}
+          disabled={loading}
+          className={cn(
+            'text-[10px] transition-colors inline-flex items-center gap-1',
+            playing
+              ? 'text-blue-500 font-medium'
+              : loading
+                ? 'text-gray-300 animate-pulse'
+                : 'text-gray-400 hover:text-blue-500',
+          )}
+          title={playing ? 'Stop' : 'Read aloud'}
+        >
+          {playing ? (
+            <>
+              <span className="inline-flex gap-[2px] items-end h-3">
+                <span className="w-[2px] bg-blue-500 rounded-full animate-pulse" style={{ height: '100%', animationDelay: '0ms' }} />
+                <span className="w-[2px] bg-blue-500 rounded-full animate-pulse" style={{ height: '60%', animationDelay: '150ms' }} />
+                <span className="w-[2px] bg-blue-500 rounded-full animate-pulse" style={{ height: '80%', animationDelay: '300ms' }} />
+              </span>
+              Stop
+            </>
+          ) : loading ? (
+            '⏳'
+          ) : (
+            '🔊'
+          )}
+        </button>
+
+        {playing && (
+          <button
+            onClick={() => {
+              const idx = SPEEDS.indexOf(speed);
+              const next = SPEEDS[(idx + 1) % SPEEDS.length];
+              setSpeed(next);
+              if (audioRef.current) audioRef.current.playbackRate = next;
+            }}
+            className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {speed}x
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  // Full mode — with progress bar
   return (
-    <span className="inline-flex items-center gap-1">
+    <div className="flex items-center gap-2 py-1">
       <button
         onClick={speak}
         disabled={loading}
         className={cn(
-          'text-[10px] transition-colors',
+          'w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all shrink-0',
           playing
-            ? 'text-blue-500 font-medium'
+            ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300'
             : loading
-              ? 'text-gray-300 animate-pulse'
-              : 'text-gray-400 hover:text-blue-500',
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 animate-pulse'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700',
         )}
-        title={playing ? 'Stop playing' : 'Read aloud'}
+        title={playing ? 'Stop' : 'Read aloud'}
       >
-        {playing ? '🔊 Playing' : loading ? '⏳ Loading...' : '🔇 Read aloud'}
+        {playing ? '⏸' : loading ? '⏳' : '▶'}
       </button>
 
-      {/* Speed control (only when playing) */}
+      {playing && (
+        <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-500 rounded-full transition-all duration-100"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </div>
+      )}
+
       {playing && (
         <button
           onClick={() => {
-            const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
-            const idx = speeds.indexOf(speed);
-            const next = speeds[(idx + 1) % speeds.length];
+            const idx = SPEEDS.indexOf(speed);
+            const next = SPEEDS[(idx + 1) % SPEEDS.length];
             setSpeed(next);
             if (audioRef.current) audioRef.current.playbackRate = next;
           }}
-          className="text-[10px] text-gray-400 hover:text-gray-600"
+          className="text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 shrink-0"
         >
           {speed}x
         </button>
       )}
-    </span>
+    </div>
   );
 }
