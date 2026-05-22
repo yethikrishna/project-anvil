@@ -209,7 +209,7 @@ export function buildContextSummary(
   const parts: string[] = [];
 
   if (patterns.frequentContacts.length > 0) {
-    const top = patterns.frequentContacts.slice(3).map(c => c.name);
+    const top = patterns.frequentContacts.slice(0, 3).map(c => c.name);
     parts.push(`Frequent contacts: ${top.join(', ')}`);
   }
 
@@ -219,7 +219,7 @@ export function buildContextSummary(
   }
 
   if (patterns.interests.length > 0) {
-    parts.push(`Topics of interest: ${patterns.interests.slice(5).join(', ')}`);
+    parts.push(`Topics of interest: ${patterns.interests.slice(0, 5).join(', ')}`);
   }
 
   if (patterns.communicationStyle !== 'concise') {
