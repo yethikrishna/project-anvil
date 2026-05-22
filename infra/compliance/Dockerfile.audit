@@ -1,0 +1,172 @@
+# Audit Log Service — Immutable, append-only audit log writer.
+# Used by HIPAA compliance deployments.
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache tini
+
+COPY <<'EOF' /app/package.json
+{
+  "name": "anvil-audit-log",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --enable-source-maps dist/index.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0",
+    "fastify": "^5.1.0"
+  }
+}
+EOF
+
+RUN npm install --omit=dev
+
+COPY <<'SCRIPT' /app/dist/index.js
+import pg from 'pg';
+import { createServer } from 'http';
+
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30000,
+});
+
+const RETENTION_DAYS = parseInt(process.env.AUDIT_RETENTION_DAYS || '2190', 10); // 6 years default
+const PORT = parseInt(process.env.AUDIT_PORT || '3010', 10);
+const IMMUTABLE = process.env.AUDIT_IMMUTABLE === 'true';
+
+// HMAC for audit log integrity
+async function computeHmac(payload) {
+  const key = process.env.AUDIT_HMAC_KEY || 'default-audit-key-change-me';
+  const crypto = await import('crypto');
+  return crypto.createHmac('sha256', key).update(payload).digest('hex');
+}
+
+async function writeAuditEntry(entry) {
+  const { tenant_id, user_id, action, resource_type, resource_id, details, ip_address, user_agent } = entry;
+
+  const payload = JSON.stringify({ tenant_id, user_id, action, resource_type, resource_id, details, ip_address });
+  const hmac = await computeHmac(payload);
+
+  const result = await pool.query(
+    `INSERT INTO audit_log (tenant_id, user_id, action, resource_type, resource_id, details, ip_address, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::inet, $8)
+     RETURNING id, created_at`,
+    [tenant_id, user_id, action, resource_type, resource_id || null, JSON.stringify(details || {}), ip_address || null, user_agent || null]
+  );
+
+  return { id: result.rows[0].id, timestamp: result.rows[0].created_at, hmac };
+}
+
+async function queryAuditLog(params) {
+  const { tenant_id, user_id, action, resource_type, from, to, limit = 100, offset = 0 } = params;
+
+  const conditions = ['tenant_id = $1'];
+  const values = [tenant_id];
+  let idx = 2;
+
+  if (user_id) { conditions.push(`user_id = $${idx++}`); values.push(user_id); }
+  if (action) { conditions.push(`action = $${idx++}`); values.push(action); }
+  if (resource_type) { conditions.push(`resource_type = $${idx++}`); values.push(resource_type); }
+  if (from) { conditions.push(`created_at >= $${idx++}`); values.push(from); }
+  if (to) { conditions.push(`created_at <= $${idx++}`); values.push(to); }
+
+  const where = conditions.join(' AND ');
+  const countResult = await pool.query(`SELECT COUNT(*) as total FROM audit_log WHERE ${where}`, values);
+  const result = await pool.query(
+    `SELECT id, tenant_id, user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at
+     FROM audit_log WHERE ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+    [...values, limit, offset]
+  );
+
+  return { entries: result.rows, total: parseInt(countResult.rows[0].total, 10) };
+}
+
+const server = createServer(async (req, res) => {
+  // Health check
+  if (req.url === '/health' && req.method === 'GET') {
+    try {
+      await pool.query('SELECT 1');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', immutable: IMMUTABLE, retention_days: RETENTION_DAYS }));
+    } catch (e) {
+      res.writeHead(503);
+      res.end(JSON.stringify({ status: 'unhealthy' }));
+    }
+    return;
+  }
+
+  // Write audit entry
+  if (req.url === '/audit' && req.method === 'POST') {
+    const body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', (chunk) => { data += chunk; });
+      req.on('end', () => resolve(JSON.parse(data)));
+    });
+
+    try {
+      const result = await writeAuditEntry(body);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // Query audit log
+  if (req.url?.startsWith('/audit?') && req.method === 'GET') {
+    const url = new URL(req.url, 'http://localhost');
+    const params = {
+      tenant_id: url.searchParams.get('tenant_id'),
+      user_id: url.searchParams.get('user_id'),
+      action: url.searchParams.get('action'),
+      resource_type: url.searchParams.get('resource_type'),
+      from: url.searchParams.get('from'),
+      to: url.searchParams.get('to'),
+      limit: parseInt(url.searchParams.get('limit') || '100', 10),
+      offset: parseInt(url.searchParams.get('offset') || '0', 10),
+    };
+
+    if (!params.tenant_id) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'tenant_id is required' }));
+      return;
+    }
+
+    try {
+      const result = await queryAuditLog(params);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+server.listen(PORT, () => {
+  console.log(`Audit log service listening on port ${PORT} (retention: ${RETENTION_DAYS} days, immutable: ${IMMUTABLE})`);
+});
+
+process.on('SIGTERM', async () => {
+  server.close();
+  await pool.end();
+  process.exit(0);
+});
+SCRIPT
+
+EXPOSE 3010
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "/app/dist/index.js"]

@@ -1,0 +1,156 @@
+# Consent Management Service — GDPR Art. 7 consent tracking.
+# Records granular user consent per processing purpose.
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache tini
+
+COPY <<'EOF' /app/package.json
+{
+  "name": "anvil-consent-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
+EOF
+
+RUN npm install --omit=dev
+
+COPY <<'SCRIPT' /app/dist/index.js
+import pg from 'pg';
+import { createServer } from 'http';
+
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+});
+
+const PORT = parseInt(process.env.CONSENT_PORT || '3011', 10);
+
+// Create consent tables if not exist
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS consent_records (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id UUID NOT NULL,
+      user_id UUID NOT NULL,
+      purpose TEXT NOT NULL,
+      consented BOOLEAN NOT NULL,
+      method TEXT NOT NULL DEFAULT 'web_form',
+      legal_basis TEXT DEFAULT 'consent',
+      version TEXT DEFAULT '1.0',
+      ip_address TEXT,
+      user_agent TEXT,
+      withdrawn_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_consent_user ON consent_records (tenant_id, user_id, purpose);
+    CREATE INDEX IF NOT EXISTS idx_consent_tenant ON consent_records (tenant_id, created_at DESC);
+  `);
+}
+
+async function recordConsent(data) {
+  const { tenant_id, user_id, purpose, consented, method, legal_basis, version, ip_address, user_agent } = data;
+
+  // If consenting, invalidate any previous withdrawal
+  if (consented) {
+    await pool.query(
+      `UPDATE consent_records SET withdrawn_at = NOW()
+       WHERE tenant_id = $1 AND user_id = $2 AND purpose = $3 AND consented = true AND withdrawn_at IS NULL`,
+      [tenant_id, user_id, purpose]
+    );
+  }
+
+  const result = await pool.query(
+    `INSERT INTO consent_records (tenant_id, user_id, purpose, consented, method, legal_basis, version, ip_address, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id, created_at`,
+    [tenant_id, user_id, purpose, consented, method || 'web_form', legal_basis || 'consent', version || '1.0', ip_address, user_agent]
+  );
+
+  return result.rows[0];
+}
+
+async function getConsentStatus(tenantId, userId) {
+  const result = await pool.query(
+    `SELECT DISTINCT ON (purpose) purpose, consented, created_at, withdrawn_at
+     FROM consent_records
+     WHERE tenant_id = $1 AND user_id = $2
+     ORDER BY purpose, created_at DESC`,
+    [tenantId, userId]
+  );
+  return result.rows;
+}
+
+async function withdrawAllConsent(tenantId, userId) {
+  await pool.query(
+    `UPDATE consent_records SET withdrawn_at = NOW()
+     WHERE tenant_id = $1 AND user_id = $2 AND consented = true AND withdrawn_at IS NULL`,
+    [tenantId, userId]
+  );
+}
+
+const server = createServer(async (req, res) => {
+  const send = (code, data) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  };
+
+  if (req.url === '/health' && req.method === 'GET') {
+    try { await pool.query('SELECT 1'); send(200, { status: 'ok' }); }
+    catch { send(503, { status: 'unhealthy' }); }
+    return;
+  }
+
+  // Record consent
+  if (req.url === '/consent' && req.method === 'POST') {
+    const body = await new Promise((resolve) => {
+      let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d)));
+    });
+    try {
+      const result = await recordConsent(body);
+      send(201, result);
+    } catch (e) { send(400, { error: e.message }); }
+    return;
+  }
+
+  // Query consent status
+  if (req.url?.startsWith('/consent/') && req.method === 'GET') {
+    const [, , tenantId, userId] = req.url.split('/');
+    try {
+      const status = await getConsentStatus(tenantId, userId);
+      send(200, status);
+    } catch (e) { send(500, { error: e.message }); }
+    return;
+  }
+
+  // Withdraw all consent
+  if (req.url?.startsWith('/consent/') && req.method === 'DELETE') {
+    const [, , tenantId, userId] = req.url.split('/');
+    try {
+      await withdrawAllConsent(tenantId, userId);
+      send(200, { withdrawn: true });
+    } catch (e) { send(500, { error: e.message }); }
+    return;
+  }
+
+  send(404, { error: 'Not found' });
+});
+
+initDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Consent manager listening on port ${PORT}`);
+  });
+});
+SCRIPT
+
+EXPOSE 3011
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "/app/dist/index.js"]

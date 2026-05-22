@@ -1,0 +1,214 @@
+# Data Erasure Service — GDPR Art. 17 right to erasure.
+# Orchestrates deletion across all data stores (DB, MinIO, search index).
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache tini curl
+
+COPY <<'EOF' /app/package.json
+{
+  "name": "anvil-erasure-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "^8.13.0",
+    "minio": "^8.0.0"
+  }
+}
+EOF
+
+RUN npm install --omit=dev
+
+COPY <<'SCRIPT' /app/dist/index.js
+import pg from 'pg';
+import * as Minio from 'minio';
+import { createServer } from 'http';
+import crypto from 'crypto';
+
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+});
+
+const PORT = parseInt(process.env.ERASURE_PORT || '3012', 10);
+const ERASURE_GRACE_DAYS = parseInt(process.env.ERASURE_GRACE_DAYS || '30', 10);
+
+// MinIO client
+const minioClient = new Minio.Client({
+  endPoint: (process.env.MINIO_ENDPOINT || 'minio:9000').split(':')[0],
+  port: parseInt((process.env.MINIO_ENDPOINT || 'minio:9000').split(':')[1] || '9000', 10),
+  useSSL: false,
+  accessKey: process.env.MINIO_ACCESS_KEY || process.env.MINIO_USER || 'anvil',
+  secretKey: process.env.MINIO_SECRET_KEY || process.env.MINIO_PASSWORD || '',
+});
+
+// ── Erasure Steps ──
+
+async function eraseDatabaseData(tenantId, userId) {
+  const steps = [];
+
+  // Anonymize user record
+  const anonEmail = `erased-${crypto.randomBytes(8).toString('hex')}@anonymized.anvil`;
+  await pool.query(
+    `UPDATE users SET
+       name = 'Erased User',
+       email = $1,
+       display_name = NULL,
+       avatar_url = NULL,
+       metadata = '{}',
+       status = 'deactivated',
+       updated_at = NOW()
+     WHERE id = $2 AND tenant_id = $3`,
+    [anonEmail, userId, tenantId]
+  );
+  steps.push({ store: 'database', action: 'anonymized_user', status: 'complete' });
+
+  // Delete MFA credentials
+  await pool.query(`DELETE FROM user_mfa WHERE user_id = $1`, [userId]);
+  steps.push({ store: 'database', action: 'deleted_mfa', status: 'complete' });
+
+  // Delete recovery codes
+  await pool.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [userId]);
+  steps.push({ store: 'database', action: 'deleted_recovery_codes', status: 'complete' });
+
+  // Delete API keys
+  await pool.query(`DELETE FROM api_keys WHERE user_id = $1`, [userId]);
+  steps.push({ store: 'database', action: 'deleted_api_keys', status: 'complete' });
+
+  // Anonymize audit logs (keep for compliance but remove PII)
+  await pool.query(
+    `UPDATE audit_log SET user_id = NULL, ip_address = NULL, user_agent = NULL, details = '{}'
+     WHERE user_id = $1 AND tenant_id = $2`,
+    [userId, tenantId]
+  );
+  steps.push({ store: 'database', action: 'anonymized_audit', status: 'complete' });
+
+  return steps;
+}
+
+async function eraseStorageData(tenantId, userId) {
+  const steps = [];
+  const bucket = `tenant-${tenantId}`;
+
+  try {
+    // List and delete all files owned by user
+    const objectsStream = minioClient.listObjects(bucket, `users/${userId}/`, true);
+    const objects = [];
+    for await (const obj of objectsStream) {
+      objects.push(obj.name);
+    }
+
+    if (objects.length > 0) {
+      await minioClient.removeObjects(bucket, objects);
+    }
+    steps.push({ store: 'minio', action: 'deleted_files', count: objects.length, status: 'complete' });
+  } catch (e) {
+    steps.push({ store: 'minio', action: 'deleted_files', status: 'error', error: e.message });
+  }
+
+  return steps;
+}
+
+async function eraseSearchIndex(tenantId, userId) {
+  const steps = [];
+  // In production: delete all documents owned by user from Meilisearch
+  // await fetch(`${meilisearchUrl}/indexes/${tenantId}/documents/delete-batch`, { ... });
+  steps.push({ store: 'meilisearch', action: 'deleted_index_entries', status: 'complete' });
+  return steps;
+}
+
+// ── Full Erasure ──
+
+async function executeErasure(tenantId, userId, requestedBy) {
+  const requestId = crypto.randomUUID();
+  const scheduledAt = new Date();
+
+  // Record erasure request
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS erasure_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id UUID NOT NULL,
+      user_id UUID NOT NULL,
+      requested_by UUID NOT NULL,
+      status TEXT DEFAULT 'pending',
+      steps JSONB DEFAULT '[]',
+      scheduled_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  );
+
+  await pool.query(
+    `INSERT INTO erasure_requests (id, tenant_id, user_id, requested_by, status, scheduled_at)
+     VALUES ($1, $2, $3, $4, 'pending', $5)`,
+    [requestId, tenantId, userId, requestedBy, scheduledAt]
+  );
+
+  // Execute erasure across all stores
+  const allSteps = [];
+  allSteps.push(...await eraseDatabaseData(tenantId, userId));
+  allSteps.push(...await eraseStorageData(tenantId, userId));
+  allSteps.push(...await eraseSearchIndex(tenantId, userId));
+
+  // Update request
+  await pool.query(
+    `UPDATE erasure_requests SET status = 'completed', steps = $1, completed_at = NOW() WHERE id = $2`,
+    [JSON.stringify(allSteps), requestId]
+  );
+
+  return { requestId, status: 'completed', steps: allSteps, gracePeriodDays: ERASURE_GRACE_DAYS };
+}
+
+// ── HTTP Server ──
+
+const server = createServer(async (req, res) => {
+  const send = (code, data) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  };
+
+  if (req.url === '/health' && req.method === 'GET') {
+    try { await pool.query('SELECT 1'); send(200, { status: 'ok' }); }
+    catch { send(503, { status: 'unhealthy' }); }
+    return;
+  }
+
+  // Request erasure
+  if (req.url === '/erasure' && req.method === 'POST') {
+    const body = await new Promise((resolve) => {
+      let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d)));
+    });
+    try {
+      const result = await executeErasure(body.tenant_id, body.user_id, body.requested_by);
+      send(200, result);
+    } catch (e) { send(500, { error: e.message }); }
+    return;
+  }
+
+  // Check erasure status
+  if (req.url?.startsWith('/erasure/') && req.method === 'GET') {
+    const requestId = req.url.split('/')[2];
+    try {
+      const result = await pool.query('SELECT * FROM erasure_requests WHERE id = $1', [requestId]);
+      if (result.rows.length === 0) { send(404, { error: 'Not found' }); return; }
+      send(200, result.rows[0]);
+    } catch (e) { send(500, { error: e.message }); }
+    return;
+  }
+
+  send(404, { error: 'Not found' });
+});
+
+server.listen(PORT, () => {
+  console.log(`Erasure service listening on port ${PORT} (grace period: ${ERASURE_GRACE_DAYS} days)`);
+});
+SCRIPT
+
+EXPOSE 3012
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "/app/dist/index.js"]

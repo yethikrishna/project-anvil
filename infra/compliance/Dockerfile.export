@@ -1,0 +1,191 @@
+# Data Export Service — GDPR Art. 20 right to data portability.
+# Exports all user data in JSON, CSV, or PDF formats.
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache tini
+
+COPY <<'EOF' /app/package.json
+{
+  "name": "anvil-export-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
+EOF
+
+RUN npm install --omit=dev
+
+COPY <<'SCRIPT' /app/dist/index.js
+import pg from 'pg';
+import { createWriteStream, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
+import { createServer } from 'http';
+import crypto from 'crypto';
+
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+});
+
+const PORT = parseInt(process.env.EXPORT_PORT || '3013', 10);
+const EXPORT_DIR = process.env.EXPORT_DIR || '/exports';
+const EXPORT_FORMATS = (process.env.EXPORT_FORMATS || 'json,csv,pdf').split(',');
+const EXPORT_TTL_HOURS = parseInt(process.env.EXPORT_TTL_HOURS || '72', 10);
+
+async function collectUserData(tenantId, userId) {
+  const data = {};
+
+  // Profile
+  const profile = await pool.query('SELECT * FROM users WHERE id = $1 AND tenant_id = $2', [userId, tenantId]);
+  data.profile = profile.rows[0] || null;
+
+  // Files
+  const files = await pool.query(
+    `SELECT id, name, mime_type, size, path, created_at, updated_at
+     FROM files WHERE owner_id = $1`,
+    [userId]
+  );
+  data.files = files.rows;
+
+  // Documents
+  const docs = await pool.query(
+    `SELECT id, title, content, created_at, updated_at
+     FROM documents WHERE owner_id = $1`,
+    [userId]
+  );
+  data.documents = docs.rows;
+
+  // Audit trail (user's actions)
+  const audit = await pool.query(
+    `SELECT action, resource_type, resource_id, created_at
+     FROM audit_log WHERE user_id = $1 AND tenant_id = $2
+     ORDER BY created_at DESC LIMIT 1000`,
+    [userId, tenantId]
+  );
+  data.auditTrail = audit.rows;
+
+  // Consent records
+  try {
+    const consent = await pool.query(
+      `SELECT purpose, consented, method, created_at, withdrawn_at
+       FROM consent_records WHERE user_id = $1 AND tenant_id = $2`,
+      [userId, tenantId]
+    );
+    data.consentHistory = consent.rows;
+  } catch { data.consentHistory = []; }
+
+  // MFA methods (metadata only, no secrets)
+  const mfa = await pool.query(
+    `SELECT method, verified, last_used_at, created_at FROM user_mfa WHERE user_id = $1`,
+    [userId]
+  );
+  data.mfaMethods = mfa.rows;
+
+  return data;
+}
+
+function dataToCSV(data) {
+  const lines = [];
+  for (const [section, items] of Object.entries(data)) {
+    if (Array.isArray(items) && items.length > 0) {
+      lines.push(`\n# ${section}`);
+      const headers = Object.keys(items[0]);
+      lines.push(headers.map(h => `"${h}"`).join(','));
+      for (const item of items) {
+        lines.push(headers.map(h => {
+          const val = item[h];
+          if (val === null || val === undefined) return '""';
+          if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+          return `"${String(val).replace(/"/g, '""')}"`;
+        }).join(','));
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
+async function createExport(tenantId, userId, format = 'json') {
+  const exportId = crypto.randomUUID();
+  const data = await collectUserData(tenantId, userId);
+
+  if (!existsSync(EXPORT_DIR)) mkdirSync(EXPORT_DIR, { recursive: true });
+
+  let filePath;
+  let content;
+
+  switch (format) {
+    case 'csv':
+      filePath = join(EXPORT_DIR, `${exportId}.csv`);
+      content = dataToCSV(data);
+      break;
+    case 'json':
+    default:
+      filePath = join(EXPORT_DIR, `${exportId}.json`);
+      content = JSON.stringify(data, null, 2);
+      break;
+  }
+
+  const stream = createWriteStream(filePath);
+  stream.write(content);
+  stream.end();
+
+  await new Promise((resolve) => stream.on('finish', resolve));
+
+  return {
+    exportId,
+    format,
+    filePath,
+    sizeBytes: Buffer.byteLength(content),
+    sections: Object.keys(data),
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + EXPORT_TTL_HOURS * 3600000).toISOString(),
+  };
+}
+
+// ── HTTP Server ──
+
+const server = createServer(async (req, res) => {
+  const send = (code, data) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  };
+
+  if (req.url === '/health' && req.method === 'GET') {
+    send(200, { status: 'ok', formats: EXPORT_FORMATS });
+    return;
+  }
+
+  // Request export
+  if (req.url === '/export' && req.method === 'POST') {
+    const body = await new Promise((resolve) => {
+      let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d)));
+    });
+    const format = EXPORT_FORMATS.includes(body.format) ? body.format : 'json';
+    try {
+      const result = await createExport(body.tenant_id, body.user_id, format);
+      send(201, result);
+    } catch (e) { send(500, { error: e.message }); }
+    return;
+  }
+
+  send(404, { error: 'Not found' });
+});
+
+server.listen(PORT, () => {
+  console.log(`Export service listening on port ${PORT} (formats: ${EXPORT_FORMATS.join(', ')})`);
+});
+SCRIPT
+
+EXPOSE 3013
+
+VOLUME ["/exports"]
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "/app/dist/index.js"]

@@ -1,0 +1,118 @@
+# Prometheus alert rules for Anvil SOC 2 compliance monitoring
+# Covers availability, security, and operational alerts.
+
+groups:
+  # ── Availability Alerts ──
+  - name: availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.job }}."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "High latency on {{ $labels.job }}"
+          description: "P95 latency is {{ $value }}s for {{ $labels.job }}."
+
+  # ── Security Alerts ──
+  - name: security
+    rules:
+      - alert: BruteForceAttempt
+        expr: rate(auth_failure_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "{{ $value }} auth failures/sec from {{ $labels.instance }}."
+
+      - alert: UnusualDataExport
+        expr: rate(data_export_bytes_total[1h]) > 1073741824
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Large data export detected"
+          description: "{{ $value | humanize }}B/s data export rate detected."
+
+      - alert: MultipleFailedLogins
+        expr: increase(auth_failure_total{user_id!=""}[15m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Multiple failed login attempts for user {{ $labels.user_id }}"
+
+      - alert: AdminActionFromNewIP
+        expr: increase(admin_actions_total{new_ip="true"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: info
+          team: security
+        annotations:
+          summary: "Admin action from new IP address"
+
+  # ── Resource Alerts ──
+  - name: resources
+    rules:
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining."
+
+      - alert: MemoryUsageHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanizePercentage }}."
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "PostgreSQL connection pool nearing exhaustion"
+
+      - alert: CertificateExpirySoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "TLS certificate expiring in {{ $value }} days"

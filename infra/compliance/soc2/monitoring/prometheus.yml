@@ -1,0 +1,67 @@
+# Prometheus configuration for Anvil SOC 2 monitoring
+# Scrape metrics from all services for availability and security monitoring.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'anvil-soc2'
+    environment: 'production'
+
+# Alertmanager (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alerts.yml'
+
+scrape_configs:
+  # Traefik metrics
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:9090']
+    metrics_path: /metrics
+
+  # Keycloak metrics
+  - job_name: 'keycloak'
+    static_configs:
+      - targets: ['keycloak:8080']
+    metrics_path: /metrics
+
+  # PostgreSQL metrics (requires postgres_exporter sidecar)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Valkey/Redis metrics
+  - job_name: 'valkey'
+    static_configs:
+      - targets: ['valkey-exporter:9121']
+
+  # MinIO metrics
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: /minio/v2/metrics/cluster
+    scheme: http
+
+  # Meilisearch metrics
+  - job_name: 'meilisearch'
+    static_configs:
+      - targets: ['meilisearch:7700']
+    metrics_path: /metrics
+    authorization:
+      credentials: '${MEILI_KEY}'
+
+  # Node exporter (system metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Anvil application metrics
+  - job_name: 'anvil-api'
+    static_configs:
+      - targets: ['anvil-api:3000']
+    metrics_path: /api/metrics
