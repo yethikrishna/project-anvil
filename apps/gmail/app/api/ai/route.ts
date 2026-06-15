@@ -440,6 +440,179 @@ async function handleAttachmentSummary(ai: ReturnType<typeof getAI>, payload: {
   }
 }
 
+// ── Coach Reply ──
+
+async function handleCoachReply(ai: ReturnType<typeof getAI>, payload: {
+  draft: string;
+  subject: string;
+  threadMessages?: Array<{from: string; body: string; date: string}>;
+}): Promise<{
+  scores: {clarity: number; tone: number; completeness: number; brevity: number; overall: number};
+  issues: Array<{type: string; icon: string; title: string; detail: string}>;
+  improvedDraft: string;
+  subjectSuggestion?: string;
+  summary: string;
+  readingLevel: string;
+  estimatedReadTime: string;
+}> {
+  const threadContext = payload.threadMessages && payload.threadMessages.length > 0
+    ? `\n\nThread context (for reference):\n${payload.threadMessages.slice(-4).map(m => `[${m.from}]: ${m.body.slice(0, 300)}`).join('\n')}`
+    : '';
+
+  const result = await ai.generate([
+    {role: 'system', content: `You are an expert email coach. Analyze this email draft and provide detailed feedback.
+
+Output JSON:
+{
+  "scores": {
+    "clarity": 0-100,
+    "tone": 0-100,
+    "completeness": 0-100,
+    "brevity": 0-100,
+    "overall": 0-100
+  },
+  "issues": [
+    {
+      "type": "warning|suggestion|info",
+      "icon": "emoji",
+      "title": "short title",
+      "detail": "detailed explanation with actionable advice"
+    }
+  ],
+  "improvedDraft": "full improved version of the email",
+  "subjectSuggestion": "better subject line if needed or null",
+  "summary": "1-sentence overall assessment",
+  "readingLevel": "Elementary|Middle School|High School|College|Professional",
+  "estimatedReadTime": "e.g. ~30 seconds"
+}
+
+Scoring guidelines:
+- Clarity: Is it easy to understand? No jargon, clear sentences?
+- Tone: Is it appropriate — not aggressive, not overly deferential?
+- Completeness: Does it address the thread context and include a clear action request?
+- Brevity: Is it concise? Penalise waffle, repetition, excessive hedging.
+- Overall: Weighted average leaning on tone + completeness.
+
+For improvedDraft: rewrite preserving the sender's intent but fixing the identified issues.`},
+    {role: 'user', content: `Subject: ${payload.subject}\n\nDraft:\n${payload.draft}${threadContext}`},
+  ], {temperature: 0.3, maxTokens: 1500});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {
+      scores: {clarity: 70, tone: 70, completeness: 70, brevity: 70, overall: 70},
+      issues: [],
+      improvedDraft: payload.draft,
+      summary: 'AI analysis failed — showing local analysis.',
+      readingLevel: 'Professional',
+      estimatedReadTime: '~30 seconds',
+    };
+  }
+}
+
+// ── Triage Batch ──
+
+type TriagePriority = 'urgent' | 'today' | 'this-week' | 'low';
+type SuggestedAction = 'reply' | 'archive' | 'label' | 'read' | 'forward' | 'delegate';
+
+interface TriageItem {
+  emailId: string;
+  subject: string;
+  from: string;
+  date: string;
+  priority: TriagePriority;
+  category: string;
+  reason: string;
+  suggestedAction: SuggestedAction;
+  actionLabel: string;
+  estimatedReadTime: string;
+}
+
+async function handleTriageBatch(ai: ReturnType<typeof getAI>, payload: {
+  emails: Array<{id: string; subject: string; from: string; body: string; date: string}>;
+}): Promise<{
+  urgent: TriageItem[];
+  today: TriageItem[];
+  thisWeek: TriageItem[];
+  low: TriageItem[];
+  totalProcessed: number;
+  processingTimeMs: number;
+}> {
+  const t0 = Date.now();
+  const emailBlock = payload.emails
+    .map((e, i) => `[${i}] ID:${e.id} From:${e.from}\nSubject: ${e.subject}\nDate: ${e.date}\n${e.body.slice(0, 300)}`)
+    .join('\n\n');
+
+  const result = await ai.generate([
+    {role: 'system', content: `Triage these emails by priority. For each email output one JSON object.
+
+Priority levels:
+- urgent: immediate action needed (deadline today, blocker, explicit urgent request, meeting in <2h)
+- today: should respond or act today (work email from person, awaiting reply, task with due date soon)
+- this-week: can wait 1-2 days (weekly digests, low-urgency questions, FYI from colleagues)
+- low: newsletters, notifications, automated emails, receipts
+
+SuggestedAction: reply|archive|label|read|forward|delegate
+
+Output JSON array (one item per email, same order as input):
+[{
+  "emailId": "...",
+  "priority": "urgent|today|this-week|low",
+  "category": "work|personal|newsletter|transaction|notification|spam",
+  "reason": "brief reason (max 60 chars)",
+  "suggestedAction": "reply|archive|label|read|forward|delegate",
+  "actionLabel": "Reply|Archive|Read",
+  "estimatedReadTime": "~30s"
+}]`},
+    {role: 'user', content: emailBlock},
+  ], {temperature: 0.1, maxTokens: 3000});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const items: (TriageItem & {subject?: string; from?: string; date?: string})[] = JSON.parse(cleaned);
+
+    // Merge static email fields back in
+    const enriched: TriageItem[] = items.map((item, i) => ({
+      ...item,
+      subject: payload.emails[i]?.subject ?? '',
+      from: payload.emails[i]?.from ?? '',
+      date: payload.emails[i]?.date ?? '',
+    }));
+
+    const urgent = enriched.filter(e => e.priority === 'urgent');
+    const today = enriched.filter(e => e.priority === 'today');
+    const thisWeek = enriched.filter(e => e.priority === 'this-week');
+    const low = enriched.filter(e => e.priority === 'low');
+
+    return {
+      urgent, today, thisWeek, low,
+      totalProcessed: enriched.length,
+      processingTimeMs: Date.now() - t0,
+    };
+  } catch {
+    // Fall back: put everything in low
+    const items: TriageItem[] = payload.emails.map(e => ({
+      emailId: e.id,
+      subject: e.subject,
+      from: e.from,
+      date: e.date,
+      priority: 'low' as TriagePriority,
+      category: 'general',
+      reason: 'Classification failed',
+      suggestedAction: 'read' as SuggestedAction,
+      actionLabel: 'Read',
+      estimatedReadTime: '~1m',
+    }));
+    return {
+      urgent: [], today: [], thisWeek: [], low: items,
+      totalProcessed: items.length,
+      processingTimeMs: Date.now() - t0,
+    };
+  }
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -471,6 +644,10 @@ export async function POST(request: Request) {
         return Response.json(await handleMatchStyle(ai, body.payload as any));
       case 'attachment-summary':
         return Response.json(await handleAttachmentSummary(ai, body.payload as any));
+      case 'coach-reply':
+        return Response.json(await handleCoachReply(ai, body.payload as any));
+      case 'triage-batch':
+        return Response.json(await handleTriageBatch(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

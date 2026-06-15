@@ -100,6 +100,7 @@ export interface ChatSSEEvents {
     status: 'running' | 'success' | 'error';
     duration?: number;
   }) => void;
+  onPendingApproval?: (data: { toolId: string; toolName: string; args: Record<string, unknown> }) => void;
   onDone?: (data: { message: unknown; toolCalls: unknown[]; contextUpdates?: unknown }) => void;
   onError?: (data: { message: string }) => void;
   onProgress?: (data: { step: number; message: string }) => void;
@@ -126,6 +127,9 @@ export async function parseChatStream(
         break;
       case 'tool':
         handlers.onTool?.(event.data as ChatSSEEvents['onTool'] extends (tc: infer T) => void ? T : never);
+        break;
+      case 'pending_approval':
+        handlers.onPendingApproval?.(event.data as { toolId: string; toolName: string; args: Record<string, unknown> });
         break;
       case 'done':
         handlers.onDone?.(event.data as { message: unknown; toolCalls: unknown[]; contextUpdates?: unknown });

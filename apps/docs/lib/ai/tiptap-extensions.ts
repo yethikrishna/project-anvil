@@ -646,18 +646,50 @@ export const AIShortcuts = Extension.create({
 
   addKeyboardShortcuts() {
     return {
+      // Tab → accept pending inline suggestion (GitHub Copilot-style)
+      'Tab': () => {
+        const pluginState = aiPluginKey.getState(this.editor.state);
+        if (pluginState?.suggestions.some(s => s.status === 'pending' || s.status === 'streaming')) {
+          return (this.editor.commands as any).aiAcceptSuggestion();
+        }
+        return false; // fall through to default Tab behaviour
+      },
+      // Ctrl+→ / Cmd+→ → accept one word at a time
+      'Mod-ArrowRight': () => {
+        const pluginState = aiPluginKey.getState(this.editor.state);
+        const pending = pluginState?.suggestions.find((s: AISuggestion) => s.status === 'pending');
+        if (!pending) return false;
+        const words = pending.text.split(' ');
+        const rest = words.slice(1).join(' ');
+        (this.editor.commands as any).aiAcceptSuggestion(pending.id);
+        if (rest) {
+          // Re-enqueue the remaining words as a new ghost-text suggestion (no API re-call)
+          const requeue: AISuggestion = {
+            ...pending,
+            id: `sug-partial-${Date.now()}`,
+            text: ' ' + rest,
+            status: 'pending',
+          };
+          const tr = this.editor.state.tr.setMeta(aiPluginKey, {
+            action: 'addSuggestion',
+            suggestion: requeue,
+          });
+          this.editor.view.dispatch(tr);
+        }
+        return true;
+      },
+      // Legacy Ctrl+Shift+A shortcut
       'Mod-Shift-a': () => {
         const pluginState = aiPluginKey.getState(this.editor.state);
-        if (pluginState?.suggestions.some(s => s.status === 'pending')) {
+        if (pluginState?.suggestions.some((s: AISuggestion) => s.status === 'pending')) {
           return (this.editor.commands as any).aiAcceptSuggestion();
         }
         return false;
       },
       'Escape': () => {
         const pluginState = aiPluginKey.getState(this.editor.state);
-        if (pluginState?.activeSuggestion) {
-          // Cancel streaming if active
-          if (pluginState.suggestions.some(s => s.status === 'streaming')) {
+        if (pluginState?.suggestions.some((s: AISuggestion) => s.status === 'pending' || s.status === 'streaming')) {
+          if (pluginState.suggestions.some((s: AISuggestion) => s.status === 'streaming')) {
             (this.editor.commands as any).aiCancelStream();
           }
           return (this.editor.commands as any).aiRejectSuggestion();
@@ -665,13 +697,17 @@ export const AIShortcuts = Extension.create({
         return false;
       },
       'Mod-Shift-r': () => {
-        // Quick rewrite (better mode)
         const selection = getSelectedText(this.editor);
         if (selection) {
           (this.editor.commands as any).aiRewrite('fix-grammar');
           return true;
         }
         return false;
+      },
+      // Alt+\ → trigger inline suggestion at cursor
+      'Alt-\\': () => {
+        (this.editor.commands as any).aiSuggest();
+        return true;
       },
     };
   },

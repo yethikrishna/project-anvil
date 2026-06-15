@@ -36,7 +36,7 @@ function getAI() {
 // ── Request / Response Types ──
 
 interface AIRequest {
-  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find' | 'generate-outline' | 'suggest-heading';
+  action: 'rewrite' | 'draft' | 'research' | 'suggest' | 'title' | 'summary' | 'translate' | 'template' | 'continue' | 'explain' | 'improve' | 'assistant' | 'toc' | 'version-diff' | 'smart-template' | 'grammar-check' | 'writing-coach' | 'semantic-find' | 'generate-outline' | 'suggest-heading' | 'version-diff-summary';
   payload: Record<string, unknown>;
 }
 
@@ -601,6 +601,39 @@ Output JSON:
   }
 }
 
+// ── Version Diff Summary ──
+
+async function handleVersionDiffSummary(ai: ReturnType<typeof getAI>, payload: {
+  prevText: string;
+  newText: string;
+  prevWordCount: number;
+  newWordCount: number;
+}): Promise<{summary: string; sectionsChanged: string[]}> {
+  const wordDelta = payload.newWordCount - payload.prevWordCount;
+  const deltaDesc = wordDelta === 0
+    ? 'no word count change'
+    : wordDelta > 0
+    ? `+${wordDelta} words added`
+    : `${wordDelta} words removed`;
+
+  const result = await ai.generate([
+    {role: 'system', content: `You are a document change analyst. Compare two versions of a document and generate a concise human-readable summary of what changed.
+
+Output JSON: {"summary": "one sentence describing the changes", "sectionsChanged": ["section names that changed"]}
+
+Keep summary under 120 characters. Focus on meaningful content changes, not formatting.`},
+    {role: 'user', content: `Word count change: ${deltaDesc}\n\nPrevious version (excerpt):\n${payload.prevText.slice(0, 1500)}\n\nNew version (excerpt):\n${payload.newText.slice(0, 1500)}`},
+  ], {temperature: 0.2, maxTokens: 300});
+
+  try {
+    const cleaned = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    const delta = wordDelta > 0 ? `Added ${wordDelta} words.` : wordDelta < 0 ? `Removed ${Math.abs(wordDelta)} words.` : 'Minor edits.';
+    return { summary: delta, sectionsChanged: [] };
+  }
+}
+
 // ── Route Handler ──
 
 export async function POST(request: Request) {
@@ -649,6 +682,8 @@ export async function POST(request: Request) {
         return Response.json(await handleGenerateOutline(ai, body.payload as any));
       case 'suggest-heading':
         return Response.json(await handleSuggestHeading(ai, body.payload as any));
+      case 'version-diff-summary':
+        return Response.json(await handleVersionDiffSummary(ai, body.payload as any));
       default:
         return Response.json({error: `Unknown action: ${body.action}`}, {status: 400});
     }

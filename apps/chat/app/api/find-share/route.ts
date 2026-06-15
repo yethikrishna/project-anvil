@@ -10,9 +10,30 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToolExecutor } from '@/lib/tool-executor';
+import { ChatEngine } from '@/lib/chat-engine';
 
 export async function POST(req: NextRequest) {
-  const { query, recipient, userId } = await req.json();
+  const { query, recipient, userId, action, title, content } = await req.json();
+
+  // ── Create Doc from AI content ──
+  if (action === 'create_doc') {
+    if (!title || !content) {
+      return NextResponse.json({ error: 'Missing title or content' }, { status: 400 });
+    }
+    const tools = getToolExecutor({ userId });
+    const result = await tools.writeDocument(title, content);
+    try {
+      const data = JSON.parse(result);
+      return NextResponse.json({
+        success: true,
+        title,
+        url: data.url ?? data.link ?? null,
+        docId: data.id ?? data.docId ?? null,
+      });
+    } catch {
+      return NextResponse.json({ success: true, title });
+    }
+  }
 
   if (!query) {
     return NextResponse.json({ error: 'Missing query' }, { status: 400 });

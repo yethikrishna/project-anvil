@@ -45,6 +45,8 @@ import { KeyPointsCard } from './components/ai-key-points';
 import { WaitingReplyBadge, calculateWaitTime } from './components/ai-response-intelligence';
 import { EmailEmotionBadge } from './components/ai-emotion-detector';
 import { DigestPanel } from './components/ai-digest-panel';
+import { AIReplyCoach } from './components/ai-reply-coach';
+import { AIBulkTriage } from './components/ai-bulk-triage';
 
 // ─── Types ───
 
@@ -215,6 +217,7 @@ const LABEL_COLORS: Record<string, string> = {
 function ComposeModal({ onClose, onSend }: { onClose: () => void; onSend: (to: string, subject: string, body: string) => void }) {
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
+  const [showCoach, setShowCoach] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -229,8 +232,26 @@ function ComposeModal({ onClose, onSend }: { onClose: () => void; onSend: (to: s
     onClose();
   };
 
+  const handleCoachReview = () => {
+    const text = editor?.getText() || '';
+    if (text.trim().length < 5) return;
+    setShowCoach(true);
+  };
+
   return (
     <div className="fixed bottom-4 right-4 w-[540px] max-h-[500px] bg-white rounded-lg shadow-2xl border border-gray-300 flex flex-col z-50">
+      {/* AI Reply Coach */}
+      {showCoach && (
+        <AIReplyCoach
+          draft={editor?.getText() || ''}
+          subject={subject}
+          onImprove={(improved) => {
+            editor?.commands.setContent(`<p>${improved.replace(/\n/g, '</p><p>')}</p>`);
+          }}
+          onDismiss={() => setShowCoach(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100 rounded-t-lg border-b border-gray-200">
         <span className="text-sm font-medium text-gray-700">New Message</span>
@@ -263,6 +284,13 @@ function ComposeModal({ onClose, onSend }: { onClose: () => void; onSend: (to: s
         <div className="flex items-center gap-1">
           <button onClick={handleSend} className="px-5 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium">
             Send
+          </button>
+          <button
+            onClick={handleCoachReview}
+            className="px-3 py-1.5 bg-purple-50 text-purple-700 text-sm rounded-lg hover:bg-purple-100 font-medium flex items-center gap-1"
+            title="AI Reply Coach — review before sending"
+          >
+            🧑‍🏫 Coach
           </button>
         </div>
         <div className="flex items-center gap-1">
@@ -556,6 +584,7 @@ export default function GmailPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInboxCategory, setActiveInboxCategory] = useState<InboxCategory | 'all'>('all');
   const [showDigest, setShowDigest] = useState(false);
+  const [showBulkTriage, setShowBulkTriage] = useState(false);
   const [showSmartFilters, setShowSmartFilters] = useState(false);
   const [showRulesManager, setShowRulesManager] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
@@ -728,6 +757,14 @@ export default function GmailPage() {
               <span className="text-sm">✨</span>
               <span className="flex-1 text-left">AI Digest</span>
               {unreadCount > 0 && <span className="text-[10px] text-purple-500">{unreadCount}</span>}
+            </button>
+            <button
+              onClick={() => setShowBulkTriage(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-purple-600 hover:bg-purple-50 transition-colors"
+            >
+              <span className="text-sm">🤖</span>
+              <span className="flex-1 text-left">AI Triage</span>
+              {unreadCount > 0 && <span className="text-[10px] bg-red-100 text-red-600 rounded-full px-1.5">{unreadCount}</span>}
             </button>
             <button
               onClick={() => setShowSmartFilters(!showSmartFilters)}
@@ -950,6 +987,15 @@ export default function GmailPage() {
           messages={messages}
           onClose={() => setShowDigest(false)}
           onSelectEmail={(threadId) => { setSelectedThread(threadId); setShowDigest(false); }}
+        />
+      )}
+
+      {/* AI Bulk Triage */}
+      {showBulkTriage && (
+        <AIBulkTriage
+          messages={messages}
+          onSelectEmail={(id) => { setSelectedThread(id); }}
+          onClose={() => setShowBulkTriage(false)}
         />
       )}
 

@@ -43,6 +43,8 @@ import {WordChoicePanel} from '../../../lib/ai/word-choice-suggester';
 import {ContentTransformer} from '../../../lib/ai/content-transformer';
 import {HeadingSuggestionsPanel} from '../../../lib/ai/heading-suggestions';
 import {ContentBriefGenerator} from '../../../lib/ai/content-brief-generator';
+import {AIVersionTimeline} from '../../../lib/ai/version-timeline';
+import {AITabHint} from '../../../lib/ai/ai-tab-hint';
 import {AIErrorBoundary} from '@anvil/ui';
 import '../../../ai-styles.css';
 
@@ -223,6 +225,7 @@ export default function EditorPage({params}: EditorPageProps) {
   const [showTransformer, setShowTransformer] = useState(false);
   const [showHeadingSuggestions, setShowHeadingSuggestions] = useState(false);
   const [showBriefGenerator, setShowBriefGenerator] = useState(false);
+  const [showVersionTimeline, setShowVersionTimeline] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -566,6 +569,13 @@ export default function EditorPage({params}: EditorPageProps) {
         >
           📝 Brief
         </button>
+        <button
+          onClick={() => setShowVersionTimeline(t => !t)}
+          className={`px-2 py-1 rounded text-xs transition-colors ${showVersionTimeline ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}
+          title="Version History with AI diff summaries"
+        >
+          🕗 History
+        </button>
       </div>
 
       {/* Toolbar with AI */}
@@ -731,6 +741,18 @@ export default function EditorPage({params}: EditorPageProps) {
         </AIErrorBoundary>
       )}
 
+      {/* AI Version Timeline */}
+      {showVersionTimeline && editor && (
+        <AIErrorBoundary featureName="Version Timeline">
+          <AIVersionTimeline
+            editor={editor}
+            docId={paramsId}
+            authorName={user?.name ?? 'You'}
+            onClose={() => setShowVersionTimeline(false)}
+          />
+        </AIErrorBoundary>
+      )}
+
       {/* Writing Score Panel */}
       {showWritingScore && writingScore && (
         <div className="fixed bottom-4 right-4 z-50">
@@ -751,6 +773,9 @@ export default function EditorPage({params}: EditorPageProps) {
           </AIErrorBoundary>
         </div>
       )}
+
+      {/* Tab-to-accept hint for inline AI suggestions */}
+      <AITabHint editor={editor ?? null} />
     </div>
   );
 }

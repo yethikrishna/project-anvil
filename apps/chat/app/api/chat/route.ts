@@ -23,7 +23,7 @@ import { ChatEngine } from '@/lib/chat-engine';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { conversationId, message, history, context, userPatterns, settings } = body as {
+  const { conversationId, message, history, context, userPatterns, settings, approvedToolIds } = body as {
     conversationId: string;
     message: string;
     history: Array<{ role: string; content: string }>;
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     };
     userPatterns?: string;
     settings?: { requireApprovalForEmail?: boolean; requireApprovalForCalendar?: boolean; communicationStyle?: string; emailTone?: string };
+    approvedToolIds?: string[];
   };
 
   if (!conversationId || !message) {
@@ -75,6 +76,10 @@ export async function POST(req: NextRequest) {
           (chunk) => send('delta', { content: chunk }),
           // Tool call handler
           (toolCall) => send('tool', toolCall),
+          // Pending approval handler
+          (toolId, toolName, args) => send('pending_approval', { toolId, toolName, args }),
+          // Approved tool IDs
+          approvedToolIds ? new Set(approvedToolIds) : undefined,
         );
 
         send('done', {

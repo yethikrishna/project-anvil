@@ -158,6 +158,15 @@ ${approvalRules.map(r => `- ${r}`).join('\n')}`);
 
 // ── Chat Engine ──
 
+// ── High-risk tools that require approval before execution ──
+
+const HIGH_RISK_TOOLS = new Set([
+  'email_send',
+  'calendar_create_event',
+  'document_write',
+  'file_share',
+]);
+
 export interface ChatEngineConfig {
   aiEndpoint: string;
   apiKey?: string;
@@ -190,6 +199,8 @@ export class ChatEngine {
     context: ConversationContext,
     onStream?: (chunk: string) => void,
     onToolCall?: (toolCall: ToolCallResult) => void,
+    onPendingApproval?: (toolId: string, toolName: string, args: Record<string, unknown>) => void,
+    approvedToolIds?: Set<string>,
   ): Promise<{ message: ChatMessage; toolCalls: ToolCallResult[]; contextUpdates: Partial<ConversationContext> }> {
     // 1. Detect intent for prompt optimization
     const intent = detectIntent(userContent);
@@ -235,6 +246,35 @@ export class ChatEngine {
             args = JSON.parse(tc.arguments || '{}');
           } catch {
             args = {};
+          }
+
+          // ── Approval gate for high-risk tools ──
+          const requiresApproval = (this.config.settings?.requireApprovalForEmail !== false && tc.name === 'email_send') ||
+            (this.config.settings?.requireApprovalForCalendar !== false && tc.name === 'calendar_create_event') ||
+            HIGH_RISK_TOOLS.has(tc.name);
+
+          const isApproved = approvedToolIds?.has(tc.id) ?? false;
+
+          if (requiresApproval && !isApproved) {
+            // Emit pending approval event and use a held result
+            onPendingApproval?.(tc.id, tc.name, args);
+            const callResult: ToolCallResult = {
+              id: tc.id,
+              tool: tc.name,
+              args,
+              result: JSON.stringify({ pending: true, message: 'Waiting for user approval.' }),
+              status: 'running',
+            };
+            allToolCalls.push(callResult);
+            onToolCall?.(callResult);
+            // Feed synthetic "pending" result so AI can respond gracefully
+            aiMessages.push({
+              role: 'tool' as any,
+              tool_call_id: tc.id,
+              content: 'Action paused — waiting for user confirmation before proceeding.',
+            } as any);
+            accumulateContext(convId, tc.name, args, callResult.result);
+            continue;
           }
 
           const toolResult = await getToolExecutor({

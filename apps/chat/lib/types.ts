@@ -25,6 +25,8 @@ export interface ChatMessage {
   voiceInput?: boolean;
   /** Status of streaming */
   streaming?: boolean;
+  /** Whether this message is pinned */
+  pinned?: boolean;
 }
 
 export interface ToolCallResult {

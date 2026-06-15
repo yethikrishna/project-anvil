@@ -37,6 +37,9 @@ import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/compon
 import WeeklySummaryWidget from '@/components/WeeklySummaryWidget';
 import DraftPreviewModal from '@/components/DraftPreviewModal';
 import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
+import PinnedMessages from '@/components/PinnedMessages';
+import SaveToDocsModal from '@/components/SaveToDocsModal';
+import ThemeToggle from '@/components/ThemeToggle';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
@@ -70,7 +73,12 @@ export default function ChatPage() {
   const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [saveToDocsContent, setSaveToDocsContent] = useState<string | null>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
+  const [approvedToolIds, setApprovedToolIds] = useState<Set<string>>(new Set());
+  const pendingConvRef = useRef<string | null>(null);
   const [userPatternSummary, setUserPatternSummary] = useState<string>('');
   const [chatSettings, setChatSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -95,6 +103,15 @@ export default function ChatPage() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
         e.preventDefault();
         setShowAttention(prev => !prev);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        setShowPinnedMessages(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false);
+        setShowSearch(false);
+        setShowPinnedMessages(false);
       }
       // Export current conversation
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
@@ -261,6 +278,7 @@ export default function ChatPage() {
             communicationStyle: chatSettings.communicationStyle,
             emailTone: chatSettings.emailTone,
           },
+          approvedToolIds: Array.from(approvedToolIds),
         }),
       });
 
@@ -275,7 +293,6 @@ export default function ChatPage() {
         },
         onTool: (toolCall) => {
           setActiveToolCalls(prev => {
-            // Update existing tool call or add new one
             const existing = prev.findIndex(tc => tc.id === toolCall.id);
             if (existing >= 0) {
               const updated = [...prev];
@@ -284,27 +301,28 @@ export default function ChatPage() {
             }
             return [...prev, toolCall];
           });
-
-          // Check if this tool needs approval
-          if (chatSettings.requireApprovalForEmail &&
-              ['email_send'].includes(toolCall.tool)) {
-            setPendingApproval({
-              id: toolCall.id,
-              type: toolCall.tool,
-              description: `AI wants to: ${toolCall.tool.replace(/_/g, ' ')}`,
-              risk: 'high',
-              params: toolCall.args,
-            });
-          } else if (chatSettings.requireApprovalForCalendar &&
-                     ['calendar_create_event'].includes(toolCall.tool)) {
-            setPendingApproval({
-              id: toolCall.id,
-              type: toolCall.tool,
-              description: `AI wants to: ${toolCall.tool.replace(/_/g, ' ')}`,
-              risk: 'medium',
-              params: toolCall.args,
-            });
-          }
+        },
+        onPendingApproval: (data) => {
+          const riskMap: Record<string, 'high' | 'medium' | 'low'> = {
+            email_send: 'high',
+            calendar_create_event: 'medium',
+            document_write: 'medium',
+            file_share: 'medium',
+          };
+          const labelMap: Record<string, string> = {
+            email_send: 'Send an email',
+            calendar_create_event: 'Create a calendar event',
+            document_write: 'Create/edit a document',
+            file_share: 'Share a file',
+          };
+          setPendingApproval({
+            id: data.toolId,
+            type: data.toolName,
+            description: labelMap[data.toolName] ?? `Execute: ${data.toolName.replace(/_/g, ' ')}`,
+            risk: riskMap[data.toolName] ?? 'medium',
+            params: data.args,
+          });
+          pendingConvRef.current = conv?.id ?? null;
         },
         onDone: (data) => {
           if (data.message) {
@@ -393,12 +411,32 @@ export default function ChatPage() {
   }, [activeConv, isLoading, userPatternSummary, chatSettings, detectAndStorePreferences]);
 
   const handleApprove = useCallback((actionId: string) => {
+    // Add to approved set so next retry executes the tool
+    setApprovedToolIds(prev => new Set([...prev, actionId]));
     setPendingApproval(null);
-    toastSuccess('Action approved');
-  }, []);
+    toastSuccess('Action approved — retrying…');
+    // Re-send the last user message so the engine can execute with approval
+    if (activeConv) {
+      const lastUserMsg = [...(activeConv.messages)].reverse().find(m => m.role === 'user');
+      if (lastUserMsg) {
+        // Remove the last assistant message (the one with pending state)
+        setActiveConv(prev => {
+          if (!prev) return prev;
+          const withoutLastAI = prev.messages.filter((_, i) => i < prev.messages.length - 1);
+          return { ...prev, messages: withoutLastAI };
+        });
+        setTimeout(() => {
+          handleSend(lastUserMsg.content);
+          // Clear approved tools after retry
+          setApprovedToolIds(new Set());
+        }, 100);
+      }
+    }
+  }, [activeConv, handleSend]);
 
   const handleReject = useCallback((_actionId: string) => {
     setPendingApproval(null);
+    setApprovedToolIds(new Set());
     toastInfo('Action rejected');
   }, []);
 
@@ -430,6 +468,32 @@ export default function ChatPage() {
     handleSend(msg);
     setShowAttention(false);
   }, [handleSend]);
+
+  const handlePinMessage = useCallback((messageId: string, pinned: boolean) => {
+    setActiveConv(prev => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        messages: prev.messages.map(m =>
+          m.id === messageId ? { ...m, pinned } : m
+        ),
+        updatedAt: Date.now(),
+      };
+      saveConversation(updated).catch(console.error);
+      return updated;
+    });
+    toastSuccess(pinned ? 'Message pinned' : 'Message unpinned');
+  }, []);
+
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    const el = messageRefs.current.get(messageId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.transition = 'background-color 0.5s';
+      el.style.backgroundColor = 'rgba(251, 191, 36, 0.2)';
+      setTimeout(() => { el.style.backgroundColor = ''; }, 1200);
+    }
+  }, []);
 
   const handleCancelStream = useCallback(() => {
     abortRef.current?.abort();
@@ -532,6 +596,20 @@ export default function ChatPage() {
               >
                 ⚡ Attention
               </button>
+              {activeConv && messages.filter(m => m.pinned).length > 0 && (
+                <button
+                  onClick={() => setShowPinnedMessages(v => !v)}
+                  className={
+                    showPinnedMessages
+                      ? 'text-[11px] px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium'
+                      : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                  }
+                  title="Pinned messages"
+                >
+                  📌 {messages.filter(m => m.pinned).length}
+                </button>
+              )}
+              <ThemeToggle />
             </div>
           </div>
 
@@ -556,13 +634,23 @@ export default function ChatPage() {
               <div className="py-2">
                 {/* Pinned messages */}
                 {messages.map((msg, i) => (
-                  <MessageBubble
+                  <div
                     key={msg.id}
-                    message={msg}
-                    isLast={i === messages.length - 1 && !isStreaming}
-                    onSuggestionClick={handleSend}
-                    onRegenerate={i === messages.length - 1 && msg.role === 'assistant' && !isStreaming ? handleRegenerate : undefined}
-                  />
+                    ref={el => {
+                      if (el) messageRefs.current.set(msg.id, el);
+                      else messageRefs.current.delete(msg.id);
+                    }}
+                  >
+                    <MessageBubble
+                      message={msg}
+                      isLast={i === messages.length - 1 && !isStreaming}
+                      isStreaming={isStreaming && i === messages.length - 1}
+                      onSuggestionClick={handleSend}
+                      onRegenerate={i === messages.length - 1 && msg.role === 'assistant' && !isStreaming ? handleRegenerate : undefined}
+                      onPin={handlePinMessage}
+                      onSaveToDocs={(c) => setSaveToDocsContent(c)}
+                    />
+                  </div>
                 ))}
 
                 {/* Approval gate */}
@@ -622,6 +710,16 @@ export default function ChatPage() {
             onClose={() => setShowAttention(false)}
           />
         )}
+
+        {/* Pinned messages panel */}
+        {showPinnedMessages && activeConv && (
+          <PinnedMessages
+            messages={messages}
+            onClose={() => setShowPinnedMessages(false)}
+            onUnpin={(id) => handlePinMessage(id, false)}
+            onScrollTo={handleScrollToMessage}
+          />
+        )}
       </div>
 
       {/* Overlays */}
@@ -665,6 +763,13 @@ export default function ChatPage() {
 
       {showMeetingScheduler && (
         <MeetingSchedulerModal onClose={() => setShowMeetingScheduler(false)} />
+      )}
+
+      {saveToDocsContent && (
+        <SaveToDocsModal
+          content={saveToDocsContent}
+          onClose={() => setSaveToDocsContent(null)}
+        />
       )}
 
       <ToastContainer />
