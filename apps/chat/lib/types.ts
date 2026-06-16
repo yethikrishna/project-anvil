@@ -158,19 +158,53 @@ export interface WorkflowResult {
 
 export interface WeeklySummary {
   weekRange: string;
-  emailsProcessed: number;
-  docsCreated: number;
-  meetingsAttended: number;
-  filesShared: number;
-  topTopics: string[];
-  actionItems: string[];
-  highlights: string[];
+  generatedAt?: string;
+  headline?: string;
+  // Legacy fields
+  emailsProcessed?: number;
+  docsCreated?: number;
+  meetingsAttended?: number;
+  filesShared?: number;
+  topTopics?: string[];
+  actionItems: string[] | Array<{ item: string; priority: string; source: string; due: string }>;
+  highlights?: string[];
+  insights?: string[];
+  nextWeekPrep?: string[];
   productivity?: {
-    avgResponseTimeHours: number;
-    meetingsPerDay: number;
-    emailsPerDay: number;
+    avgResponseTimeHours?: number;
+    meetingsPerDay?: number;
+    emailsPerDay?: number;
   };
   recommendations?: string[];
   unreadEmails?: number;
   meetingsUpcoming?: number;
+  // Rich fields
+  email?: {
+    totalReceived: number;
+    totalSent: number;
+    unread: number;
+    urgentUnread: number;
+    topSenders: Array<{ name: string; count: number }>;
+    hotThreads: Array<{
+      subject: string;
+      from: string;
+      status: string;
+      urgency: string;
+      summary: string;
+    }>;
+  };
+  calendar?: {
+    meetingsLastWeek: number;
+    meetingHoursLastWeek: number;
+    meetingsNextWeek: number;
+    upcomingHighlights: Array<{
+      title: string;
+      time: string;
+      type: string;
+      attendees: number;
+    }>;
+  };
+  documents?: {
+    recentlyAccessed: Array<{ title: string; type: string; relevance: string }>;
+  };
 }

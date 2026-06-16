@@ -162,6 +162,7 @@ export interface ChatEngineConfig {
     requireApprovalForCalendar?: boolean;
     communicationStyle?: string;
     emailTone?: string;
+    agentMode?: boolean;
   };
 }
 
@@ -305,9 +306,14 @@ export class ChatEngine {
             args = {};
           }
 
+          // Approval gate: skip if agent mode is active (__agent_mode__ in approvedToolIds)
+          const isAgentMode = approvedToolIds?.has('__agent_mode__') ||
+            this.config.settings?.agentMode === true;
+
           // Approval gate for high-risk tools
           const requiresApproval = APPROVAL_REQUIRED_TOOLS.has(tc.name) &&
             this.config.settings?.requireApprovalForEmail !== false &&
+            !isAgentMode &&
             !approvedToolIds?.has(tc.id);
 
           if (requiresApproval && !pendingApprovalFired) {

@@ -60,6 +60,10 @@ import { generateAutoTitle } from '@/lib/rich-renderer';
 import { extractFullContext, mergeContext } from '@/lib/context-extractor';
 import { maybeAutoSummarize } from '@/lib/conversation-summarizer';
 import ContextPanel from '@/components/ContextPanel';
+import AttentionBadge from '@/components/AttentionBadge';
+import { useAttentionBadge } from '@/lib/use-attention-badge';
+import type { AttachedFile } from '@/components/ChatInput';
+import { syncPatternsToServer, fetchPatternsFromServer } from '@/lib/memory';
 
 export default function ChatPage() {
   // ── State ──
@@ -85,9 +89,15 @@ export default function ChatPage() {
   const pendingConvRef = useRef<string | null>(null);
   const [userPatternSummary, setUserPatternSummary] = useState<string>('');
   const [chatSettings, setChatSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
+  const [agentMode, setAgentMode] = useState(false);
+  const [renamingConvId, setRenamingConvId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { generateTitle } = useAutoTitle();
+
+  // ── Attention badge (background scanner) ──
+  const { badgeCount, urgentItems, lastFetched, isLoading: attLoading, refresh: refreshAttention } = useAttentionBadge({ enabled: true });
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -156,6 +166,19 @@ export default function ChatPage() {
           listConversations().then(updated => setConversations(updated)).catch(console.error);
         }
       }).catch(() => { /* silent */ });
+
+      // Load patterns from server (cross-device context restore)
+      fetchPatternsFromServer().then(serverPatterns => {
+        if (serverPatterns) {
+          const localPatterns = loadPatterns();
+          // Merge server patterns into local — local takes precedence
+          // Use unknown cast to avoid structural mismatch TypeScript errors
+          const merged = localPatterns
+            ? { ...(serverPatterns as unknown as typeof localPatterns), ...localPatterns }
+            : (serverPatterns as unknown as Parameters<typeof savePatterns>[0]);
+          savePatterns(merged);
+        }
+      }).catch(() => {});
     })();
   }, []);
 
@@ -164,7 +187,7 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeConv?.messages, streamingText, activeToolCalls]);
 
-  // ── Save patterns periodically ──
+  // ── Save patterns periodically (local + server) ──
   useEffect(() => {
     if (!activeConv) return;
     const interval = setInterval(() => {
@@ -174,6 +197,7 @@ export default function ChatPage() {
         const merged = existing ? { ...existing, ...patterns } : patterns;
         savePatterns(merged);
         setUserPatternSummary(buildContextSummary(activeConv.context, merged));
+        syncPatternsToServer(merged as unknown as Record<string, unknown>).catch(() => {});
       }
     }, 30_000);
     return () => clearInterval(interval);
@@ -231,6 +255,18 @@ export default function ChatPage() {
     }
   }, [activeConv]);
 
+  // ── Inline rename ──
+  const handleStartRename = useCallback((id: string, currentTitle: string) => {
+    setRenamingConvId(id);
+    setRenameValue(currentTitle);
+  }, []);
+
+  const handleFinishRename = useCallback(async () => {
+    if (!renamingConvId || !renameValue.trim()) { setRenamingConvId(null); return; }
+    await handleRenameConversation(renamingConvId, renameValue.trim());
+    setRenamingConvId(null);
+  }, [renamingConvId, renameValue, handleRenameConversation]);
+
   const detectAndStorePreferences = useCallback(async (text: string, convId: string) => {
     const prefs = detectPreferences(text);
     if (prefs.length === 0) return;
@@ -240,8 +276,12 @@ export default function ChatPage() {
     await saveConversation(conv);
   }, []);
 
-  const handleSend = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
+  const handleSend = useCallback(async (text: string, attachments?: AttachedFile[]) => {
+    if ((!text.trim() && !attachments?.length) || isLoading) return;
+
+    const effectiveApprovedIds = agentMode
+      ? new Set([...approvedToolIds, '__agent_mode__'])
+      : approvedToolIds;
 
     let conv = activeConv;
     if (!conv) {
@@ -284,12 +324,21 @@ export default function ChatPage() {
           context: conv.context,
           userPatterns: userPatternSummary,
           settings: {
-            requireApprovalForEmail: chatSettings.requireApprovalForEmail,
-            requireApprovalForCalendar: chatSettings.requireApprovalForCalendar,
+            requireApprovalForEmail: agentMode ? false : chatSettings.requireApprovalForEmail,
+            requireApprovalForCalendar: agentMode ? false : chatSettings.requireApprovalForCalendar,
             communicationStyle: chatSettings.communicationStyle,
             emailTone: chatSettings.emailTone,
+            agentMode,
           },
-          approvedToolIds: Array.from(approvedToolIds),
+          approvedToolIds: Array.from(effectiveApprovedIds),
+          attachments: attachments?.map(a => ({
+            name: a.name,
+            type: a.type,
+            size: a.size,
+            content: a.content.length > 50_000
+              ? a.content.slice(0, 50_000) + '\n...[truncated]'
+              : a.content,
+          })),
         }),
       });
 
@@ -628,6 +677,20 @@ export default function ChatPage() {
               >
                 ⚡ Attention
               </button>
+              {/* Live attention badge */}
+              <div className="relative">
+                <AttentionBadge
+                  badgeCount={badgeCount}
+                  urgentItems={urgentItems}
+                  isLoading={attLoading}
+                  lastFetched={lastFetched}
+                  onAskAI={(prompt) => {
+                    setShowAttention(false);
+                    handleSend(prompt);
+                  }}
+                  onRefresh={refreshAttention}
+                />
+              </div>
               {activeConv && messages.filter(m => m.pinned).length > 0 && (
                 <button
                   onClick={() => setShowPinnedMessages(v => !v)}
@@ -746,7 +809,12 @@ export default function ChatPage() {
           </div>
 
           {/* Input */}
-          <ChatInput onSend={handleSend} isLoading={isLoading} />
+          <ChatInput
+            onSend={handleSend}
+            isLoading={isLoading}
+            agentMode={agentMode}
+            onAgentModeChange={setAgentMode}
+          />
         </div>
 
         {/* Attention panel */}

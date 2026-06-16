@@ -286,5 +286,61 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   EMAIL_ARCHIVE_TOOL,
   WEB_SEARCH_TOOL,
   CALENDAR_CREATE_TOOL,
+  CALENDAR_GET_EVENTS_TOOL,
   CALENDAR_CHECK_AVAILABILITY_TOOL,
+  CONTEXT_MEMO_TOOL,
+  CONTEXT_RECALL_TOOL,
 ];
+
+export const CALENDAR_GET_EVENTS_TOOL: ToolDefinition = {
+  name: 'calendar_get_events',
+  description: 'Fetch calendar events for a given time range. Returns meetings, appointments, and events with times, attendees, and descriptions.',
+  parameters: {
+    type: 'object',
+    properties: {
+      from: {
+        type: 'string',
+        description: 'Start of time range in ISO 8601 format. Default: now.',
+      },
+      to: {
+        type: 'string',
+        description: 'End of time range in ISO 8601 format. Default: 7 days from now.',
+      },
+    },
+    required: [],
+  },
+};
+
+export const CONTEXT_MEMO_TOOL: ToolDefinition = {
+  name: 'context_memo',
+  description: 'Save a user preference, fact, or instruction to remember for future conversations. Use when the user expresses a preference like "always CC me", "I prefer morning meetings", or shares important context.',
+  parameters: {
+    type: 'object',
+    properties: {
+      key: {
+        type: 'string',
+        description: 'Short identifier for this preference (e.g. "email_cc", "meeting_time", "tone_preference")',
+      },
+      value: {
+        type: 'string',
+        description: 'The preference or fact to remember',
+      },
+    },
+    required: ['key', 'value'],
+  },
+};
+
+export const CONTEXT_RECALL_TOOL: ToolDefinition = {
+  name: 'context_recall',
+  description: 'Recall a previously saved user preference or fact. Use when you need to remember something the user told you in a past conversation.',
+  parameters: {
+    type: 'object',
+    properties: {
+      key: {
+        type: 'string',
+        description: 'The preference key to look up, or a topic to search for',
+      },
+    },
+    required: ['key'],
+  },
+};

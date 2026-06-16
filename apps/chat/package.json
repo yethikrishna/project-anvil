@@ -13,6 +13,8 @@
     "@anvil/next-config": "workspace:^",
     "@anvil/notifications": "workspace:*",
     "@anvil/ui": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.11.1",
     "idb-keyval": "^6.2.1",
     "lucide-react": "^0.469.0",
     "next": "^15.1.0",

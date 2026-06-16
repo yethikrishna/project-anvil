@@ -344,3 +344,62 @@ export async function syncFromServer(userId = 'default'): Promise<number> {
     return 0;
   }
 }
+
+/**
+ * Sync user patterns (accumulated behavioral context) to server.
+ * Called periodically during active use.
+ */
+export async function syncPatternsToServer(patterns: Record<string, unknown>, userId = 'default'): Promise<void> {
+  try {
+    await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_patterns', userId, patterns }),
+    });
+  } catch {
+    // Silent fail
+  }
+}
+
+/**
+ * Load patterns from server (used on first load to restore cross-device context).
+ */
+export async function fetchPatternsFromServer(userId = 'default'): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(`/api/memory?action=patterns&userId=${userId}`);
+    if (!res.ok) return null;
+    const data = await res.json() as { patterns?: Record<string, unknown> };
+    return data.patterns ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cache attention scan results on server (5 min TTL) to avoid redundant scans.
+ */
+export async function cacheAttentionResults(data: unknown, userId = 'default', ttlMs = 5 * 60 * 1000): Promise<void> {
+  try {
+    await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'cache_attention', userId, data, ttlMs }),
+    });
+  } catch {
+    // Silent fail
+  }
+}
+
+/**
+ * Get cached attention results from server.
+ */
+export async function getCachedAttention(userId = 'default'): Promise<unknown | null> {
+  try {
+    const res = await fetch(`/api/memory?action=attention&userId=${userId}`);
+    if (!res.ok) return null;
+    const data = await res.json() as { cached: boolean; data: unknown };
+    return data.cached ? data.data : null;
+  } catch {
+    return null;
+  }
+}

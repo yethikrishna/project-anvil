@@ -8,6 +8,7 @@
  */
 
 import type { ToolCallResult } from './types';
+import { dbSetPreference, dbGetPreferences } from './db';
 
 // ── Configuration ──
 
@@ -440,6 +441,49 @@ class ToolExecutor {
             String(args.from ?? ''), String(args.to ?? ''),
           );
           break;
+        case 'calendar_get_events': {
+          const from = args.from ? String(args.from) : new Date().toISOString();
+          const to = args.to ? String(args.to) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          result = await this.getCalendarEvents(from, to);
+          break;
+        }
+        case 'context_memo': {
+          const key = String(args.key ?? '');
+          const value = String(args.value ?? '');
+          if (!key || !value) {
+            result = JSON.stringify({ error: 'Missing key or value' });
+          } else {
+            try {
+            dbSetPreference(this.userId ?? 'default', key, value);
+              result = JSON.stringify({ success: true, saved: { key, value } });
+            } catch (e) {
+              result = JSON.stringify({ error: 'Failed to save preference' });
+            }
+          }
+          break;
+        }
+        case 'context_recall': {
+          const key = String(args.key ?? '');
+          try {
+            const prefs = dbGetPreferences(this.userId ?? 'default');
+            if (key && prefs[key] !== undefined) {
+              result = JSON.stringify({ found: true, key, value: prefs[key] });
+            } else if (key) {
+              // Fuzzy search: find any key containing the search term
+              const matches = Object.entries(prefs).filter(
+                ([k, v]) => k.includes(key) || v.toLowerCase().includes(key.toLowerCase()),
+              );
+              result = matches.length
+                ? JSON.stringify({ found: true, matches: Object.fromEntries(matches) })
+                : JSON.stringify({ found: false, message: `No preference found for "${key}"` });
+            } else {
+              result = JSON.stringify({ preferences: prefs });
+            }
+          } catch {
+            result = JSON.stringify({ error: 'Failed to recall preferences' });
+          }
+          break;
+        }
         case 'web_search':
           result = await this.webSearch(String(args.query ?? ''), Number(args.limit ?? 5));
           break;

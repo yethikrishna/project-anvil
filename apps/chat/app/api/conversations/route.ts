@@ -1,70 +1,54 @@
 /**
- * Enhanced server-side conversation API.
+ * Conversation API — SQLite-backed persistent storage.
  *
- * POST   /api/conversations          — Create new conversation
- * GET    /api/conversations          — List all conversations (query: ?userId=)
- * GET    /api/conversations?id=xxx   — Get single conversation
- * PUT    /api/conversations          — Update conversation (title, context)
- * DELETE /api/conversations?id=xxx   — Delete conversation
- * POST   /api/conversations/message  — Add message to conversation
- * GET    /api/conversations/search?q= — Search across conversations
- *
- * Storage: In-memory Map (production: PostgreSQL via Drizzle ORM).
- * Each conversation stores messages, context, and metadata.
+ * POST   /api/conversations               — Create new conversation
+ * GET    /api/conversations               — List all conversations (?userId=&since=)
+ * GET    /api/conversations?id=xxx        — Get single conversation with messages
+ * PUT    /api/conversations               — Update conversation (title, context)
+ * DELETE /api/conversations?id=xxx        — Delete conversation
+ * POST   /api/conversations (action=message) — Add message to conversation
+ * GET    /api/conversations?q=xxx         — Full-text search across conversations
+ * GET    /api/conversations?stats=1       — Usage statistics
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  dbSaveConversation,
+  dbGetConversation,
+  dbListConversations,
+  dbDeleteConversation,
+  dbGetConvStats,
+  type DBConversation,
+  type DBMessage,
+  type ConversationContext,
+} from '@/lib/db';
 
-// ── In-Memory Store (production: Drizzle + PostgreSQL) ──
-
-interface StoredMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: number;
-  toolCalls?: Array<{
-    id: string;
-    tool: string;
-    args: Record<string, unknown>;
-    result: string;
-    status: 'running' | 'success' | 'error';
-    duration?: number;
-  }>;
+function emptyContext(): ConversationContext {
+  return { files: [], people: [], topics: [], preferences: [], actions: [] };
 }
 
-interface StoredConversation {
-  id: string;
-  userId: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  messages: StoredMessage[];
-  context: {
-    files: Array<{ id: string; name: string; type: string; lastAccessed: number }>;
-    people: string[];
-    topics: string[];
-    preferences: string[];
-    actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
-  };
-}
-
-const conversations = new Map<string, StoredConversation>();
-
-// ── Route Handler ──
+// ── GET ──
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   const userId = searchParams.get('userId') ?? 'default';
   const query = searchParams.get('q');
+  const stats = searchParams.get('stats');
+  const since = Number(searchParams.get('since') ?? 0);
 
-  // Search mode
+  // Stats mode
+  if (stats) {
+    return NextResponse.json(dbGetConvStats(userId));
+  }
+
+  // Search mode — in-memory search over recent conversations
   if (query) {
-    const results: Array<{ id: string; title: string; snippet: string; timestamp: number }> = [];
+    const all = dbListConversations(userId, 200, 0);
     const q = query.toLowerCase();
+    const results: Array<{ id: string; title: string; snippet: string; timestamp: number }> = [];
 
-    for (const conv of conversations.values()) {
-      if (conv.userId !== userId) continue;
+    for (const conv of all) {
       for (const msg of conv.messages) {
         if (msg.content.toLowerCase().includes(q)) {
           results.push({
@@ -73,7 +57,7 @@ export async function GET(req: NextRequest) {
             snippet: msg.content.slice(0, 150),
             timestamp: msg.timestamp,
           });
-          if (results.length >= 20) break;
+          break; // One result per conversation
         }
       }
       if (results.length >= 20) break;
@@ -84,28 +68,31 @@ export async function GET(req: NextRequest) {
 
   // Single conversation
   if (id) {
-    const conv = conversations.get(id);
-    if (!conv || conv.userId !== userId) {
+    const conv = dbGetConversation(id, userId);
+    if (!conv) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     return NextResponse.json(conv);
   }
 
-  // List all
-  const list = Array.from(conversations.values())
-    .filter(c => c.userId === userId)
-    .map(c => ({
-      id: c.id,
-      title: c.title,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-      messageCount: c.messages.length,
-      lastMessage: c.messages[c.messages.length - 1]?.content?.slice(0, 80) ?? '',
-    }))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  // List — paginated, ordered by updatedAt DESC
+  const conversations = dbListConversations(userId, 100, since).map(c => ({
+    id: c.id,
+    title: c.title,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    messageCount: c.messages.length,
+    lastMessage: c.messages[c.messages.length - 1]?.content?.slice(0, 80) ?? '',
+    context: {
+      topics: c.context.topics.slice(0, 5),
+      people: c.context.people.slice(0, 5),
+    },
+  }));
 
-  return NextResponse.json({ conversations: list });
+  return NextResponse.json({ conversations });
 }
+
+// ── POST ──
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -113,79 +100,112 @@ export async function POST(req: NextRequest) {
 
   // Add message to existing conversation
   if (action === 'message') {
-    const { conversationId, message } = body as {
+    const { conversationId, message, userId = 'default' } = body as {
       conversationId: string;
-      message: { role: string; content: string; toolCalls?: unknown[] };
+      userId?: string;
+      message: {
+        role: string;
+        content: string;
+        toolCalls?: unknown[];
+        metadata?: Record<string, unknown>;
+      };
     };
 
-    const conv = conversations.get(conversationId);
+    const conv = dbGetConversation(conversationId, userId);
     if (!conv) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    const stored: StoredMessage = {
+    const newMsg: DBMessage = {
       id: crypto.randomUUID(),
-      role: message.role as StoredMessage['role'],
+      conversationId,
+      role: message.role,
       content: message.content,
       timestamp: Date.now(),
-      toolCalls: message.toolCalls as StoredMessage['toolCalls'],
+      toolCalls: message.toolCalls,
+      metadata: message.metadata,
     };
 
-    conv.messages.push(stored);
+    conv.messages.push(newMsg);
     conv.updatedAt = Date.now();
 
     // Auto-title from first user message
     if (message.role === 'user' && conv.messages.filter(m => m.role === 'user').length === 1) {
-      conv.title = message.content.slice(0, 60) + (message.content.length > 60 ? '...' : '');
+      const raw = message.content.replace(/\n/g, ' ').trim();
+      conv.title = raw.slice(0, 60) + (raw.length > 60 ? '...' : '');
     }
 
-    return NextResponse.json({ success: true, message: stored });
+    dbSaveConversation(conv);
+
+    return NextResponse.json({ success: true, message: newMsg });
+  }
+
+  // Bulk upsert — for syncing from client
+  if (action === 'sync') {
+    const { conversation } = body as { conversation: DBConversation };
+    if (!conversation?.id) {
+      return NextResponse.json({ error: 'Missing conversation data' }, { status: 400 });
+    }
+    dbSaveConversation(conversation);
+    return NextResponse.json({ success: true });
   }
 
   // Create new conversation
-  const { userId = 'default', title = 'New conversation' } = body;
-  const conv: StoredConversation = {
-    id: crypto.randomUUID(),
+  const { userId = 'default', title = 'New conversation', id } = body;
+
+  const conv: DBConversation = {
+    id: id ?? crypto.randomUUID(),
     userId,
     title,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     messages: [],
-    context: { files: [], people: [], topics: [], preferences: [], actions: [] },
+    context: emptyContext(),
   };
 
-  conversations.set(conv.id, conv);
+  dbSaveConversation(conv);
   return NextResponse.json(conv, { status: 201 });
 }
 
+// ── PUT ──
+
 export async function PUT(req: NextRequest) {
   const body = await req.json();
-  const { id, title, context } = body as {
+  const { id, userId = 'default', title, context, patterns, summary } = body as {
     id: string;
+    userId?: string;
     title?: string;
-    context?: StoredConversation['context'];
+    context?: ConversationContext;
+    patterns?: Record<string, unknown>;
+    summary?: string;
   };
 
-  const conv = conversations.get(id);
+  const conv = dbGetConversation(id, userId);
   if (!conv) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   if (title) conv.title = title;
   if (context) conv.context = context;
+  if (patterns) conv.patterns = patterns;
+  if (summary !== undefined) conv.summary = summary;
   conv.updatedAt = Date.now();
 
+  dbSaveConversation(conv);
   return NextResponse.json({ success: true });
 }
+
+// ── DELETE ──
 
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
+  const userId = searchParams.get('userId') ?? 'default';
 
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
 
-  const deleted = conversations.delete(id);
+  const deleted = dbDeleteConversation(id, userId);
   return NextResponse.json({ success: deleted });
 }

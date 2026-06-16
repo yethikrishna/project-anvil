@@ -230,10 +230,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const authToken = body.authToken as string | undefined;
-  return handleScan(authToken);
+  const mode = (body.mode as string | undefined) ?? 'full';
+  const userId = (body.userId as string | undefined) ?? 'default';
+  return handleScan(authToken, mode, userId);
 }
 
-async function handleScan(authToken?: string): Promise<Response> {
+async function handleScan(authToken?: string, mode = 'full', _userId = 'default'): Promise<Response> {
   try {
     // Fetch in parallel
     const [emails, events] = await Promise.all([
@@ -243,7 +245,40 @@ async function handleScan(authToken?: string): Promise<Response> {
 
     const allItems = [...emails, ...events];
 
-    // AI prioritization
+    // Badge mode: skip AI, use heuristic ordering only (fast path)
+    if (mode === 'badge') {
+      const sorted = allItems
+        .sort((a, b) => {
+          const rank = { urgent: 0, high: 1, medium: 2, low: 3 };
+          return (rank[a.priority] ?? 3) - (rank[b.priority] ?? 3);
+        })
+        .slice(0, 10);
+
+      const prioritized = sorted.map(item => ({
+        id: item.id,
+        title: item.title,
+        detail: item.summary,
+        urgency: item.priority === 'urgent' ? 'critical' : item.priority,
+        category: item.type === 'email' ? 'email' : item.type === 'calendar' ? 'calendar' : 'other',
+        timestamp: item.timestamp ? new Date(item.timestamp).getTime() : Date.now(),
+      }));
+
+      return NextResponse.json({
+        prioritized,
+        items: sorted.slice(0, 5),
+        stats: {
+          total: allItems.length,
+          urgent: allItems.filter(i => i.priority === 'urgent').length,
+          high: allItems.filter(i => i.priority === 'high').length,
+          emails: emails.length,
+          events: events.length,
+        },
+        generatedAt: new Date().toISOString(),
+        mode: 'badge',
+      });
+    }
+
+    // Full mode: AI prioritization
     const prioritized = await prioritizeWithAI(allItems);
 
     // Generate summary stats
@@ -255,15 +290,27 @@ async function handleScan(authToken?: string): Promise<Response> {
       events: events.length,
     };
 
+    const normalizedPrioritized = prioritized.slice(0, 15).map(item => ({
+      id: item.id,
+      title: item.title,
+      detail: item.summary,
+      urgency: item.priority === 'urgent' ? 'critical' : item.priority,
+      category: item.type === 'email' ? 'email' : item.type === 'calendar' ? 'calendar' : 'other',
+      timestamp: item.timestamp ? new Date(item.timestamp).getTime() : Date.now(),
+    }));
+
     return NextResponse.json({
+      prioritized: normalizedPrioritized,
       items: prioritized.slice(0, 15),
       stats,
       generatedAt: new Date().toISOString(),
+      mode: 'full',
     });
   } catch (err) {
     return NextResponse.json({
       error: 'Attention scan failed',
       message: err instanceof Error ? err.message : 'Unknown error',
+      prioritized: [],
       items: [],
       stats: { total: 0, urgent: 0, high: 0, emails: 0, events: 0 },
     }, { status: 500 });

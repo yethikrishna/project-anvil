@@ -1,65 +1,54 @@
 /**
- * POST /api/memory — Cross-device conversation sync.
+ * POST /api/memory — Cross-device conversation sync backed by SQLite.
  *
- * Provides a lightweight server-side backing store so conversations
- * survive browser clears, device switches, and incognito sessions.
+ * Provides durable server-side storage so conversations survive
+ * browser clears, device switches, and server restarts.
  *
  * Architecture:
- * - Primary storage: IndexedDB in browser (instant access)
- * - Backup storage: this server endpoint (cross-device, cross-session)
- * - Sync strategy: optimistic local writes, async server sync
+ * - Primary storage: IndexedDB in browser (instant, offline-capable)
+ * - Backup storage: SQLite on server via better-sqlite3 (durable, cross-device)
+ * - Sync: optimistic local writes, async server sync on every message
  *
  * Actions:
- * - push:   Upload a conversation (upsert by id)
- * - pull:   Download all conversations for a user
- * - delete: Remove a conversation by id
- * - prune:  Delete all but the N most recent conversations
- * - stats:  Return usage stats without data
+ *   push   — Upsert a conversation (new or updated)
+ *   pull   — Fetch all conversations since a timestamp
+ *   delete — Remove a conversation by id
+ *   prune  — Keep only the N most recent conversations
+ *   stats  — Return usage stats (no data)
+ *   patterns — Get/set accumulated user patterns
+ *   preferences — Get/set user preferences
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  dbSaveConversation,
+  dbGetConversation,
+  dbListConversations,
+  dbDeleteConversation,
+  dbPruneConversations,
+  dbGetConvStats,
+  dbSavePatterns,
+  dbGetPatterns,
+  dbSetPreference,
+  dbGetPreferences,
+  dbCacheAttention,
+  dbGetAttentionCache,
+} from '@/lib/db';
 
-// ── Storage (in-memory; replace with DB in production) ──
-
-interface StoredConversation {
-  id: string;
-  userId: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  messages: Array<{
-    id: string;
-    role: string;
-    content: string;
-    timestamp: number;
-    toolCalls?: unknown[];
-    pinned?: boolean;
-  }>;
-  context: {
-    files: Array<{ id: string; name: string; type: string; lastAccessed: number }>;
-    people: string[];
-    topics: string[];
-    preferences: string[];
-    actions: Array<{ tool: string; action: string; timestamp: number; success: boolean }>;
-  };
-  patterns?: Record<string, unknown>;
-}
-
-// In production: replace with Drizzle ORM + PostgreSQL
-const store = new Map<string, StoredConversation[]>();
-
-const MAX_CONVERSATIONS_PER_USER = 100;
-const MAX_MESSAGES_PER_CONVERSATION = 500;
-
-// ── Route handler ──
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as {
     action: string;
     userId?: string;
-    conversation?: StoredConversation;
+    conversation?: Parameters<typeof dbSaveConversation>[0];
     conversationId?: string;
     keepCount?: number;
+    patterns?: Record<string, unknown>;
+    key?: string;
+    value?: string;
+    data?: unknown;
+    ttlMs?: number;
   };
 
   const userId = body.userId ?? 'default';
@@ -69,84 +58,95 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing action' }, { status: 400 });
   }
 
-  switch (action) {
-    case 'push': {
-      const conv = body.conversation;
-      if (!conv?.id) {
-        return NextResponse.json({ error: 'Missing conversation' }, { status: 400 });
-      }
-
-      // Enforce limits
-      conv.messages = conv.messages?.slice(-MAX_MESSAGES_PER_CONVERSATION) ?? [];
-
-      const userConvs = store.get(userId) ?? [];
-      const existingIdx = userConvs.findIndex(c => c.id === conv.id);
-
-      if (existingIdx >= 0) {
-        // Update if server version is older
-        if (conv.updatedAt >= (userConvs[existingIdx].updatedAt ?? 0)) {
-          userConvs[existingIdx] = { ...conv, userId };
+  try {
+    switch (action) {
+      case 'push': {
+        const conv = body.conversation;
+        if (!conv?.id) {
+          return NextResponse.json({ error: 'Missing conversation' }, { status: 400 });
         }
-      } else {
-        userConvs.push({ ...conv, userId });
-        // Trim if over limit
-        if (userConvs.length > MAX_CONVERSATIONS_PER_USER) {
-          userConvs.sort((a, b) => b.updatedAt - a.updatedAt);
-          userConvs.splice(MAX_CONVERSATIONS_PER_USER);
-        }
+        dbSaveConversation({ ...conv, userId });
+        return NextResponse.json({ success: true, id: conv.id });
       }
 
-      store.set(userId, userConvs);
-      return NextResponse.json({ success: true, id: conv.id });
-    }
-
-    case 'pull': {
-      const userConvs = store.get(userId) ?? [];
-      // Return metadata-only list for efficiency; client can request full conversations
-      const sinceTimestamp = typeof body.keepCount === 'number' ? body.keepCount : 0;
-      const recent = userConvs
-        .filter(c => c.updatedAt > sinceTimestamp)
-        .sort((a, b) => b.updatedAt - a.updatedAt);
-
-      return NextResponse.json({
-        conversations: recent,
-        count: userConvs.length,
-        synced: new Date().toISOString(),
-      });
-    }
-
-    case 'delete': {
-      const id = body.conversationId;
-      if (!id) {
-        return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 });
+      case 'pull': {
+        // `keepCount` is reused as the `since` timestamp for pull
+        const since = body.keepCount ?? 0;
+        const conversations = dbListConversations(userId, 100, since);
+        const stats = dbGetConvStats(userId);
+        return NextResponse.json({
+          conversations,
+          count: stats.conversations,
+          synced: new Date().toISOString(),
+        });
       }
-      const userConvs = store.get(userId) ?? [];
-      store.set(userId, userConvs.filter(c => c.id !== id));
-      return NextResponse.json({ success: true });
-    }
 
-    case 'prune': {
-      const keepCount = body.keepCount ?? 50;
-      const userConvs = store.get(userId) ?? [];
-      const pruned = userConvs
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, keepCount);
-      store.set(userId, pruned);
-      return NextResponse.json({ kept: pruned.length, removed: userConvs.length - pruned.length });
-    }
+      case 'get': {
+        const id = body.conversationId;
+        if (!id) return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 });
+        const conv = dbGetConversation(id, userId);
+        if (!conv) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ conversation: conv });
+      }
 
-    case 'stats': {
-      const userConvs = store.get(userId) ?? [];
-      const totalMessages = userConvs.reduce((acc, c) => acc + c.messages.length, 0);
-      return NextResponse.json({
-        conversations: userConvs.length,
-        messages: totalMessages,
-        lastSynced: userConvs.reduce((max, c) => Math.max(max, c.updatedAt), 0),
-      });
-    }
+      case 'delete': {
+        const id = body.conversationId;
+        if (!id) return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 });
+        const deleted = dbDeleteConversation(id, userId);
+        return NextResponse.json({ success: deleted });
+      }
 
-    default:
-      return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+      case 'prune': {
+        const keepCount = body.keepCount ?? 50;
+        const removed = dbPruneConversations(userId, keepCount);
+        const stats = dbGetConvStats(userId);
+        return NextResponse.json({ kept: stats.conversations, removed });
+      }
+
+      case 'stats': {
+        const stats = dbGetConvStats(userId);
+        return NextResponse.json(stats);
+      }
+
+      case 'save_patterns': {
+        const patterns = body.patterns;
+        if (!patterns) return NextResponse.json({ error: 'Missing patterns' }, { status: 400 });
+        dbSavePatterns(userId, patterns);
+        return NextResponse.json({ success: true });
+      }
+
+      case 'get_patterns': {
+        const patterns = dbGetPatterns(userId);
+        return NextResponse.json({ patterns });
+      }
+
+      case 'set_preference': {
+        const { key, value } = body;
+        if (!key || value === undefined) return NextResponse.json({ error: 'Missing key/value' }, { status: 400 });
+        dbSetPreference(userId, key, value);
+        return NextResponse.json({ success: true });
+      }
+
+      case 'get_preferences': {
+        const prefs = dbGetPreferences(userId);
+        return NextResponse.json({ preferences: prefs });
+      }
+
+      case 'cache_attention': {
+        if (!body.data) return NextResponse.json({ error: 'Missing data' }, { status: 400 });
+        dbCacheAttention(userId, body.data, body.ttlMs ?? 5 * 60 * 1000);
+        return NextResponse.json({ success: true });
+      }
+
+      default:
+        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+    }
+  } catch (err) {
+    console.error('[memory API]', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -154,16 +154,38 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId') ?? 'default';
   const since = Number(searchParams.get('since') ?? '0');
+  const action = searchParams.get('action');
 
-  const userConvs = store.get(userId) ?? [];
-  const recent = userConvs
-    .filter(c => c.updatedAt > since)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 50);
+  try {
+    if (action === 'attention') {
+      const cached = dbGetAttentionCache(userId);
+      if (cached) return NextResponse.json({ cached: true, data: cached });
+      return NextResponse.json({ cached: false, data: null });
+    }
 
-  return NextResponse.json({
-    conversations: recent,
-    count: userConvs.length,
-    synced: new Date().toISOString(),
-  });
+    if (action === 'patterns') {
+      const patterns = dbGetPatterns(userId);
+      return NextResponse.json({ patterns });
+    }
+
+    if (action === 'preferences') {
+      const prefs = dbGetPreferences(userId);
+      return NextResponse.json({ preferences: prefs });
+    }
+
+    // Default: list conversations
+    const conversations = dbListConversations(userId, 100, since);
+    const stats = dbGetConvStats(userId);
+    return NextResponse.json({
+      conversations,
+      count: stats.conversations,
+      synced: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[memory API GET]', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Internal error' },
+      { status: 500 }
+    );
+  }
 }
