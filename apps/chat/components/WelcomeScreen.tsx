@@ -14,11 +14,14 @@
 import { useMemo } from 'react';
 import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
+import CommandCenterDashboard from './CommandCenterDashboard';
 
 interface Props {
   onSend: (text: string) => void;
   onShowWeeklySummary: () => void;
   onShowScheduler?: () => void;
+  onOpenTriage?: () => void;
+  onOpenTasks?: () => void;
   recentConversations: Conversation[];
 }
 
@@ -101,7 +104,7 @@ function getSuggestedPrompts(): SuggestedPrompt[] {
   return prompts;
 }
 
-export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, recentConversations }: Props) {
+export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, onOpenTriage, onOpenTasks, recentConversations }: Props) {
   const greeting = useMemo(getGreeting, []);
   const prompts = useMemo(getSuggestedPrompts, []);
 
@@ -118,12 +121,23 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowSched
       <h2 className="text-xl font-semibold mb-1 text-gray-900 dark:text-gray-100">
         {greeting.emoji} {greeting.text}
       </h2>
-      <p className="text-gray-500 dark:text-gray-400 text-sm text-center max-w-sm mb-8 leading-relaxed">
+      <p className="text-gray-500 dark:text-gray-400 text-sm text-center max-w-sm mb-6 leading-relaxed">
         I can search your emails, find files, schedule meetings,
         draft replies, and chain actions across all your apps.
       </p>
 
-      {/* Suggested prompts grid */}
+      {/* Live command center dashboard */}
+      <div className="w-full max-w-sm mb-6">
+        <CommandCenterDashboard
+          onAction={(prompt) => {
+            if (prompt === '__weekly_summary__') { onShowWeeklySummary(); return; }
+            if (prompt === '__schedule__') { onShowScheduler?.(); return; }
+            onSend(prompt);
+          }}
+          onOpenTriage={() => onOpenTriage?.()}
+          onOpenTasks={() => onOpenTasks?.()}
+        />
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-w-lg w-full mb-8">
         {prompts.map(item => (
           <button

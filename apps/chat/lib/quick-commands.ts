@@ -13,6 +13,27 @@ export interface QuickCommand {
 
 export const QUICK_COMMANDS: QuickCommand[] = [
   {
+    id: 'inbox-triage',
+    icon: '📥',
+    label: 'Smart inbox triage',
+    description: 'AI-scored priority ranking of unread emails with suggested actions',
+    prompt: '__inbox_triage__',
+  },
+  {
+    id: 'extract-tasks',
+    icon: '✅',
+    label: 'Extract action items',
+    description: 'Pull actionable tasks from this conversation',
+    prompt: '__extract_tasks__',
+  },
+  {
+    id: 'relationship-brief',
+    icon: '👥',
+    label: 'Who should I follow up with?',
+    description: 'Scan recent emails for unanswered threads needing follow-up',
+    prompt: 'Scan my sent emails from the last 7 days and find conversations where I\'m waiting on a reply or need to follow up. List them with context.',
+  },
+  {
     id: 'attention',
     icon: '⚡',
     label: 'What needs my attention?',

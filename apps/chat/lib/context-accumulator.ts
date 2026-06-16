@@ -18,6 +18,12 @@ import { analyzePatterns } from './context-manager';
 import { dbSetPreference, dbGetPreferences, dbSavePatterns, dbGetPatterns } from './db';
 import type { ChatMessage, ConversationContext } from './types';
 
+// Relationship graph is client-side only; we use a safe server-side stub
+function getRelationshipSummary(): string {
+  // Server-side: returns empty (graph lives in localStorage on client)
+  return '';
+}
+
 // ── Per-user context store (in-memory, backed by SQLite) ──
 
 const userContexts = new Map<string, UserContext>();
@@ -231,6 +237,10 @@ export function buildContextAdditions(
       const tools = toolData.slice(0, 5).map(t => t.name).join(', ');
       additions.push(`FREQUENTLY USED TOOLS: ${tools}`);
     }
+
+    // Relationship graph context (server-side stub; client sends this via userPatterns)
+    const relSummary = getRelationshipSummary();
+    if (relSummary) additions.push(relSummary);
 
     // Current conversation context
     if (convContext.people?.length) {

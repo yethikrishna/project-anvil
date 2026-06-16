@@ -37,6 +37,7 @@ import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
 import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/components/ChatSettings';
 import WeeklySummaryWidget from '@/components/WeeklySummaryWidget';
 import DraftPreviewModal from '@/components/DraftPreviewModal';
+import SmartCompose from '@/components/SmartCompose';
 import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
 import PinnedMessages from '@/components/PinnedMessages';
 import SaveToDocsModal from '@/components/SaveToDocsModal';
@@ -65,6 +66,8 @@ import { maybeAutoSummarize } from '@/lib/conversation-summarizer';
 import ContextPanel from '@/components/ContextPanel';
 import AttentionBadge from '@/components/AttentionBadge';
 import ProactiveNotifications from '@/components/ProactiveNotifications';
+import TaskExtractionPanel from '@/components/TaskExtractionPanel';
+import InboxTriagePanel from '@/components/InboxTriagePanel';
 import { useAttentionBadge } from '@/lib/use-attention-badge';
 import { useSmartInsights } from '@/lib/use-smart-insights';
 import type { AttachedFile } from '@/components/ChatInput';
@@ -86,11 +89,14 @@ export default function ChatPage() {
   const [showMemorySearch, setShowMemorySearch] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
   const [showDraftPreview, setShowDraftPreview] = useState(false);
+  const [showSmartCompose, setShowSmartCompose] = useState(false);
   const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [showInboxTriage, setShowInboxTriage] = useState(false);
   const [saveToDocsContent, setSaveToDocsContent] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
@@ -113,6 +119,23 @@ export default function ChatPage() {
   // ── Attention badge (background scanner) ──
   const { badgeCount, urgentItems, lastFetched, isLoading: attLoading, refresh: refreshAttention } = useAttentionBadge({ enabled: true });
   const { insightsSummary } = useSmartInsights(conversations);
+
+  // ── Relationship graph ingestion (client-side, after each turn) ──
+  // We run this whenever the active conversation's context updates
+  const prevContextRef = useRef<string>('');
+  useEffect(() => {
+    const ctx = activeConv?.context;
+    if (!ctx) return;
+    const sig = JSON.stringify({ people: ctx.people, topics: ctx.topics, actions: ctx.actions?.length });
+    if (sig === prevContextRef.current) return;
+    prevContextRef.current = sig;
+    // Dynamically import to avoid SSR
+    import('@/lib/relationship-graph').then(({ ingestContext }) => {
+      if (activeConv?.messages) {
+        ingestContext(ctx, activeConv.messages.map(m => ({ role: m.role, content: m.content })));
+      }
+    }).catch(() => {});
+  }, [activeConv?.context, activeConv?.messages]);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -796,7 +819,40 @@ export default function ChatPage() {
               </div>
               {activeConv && (
                 <button
-                  onClick={() => setShowContextPanel(v => !v)}
+                  onClick={() => setShowSmartCompose(true)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                  title="Smart Compose email"
+                >
+                  ✏️
+                </button>
+              )}
+              {activeConv && (
+                <button
+                  onClick={() => { setShowTaskPanel(v => !v); setShowInboxTriage(false); setShowContextPanel(false); }}
+                  className={
+                    showTaskPanel
+                      ? 'text-[11px] px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-medium'
+                      : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                  }
+                  title="Action items"
+                >
+                  ✅
+                </button>
+              )}
+              <button
+                onClick={() => { setShowInboxTriage(v => !v); setShowTaskPanel(false); setShowContextPanel(false); }}
+                className={
+                  showInboxTriage
+                    ? 'text-[11px] px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
+                    : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                }
+                title="Smart inbox triage"
+              >
+                📥
+              </button>
+              {activeConv && (
+                <button
+                  onClick={() => { setShowContextPanel(v => !v); setShowTaskPanel(false); setShowInboxTriage(false); }}
                   className={
                     showContextPanel
                       ? 'text-[11px] px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium'
@@ -825,6 +881,8 @@ export default function ChatPage() {
                 onSend={handleSend}
                 onShowWeeklySummary={() => setShowWeeklySummary(true)}
                 onShowScheduler={() => setShowMeetingScheduler(true)}
+                onOpenTriage={() => setShowInboxTriage(true)}
+                onOpenTasks={() => setShowTaskPanel(true)}
                 recentConversations={conversations.slice(0, 3)}
               />
             ) : (
@@ -927,6 +985,23 @@ export default function ChatPage() {
           />
         )}
 
+        {/* Smart inbox triage panel */}
+        {showInboxTriage && (
+          <InboxTriagePanel
+            onAction={(prompt) => { handleSend(prompt); }}
+            onClose={() => setShowInboxTriage(false)}
+          />
+        )}
+
+        {/* Task extraction panel */}
+        {showTaskPanel && activeConv && (
+          <TaskExtractionPanel
+            messages={messages}
+            onExecute={(prompt) => { handleSend(prompt); }}
+            onClose={() => setShowTaskPanel(false)}
+          />
+        )}
+
         {/* Context / AI Memory panel */}
         {showContextPanel && activeConv?.context && (
           <div className="w-72 border-l border-gray-200 dark:border-gray-800 overflow-y-auto bg-white dark:bg-gray-950 flex flex-col gap-3 p-3">
@@ -964,6 +1039,8 @@ export default function ChatPage() {
           onCommand={(prompt) => {
             if (prompt === '__weekly_summary__') { setShowWeeklySummary(true); return; }
             if (prompt === '__schedule__') { setShowMeetingScheduler(true); return; }
+            if (prompt === '__inbox_triage__') { setShowInboxTriage(true); setShowCommandPalette(false); return; }
+            if (prompt === '__extract_tasks__') { setShowTaskPanel(true); setShowCommandPalette(false); return; }
             handleSend(prompt);
           }}
           onSelectConversation={handleSelectConversation}
@@ -1034,6 +1111,14 @@ export default function ChatPage() {
 
       {showDraftPreview && (
         <DraftPreviewModal onClose={() => setShowDraftPreview(false)} />
+      )}
+
+      {showSmartCompose && (
+        <SmartCompose
+          messages={messages}
+          onSend={(prompt) => { handleSend(prompt); }}
+          onClose={() => setShowSmartCompose(false)}
+        />
       )}
 
       {showMeetingScheduler && (

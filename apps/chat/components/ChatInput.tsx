@@ -16,6 +16,7 @@ import { cn } from '@anvil/ui';
 import { useVoiceInput } from '@/lib/use-voice-input';
 import { getSlashCommandHints } from '@/lib/rich-renderer';
 import AudioVisualizer from './AudioVisualizer';
+import SmartContextBar, { type ContextChip } from './SmartContextBar';
 
 export interface AttachedFile {
   id: string;
@@ -515,6 +516,17 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
         <div className="mx-4 mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-xs text-red-600 dark:text-red-400">{attachError}</p>
         </div>
+      )}
+
+      {/* Smart context suggestions (proactive chips) */}
+      {input.trim().length >= 8 && (
+        <SmartContextBar
+          draft={input}
+          onInject={(chip: ContextChip) => {
+            setInput(prev => prev + `\n\n${chip.injectionText}`);
+          }}
+          className="border-t border-gray-100 dark:border-gray-800"
+        />
       )}
 
       {/* Input area */}
