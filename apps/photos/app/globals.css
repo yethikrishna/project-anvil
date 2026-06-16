@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --grid-cols: 4;
+}
+
+@media (max-width: 1280px) { :root { --grid-cols: 3; } }
+@media (max-width: 768px)  { :root { --grid-cols: 2; } }
+@media (max-width: 480px)  { :root { --grid-cols: 2; } }
+
+* {
+  box-sizing: border-box;
+}
+
+/* Photo grid item hover effect */
+.photo-tile {
+  @apply relative overflow-hidden rounded cursor-pointer select-none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.photo-tile:hover {
+  @apply shadow-xl;
+  transform: scale(1.01);
+}
+
+.photo-tile:active {
+  transform: scale(0.99);
+}
+
+/* Blur-up placeholder */
+.photo-blur {
+  filter: blur(20px);
+  transform: scale(1.05);
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.photo-loaded .photo-blur {
+  filter: none;
+  transform: scale(1);
+}
+
+/* Lightbox */
+.lightbox-overlay {
+  @apply fixed inset-0 z-50 bg-black/95 flex items-center justify-center;
+}
+
+/* Sidebar */
+.sidebar-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-neutral-400
+         hover:text-white hover:bg-white/10 cursor-pointer transition-colors;
+}
+
+.sidebar-item.active {
+  @apply text-white bg-white/15;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+/* Upload zone */
+.upload-zone {
+  @apply border-2 border-dashed border-neutral-700 rounded-2xl;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.upload-zone.drag-over {
+  @apply border-blue-500 bg-blue-500/10;
+}
+
+/* Date group header in timeline view */
+.date-group-header {
+  @apply text-xs font-semibold uppercase tracking-wider text-neutral-500 py-2 sticky top-0 bg-neutral-950 z-10;
+}
+
+/* Selection checkbox */
+.photo-checkbox {
+  @apply absolute top-2 left-2 w-5 h-5 rounded border-2 border-white bg-black/50
+         flex items-center justify-center transition-opacity;
+}
+
+/* Progress ring */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }

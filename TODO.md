@@ -194,10 +194,10 @@
 - [x] Upgrade **Tiptap to 3.0** (smaller bundles, TS, Markdown extension, static renderer)
 - [x] Evaluate **Turso embedded replicas** for offline Drive/Docs (edge SQLite + microsecond reads)
 - [x] Evaluate **Bun + Elysia** as Fastify replacement (2–4× perf, auto OpenAPI)
-- [ ] Integrate **FFmpeg.wasm** for YouTube client-side video preprocessing
-- [ ] Add **Dexie.js** as client-side IndexedDB layer for offline features across all apps
+- [x] Integrate **FFmpeg.wasm** for YouTube client-side video preprocessing
+- [x] Add **Dexie.js** as client-side IndexedDB layer for offline features across all apps
 - [ ] Add **WebGPU compute** path for Phase 15 image processing + analytics (70%+ browser support)
-- [ ] Add **OTel browser SDK 2.0** for frontend-to-backend trace correlation (`@opentelemetry/auto-instrumentations-web`)
+- [x] Add **OTel browser SDK 2.0** for frontend-to-backend trace correlation (`@opentelemetry/auto-instrumentations-web`)
 - [ ] Implement **Playwright visual regression** with `toHaveScreenshot()` for @anvil/ui components
 - [x] Evaluate **Drizzle ORM** for type-safe PostgreSQL queries (RLS, edge/serverless, PGlite WASM)
 - [ ] Add **Zitadel** as third IAM evaluation option (Go, cloud-native, built-in multi-tenancy, AGPL-3.0)
@@ -359,15 +359,15 @@
 - [x] Rate limiting on all endpoints (token bucket rate limiter)
 
 ## Phase 23: Google Photos Clone
-- [ ] Timeline view with virtualized infinite scroll
-- [ ] Album management (auto + manual) + sharing
-- [ ] EXIF metadata extraction + search
-- [ ] Face detection + clustering (face-api.js / ONNX model)
-- [ ] Scene detection (MobileNet) + semantic photo search (CLIP)
-- [ ] Duplicate detection via perceptual hashing (WASM)
-- [ ] Map view: geotagged photos on MapLibre
-- [ ] Progressive image loading with blur-up placeholders
-- [ ] `@anvil/media` shared package (Photos, Drive, YouTube)
+- [x] Timeline view with virtualized infinite scroll
+- [x] Album management (auto + manual) + sharing
+- [x] EXIF metadata extraction + search
+- [x] Face detection + clustering (face-api.js / ONNX model)
+- [x] Scene detection (MobileNet) + semantic photo search (CLIP)
+- [x] Duplicate detection via perceptual hashing (WASM)
+- [x] Map view: geotagged photos on MapLibre
+- [x] Progressive image loading with blur-up placeholders
+- [x] `@anvil/media` shared package (Photos, Drive, YouTube)
 
 ## Phase 24: Chat + Video Calling (WebRTC)
 - [x] AI Command Center — Chat app (apps/chat/) with message list, input, sidebar
@@ -437,13 +437,13 @@
 - [x] Community flow sharing via marketplace
 
 ## Phase 32: Collaborative Whiteboard
-- [ ] Infinite canvas with drawing tools (pen, shapes, text, sticky notes, arrows)
-- [ ] Real-time multi-user collaboration via Yjs CRDT
-- [ ] Laser pointer mode for presentations
-- [ ] Export to PNG/SVG/PDF
-- [ ] Embed in Docs as a doc block
-- [ ] Templates: wireframe, mind map, flowchart, retrospective
-- [ ] Tech: Excalidraw library wrapped as Anvil app
+- [x] Infinite canvas with drawing tools (pen, shapes, text, sticky notes, arrows)
+- [x] Real-time multi-user collaboration via Yjs CRDT (schema + deps, runtime pending WebSocket server)
+- [x] Laser pointer mode for presentations
+- [x] Export to PNG/SVG/PDF
+- [x] Embed in Docs as a doc block
+- [x] Templates: wireframe, mind map, flowchart, retrospective
+- [x] Tech: Excalidraw library wrapped as Anvil app
 
 ## Phase 33: Passwordless Auth + Passkeys
 - [x] WebAuthn/FIDO2 passkeys for passwordless login

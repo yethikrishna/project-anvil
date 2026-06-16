@@ -417,6 +417,35 @@ services:
     ports:
       - "127.0.0.1:3010:3010"
 
+  # ── Photos ──
+  photos:
+    <<: *app-defaults
+    image: ${REGISTRY:-ghcr.io/anvil-org}/photos:${ANVIL_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: apps/photos/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3011"
+      NEXTAUTH_URL: https://photos.${ANVIL_DOMAIN:-localhost}
+      PHOTOS_BUCKET: anvil-photos
+    ports:
+      - "127.0.0.1:3011:3011"
+
+  # ── Whiteboard ──
+  whiteboard:
+    <<: *app-defaults
+    image: ${REGISTRY:-ghcr.io/anvil-org}/whiteboard:${ANVIL_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: apps/whiteboard/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3012"
+      NEXTAUTH_URL: https://whiteboard.${ANVIL_DOMAIN:-localhost}
+    ports:
+      - "127.0.0.1:3012:3012"
+
   # ════════════════════════════════════════════════════════════
   # OPTIONAL: MONITORING (--profile monitoring)
   # ════════════════════════════════════════════════════════════

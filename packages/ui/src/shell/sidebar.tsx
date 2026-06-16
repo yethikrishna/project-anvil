@@ -5,7 +5,7 @@ import { cn } from '../utils';
 
 // ── Types ──
 
-export type AnvilApp = 'drive' | 'docs' | 'youtube' | 'maps' | 'search' | 'gmail' | 'marketplace' | 'calendar' | 'tasks';
+export type AnvilApp = 'drive' | 'docs' | 'youtube' | 'maps' | 'search' | 'gmail' | 'marketplace' | 'calendar' | 'tasks' | 'photos' | 'chat';
 
 export interface NavItem {
   id: AnvilApp;
@@ -117,6 +117,8 @@ export const ANVIL_APPS: NavItem[] = [
   { id: 'marketplace' as AnvilApp, label: 'Plugins', icon: <span className="text-base">🧩</span>, href: '/marketplace' },
   { id: 'calendar' as AnvilApp, label: 'Calendar', icon: <CalendarIcon />, href: '/calendar' },
   { id: 'tasks' as AnvilApp, label: 'Tasks', icon: <TasksIcon />, href: '/tasks' },
+  { id: 'photos' as AnvilApp, label: 'Photos', icon: <span className="text-base">📷</span>, href: '/photos' },
+  { id: 'chat' as AnvilApp, label: 'AI', icon: <span className="text-base">🤖</span>, href: '/chat' },
 ];
 
 // ── App Switcher ──

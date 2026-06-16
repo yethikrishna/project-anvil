@@ -49,6 +49,7 @@ import {
   listConversations, getConversation, createConversation,
   deleteConversation, saveConversation, addMessage,
   getActiveConversationId, setActiveConversationId,
+  syncConversationToServer, syncFromServer,
 } from '@/lib/memory';
 import {
   analyzePatterns, buildContextSummary, loadPatterns, savePatterns,
@@ -57,6 +58,8 @@ import {
 import { parseChatStream } from '@/lib/sse-parser';
 import { generateAutoTitle } from '@/lib/rich-renderer';
 import { extractFullContext, mergeContext } from '@/lib/context-extractor';
+import { maybeAutoSummarize } from '@/lib/conversation-summarizer';
+import ContextPanel from '@/components/ContextPanel';
 
 export default function ChatPage() {
   // ── State ──
@@ -74,6 +77,7 @@ export default function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [showContextPanel, setShowContextPanel] = useState(false);
   const [saveToDocsContent, setSaveToDocsContent] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
@@ -145,6 +149,13 @@ export default function ChatPage() {
           ),
         );
       }
+
+      // Background: pull from server for cross-device sync
+      syncFromServer().then(merged => {
+        if (merged > 0) {
+          listConversations().then(updated => setConversations(updated)).catch(console.error);
+        }
+      }).catch(() => { /* silent */ });
     })();
   }, []);
 
@@ -385,6 +396,27 @@ export default function ChatPage() {
       if (reloadedConv) {
         setActiveConv(reloadedConv);
         setConversations(prev => prev.map(c => c.id === reloadedConv.id ? reloadedConv : c));
+
+        // Push to server for cross-device sync (fire-and-forget)
+        syncConversationToServer(reloadedConv).catch(() => { /* silent */ });
+
+        // Auto-summarize long conversations in the background
+        const totalMessages = reloadedConv.messages.filter(m => m.role !== 'system').length;
+        if (totalMessages >= 30) {
+          maybeAutoSummarize(reloadedConv.id).then(compressed => {
+            if (compressed) {
+              // Reload with compressed history
+              getConversation(reloadedConv.id).then(compressedConv => {
+                if (compressedConv) {
+                  setActiveConv(compressedConv);
+                  setConversations(prev => prev.map(c =>
+                    c.id === compressedConv.id ? compressedConv : c
+                  ));
+                }
+              }).catch(console.error);
+            }
+          }).catch(console.error);
+        }
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -610,6 +642,19 @@ export default function ChatPage() {
                 </button>
               )}
               <ThemeToggle />
+              {activeConv && (
+                <button
+                  onClick={() => setShowContextPanel(v => !v)}
+                  className={
+                    showContextPanel
+                      ? 'text-[11px] px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium'
+                      : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                  }
+                  title="AI Memory panel"
+                >
+                  🧠
+                </button>
+              )}
             </div>
           </div>
 
@@ -649,6 +694,7 @@ export default function ChatPage() {
                       onRegenerate={i === messages.length - 1 && msg.role === 'assistant' && !isStreaming ? handleRegenerate : undefined}
                       onPin={handlePinMessage}
                       onSaveToDocs={(c) => setSaveToDocsContent(c)}
+                      context={activeConv?.context}
                     />
                   </div>
                 ))}
@@ -708,6 +754,19 @@ export default function ChatPage() {
           <AttentionPanel
             onAction={handleAttentionAction}
             onClose={() => setShowAttention(false)}
+          />
+        )}
+
+        {/* Context / AI Memory panel */}
+        {showContextPanel && activeConv?.context && (
+          <ContextPanel
+            context={activeConv.context}
+            patterns={null}
+            onAction={(text) => {
+              setShowContextPanel(false);
+              handleSend(text);
+            }}
+            onClose={() => setShowContextPanel(false)}
           />
         )}
 

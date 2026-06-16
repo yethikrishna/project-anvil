@@ -19,6 +19,8 @@ import type { ChatMessage } from '@/lib/types';
 import VoiceOutput from './VoiceOutput';
 import RichToolResults from './RichToolResults';
 import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
+import SmartSuggestions from './SmartSuggestions';
+import type { ConversationContext } from '@/lib/types';
 
 function toWorkflowStep(tc: import('@/lib/types').ToolCallResult): WorkflowStepResult {
   return {
@@ -38,6 +40,7 @@ interface Props {
   onRegenerate?: () => void;
   onPin?: (messageId: string, pinned: boolean) => void;
   onSaveToDocs?: (content: string) => void;
+  context?: ConversationContext;
 }
 
 // ── Follow-up suggestion generator ──
@@ -167,6 +170,7 @@ export default function MessageBubble({
   onRegenerate,
   onPin,
   onSaveToDocs,
+  context,
 }: Props) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
@@ -327,8 +331,18 @@ export default function MessageBubble({
         )}
       </div>
 
-      {/* Follow-up suggestion chips — below the full message row */}
-      {suggestions.length > 0 && (
+      {/* Smart contextual suggestions — AI-powered follow-up chips */}
+      {isLast && !isUser && !isStreaming && onSuggestionClick && context && (
+        <div className="mt-1.5 pl-11">
+          <SmartSuggestions
+            lastMessage={message}
+            context={context}
+            onSelect={onSuggestionClick}
+          />
+        </div>
+      )}
+      {/* Fallback rule-based suggestions when no context provided */}
+      {isLast && !isUser && !isStreaming && onSuggestionClick && !context && suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2 pl-11">
           {suggestions.map((s, i) => (
             <button

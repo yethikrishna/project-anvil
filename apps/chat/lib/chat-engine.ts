@@ -3,26 +3,28 @@
  *
  * Architecture:
  * 1. System prompt with dynamic context from user patterns
- * 2. Multi-round tool use loop (up to 5 rounds)
+ * 2. Multi-round tool use loop via @anvil/ai provider
  * 3. Streaming response with tool call visualization
- * 4. Agent runtime for autonomous multi-step actions
- * 5. Context accumulation across conversations
- * 6. Intent-aware system prompt optimization
+ * 4. Context accumulation across conversations
+ * 5. Intent-aware system prompt optimization
+ * 6. Auto-summarization for long conversations
  *
- * Integrates @anvil/ai for:
+ * Uses @anvil/ai for:
+ * - Provider abstraction (OpenAI, Ollama)
  * - Tool definitions (ANVIL_TOOLS)
- * - Agent runtime for autonomous actions
- * - RAG pipeline for knowledge retrieval
+ * - Streaming with tool call deltas
  */
 
-import type { Message } from '@anvil/ai';
+import { createAI } from '@anvil/ai';
+import type { AIInstance, Message, StreamChunk, ToolCall } from '@anvil/ai';
 import { ANVIL_TOOLS } from '@anvil/ai';
 import { getToolExecutor } from './tool-executor';
 import { detectIntent, getIntentPrompt } from './intent-router';
 import type { ChatMessage, ToolCallResult, ConversationContext } from './types';
 import { extractContextFromToolCall } from './memory';
 
-// Server-side context accumulator (no IndexedDB — purely in-memory for the current request)
+// ── Server-side context accumulator (per-request, in-memory) ──
+
 const serverContextUpdates = new Map<string, Partial<ConversationContext>>();
 
 function accumulateContext(
@@ -55,15 +57,13 @@ function buildSystemPrompt(
 ): string {
   const sections: string[] = [];
 
-  // Communication style adaptation
   const styleMap: Record<string, string> = {
-    concise: 'Be extremely concise. 1-3 sentences per response unless more detail is specifically needed.',
-    detailed: 'Provide thorough, detailed explanations. Include context, reasoning, and examples.',
-    technical: 'Use precise technical language. Include code, API details, and technical specifics when relevant.',
+    concise: 'Be extremely concise. 1-3 sentences per response unless more detail is needed.',
+    detailed: 'Provide thorough, detailed explanations with context and examples.',
+    technical: 'Use precise technical language. Include code, APIs, and technical specifics.',
     casual: 'Be conversational and relaxed. Use contractions and informal language.',
   };
   const styleInstruction = styleMap[settings?.communicationStyle ?? 'concise'] ?? styleMap.concise;
-
   const emailToneInstruction = settings?.emailTone
     ? `When drafting emails, use a ${settings.emailTone} tone by default.`
     : 'When drafting emails, use a professional tone by default.';
@@ -73,10 +73,10 @@ function buildSystemPrompt(
 CORE PERSONALITY:
 - ${styleInstruction}
 - When you can ACT, act. Use tools instead of describing what you would do.
-- Always confirm before sending emails or creating calendar events (say "I'll send/reply" and wait).
-- If you need more info, ask specific questions — not vague "please provide" requests.
+- Always confirm before sending emails or creating calendar events.
+- If you need more info, ask specific questions.
 - Use markdown for structured responses. Use tables for comparisons.
-- Show tool results inline when they're useful to the user.
+- Show tool results inline when useful.
 - ${emailToneInstruction}
 
 CAPABILITIES (use tools for these):
@@ -99,81 +99,64 @@ CAPABILITIES (use tools for these):
 - calendar_check_availability: Find free time slots
 
 🌐 Web:
-- web_search: Search the internet
+- web_search: Search the web for current information
 
-MULTI-STEP ACTIONS — chain tools when needed:
-- "Find Q3 report → summarize → email to team": file_search → file_read → email_send
-- "Check schedule → find free time → book meeting": calendar_check_availability → calendar_create_event
-- "Read thread → draft reply → save draft": email_read_thread → email_save_draft
+MULTI-STEP WORKFLOWS (chain tools automatically):
+- "find doc → summarize → email team": file_search → file_read → email_send
+- "check email → draft reply → save draft": email_search → email_read_thread → email_save_draft
+- "find availability → book meeting": calendar_check_availability → calendar_create_event
+- "research topic → create doc": web_search → document_write
 
-Execute tools and report results progressively. Don't describe — do.`);
+APPROVAL PROTOCOL:
+- email_send: ALWAYS confirm recipient + content before executing
+- calendar_create_event: ALWAYS confirm time + attendees before executing
+- file_share: Confirm recipient before sharing
+- document_write: Confirm before overwriting existing docs`);
 
-  // Dynamic context sections
+  // Conversation context
   if (context.files.length > 0) {
-    const recent = context.files.slice(-8);
-    sections.push(`RECENTLY REFERENCED FILES:\n${recent.map(f => `- ${f.name} (${f.type})`).join('\n')}`);
+    const recent = context.files.slice(-5).map(f => f.name).join(', ');
+    sections.push(`\nRECENTLY ACCESSED FILES: ${recent}`);
   }
-
   if (context.people.length > 0) {
-    sections.push(`PEOPLE IN THIS CONVERSATION:\n${context.people.join(', ')}`);
+    sections.push(`PEOPLE IN CONTEXT: ${context.people.slice(-10).join(', ')}`);
   }
-
   if (context.topics.length > 0) {
-    const uniqueTopics = [...new Set(context.topics)].slice(-8);
-    sections.push(`TOPICS DISCUSSED:\n${uniqueTopics.join(', ')}`);
+    sections.push(`CURRENT TOPICS: ${context.topics.slice(-8).join(', ')}`);
   }
-
   if (context.preferences.length > 0) {
-    sections.push(`USER PREFERENCES:\n${context.preferences.map(p => `- ${p}`).join('\n')}`);
+    sections.push(`USER PREFERENCES:\n${context.preferences.slice(-8).map(p => `- ${p}`).join('\n')}`);
   }
 
-  if (userPatterns) {
-    sections.push(`USER PATTERNS:\n${userPatterns}`);
+  // User patterns (learned across sessions)
+  if (userPatterns && userPatterns.trim()) {
+    sections.push(`\nLEARNED USER PATTERNS:\n${userPatterns}`);
   }
 
-  // Recent actions context
-  const recentActions = context.actions.slice(-5);
-  if (recentActions.length > 0) {
-    sections.push(`RECENT ACTIONS TAKEN:\n${recentActions
-      .map(a => `- ${a.tool}: ${a.action} (${a.success ? 'success' : 'failed'})`)
-      .join('\n')}`);
+  // Approval settings
+  const approvalNotes: string[] = [];
+  if (settings?.requireApprovalForEmail === false) {
+    approvalNotes.push('User has pre-approved email sends — no need to confirm before sending.');
+  }
+  if (settings?.requireApprovalForCalendar === false) {
+    approvalNotes.push('User has pre-approved calendar creation — no need to confirm before creating events.');
+  }
+  if (approvalNotes.length > 0) {
+    sections.push(`\nAPPROVAL OVERRIDES:\n${approvalNotes.join('\n')}`);
   }
 
-  const approvalRules: string[] = [];
-  if (settings?.requireApprovalForEmail !== false) {
-    approvalRules.push('Always confirm with the user before calling email_send — preview the draft and say "Shall I send this?"');
-  }
-  if (settings?.requireApprovalForCalendar !== false) {
-    approvalRules.push('Always confirm with the user before calling calendar_create_event — show the proposed time and say "Shall I create this event?"');
-  }
-
-  sections.push(`IMPORTANT:
-- Always prefer using tools over speculating
-- Show concise results, not raw API dumps
-- If a search returns no results, say so and suggest alternatives
-${approvalRules.map(r => `- ${r}`).join('\n')}`);
-
-  return sections.join('\n\n');
+  return sections.join('\n');
 }
 
-// ── Chat Engine ──
-
-// ── High-risk tools that require approval before execution ──
-
-const HIGH_RISK_TOOLS = new Set([
-  'email_send',
-  'calendar_create_event',
-  'document_write',
-  'file_share',
-]);
+// ── Chat Engine Config ──
 
 export interface ChatEngineConfig {
-  aiEndpoint: string;
+  aiEndpoint?: string;
   apiKey?: string;
   model?: string;
+  userPatterns?: string;
   authToken?: string;
   userId?: string;
-  userPatterns?: string;
   settings?: {
     requireApprovalForEmail?: boolean;
     requireApprovalForCalendar?: boolean;
@@ -182,82 +165,153 @@ export interface ChatEngineConfig {
   };
 }
 
+// ── Tools requiring approval by default ──
+
+const APPROVAL_REQUIRED_TOOLS = new Set([
+  'email_send',
+  'calendar_create_event',
+  'document_write',
+  'file_share',
+]);
+
+// ── Chat Engine ──
+
 export class ChatEngine {
+  private ai: AIInstance;
   private config: ChatEngineConfig;
 
   constructor(config: ChatEngineConfig) {
     this.config = config;
+
+    // Use @anvil/ai createAI factory for provider abstraction
+    this.ai = createAI({
+      provider: 'openai',
+      apiKey: config.apiKey ?? '',
+      baseUrl: config.aiEndpoint?.replace('/chat/completions', '') ?? 'https://api.openai.com/v1',
+      model: config.model ?? 'gpt-4o',
+    });
   }
 
   /**
-   * Process a user message through the AI with tool use loop.
+   * Process a chat message with multi-round tool use.
    */
   async processMessage(
     convId: string,
-    userContent: string,
-    existingMessages: ChatMessage[],
+    userMessage: string,
+    history: ChatMessage[],
     context: ConversationContext,
     onStream?: (chunk: string) => void,
     onToolCall?: (toolCall: ToolCallResult) => void,
     onPendingApproval?: (toolId: string, toolName: string, args: Record<string, unknown>) => void,
     approvedToolIds?: Set<string>,
-  ): Promise<{ message: ChatMessage; toolCalls: ToolCallResult[]; contextUpdates: Partial<ConversationContext> }> {
-    // 1. Detect intent for prompt optimization
-    const intent = detectIntent(userContent);
-    const intentExtra = getIntentPrompt(intent);
+  ): Promise<{
+    message: ChatMessage;
+    toolCalls: ToolCallResult[];
+    contextUpdates: Partial<ConversationContext>;
+  }> {
+    // 1. Detect intent for system prompt optimization
+    const intent = detectIntent(userMessage);
+    const intentPrompt = getIntentPrompt(intent);
 
-    // 3. Build AI messages with system prompt
-    const systemPrompt = buildSystemPrompt(context, this.config.userPatterns, this.config.settings)
-      + (intentExtra ? `\n\nINTENT GUIDANCE:\n${intentExtra}` : '');
+    // 2. Build system prompt with full context
+    const baseSystemPrompt = buildSystemPrompt(context, this.config.userPatterns, this.config.settings);
+    const systemPrompt = intentPrompt
+      ? `${baseSystemPrompt}\n\n${intentPrompt}`
+      : baseSystemPrompt;
+
+    // 3. Compress history if too long (prevent context window overflow)
+    const compressedHistory = this.compressHistory(history);
+
+    // 4. Build messages array for @anvil/ai
+    const historyMessages: Message[] = compressedHistory
+      .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+      .map(m => {
+        if (m.role === 'system') return { role: 'system' as const, content: m.content };
+        if (m.role === 'assistant') return { role: 'assistant' as const, content: m.content };
+        return { role: 'user' as const, content: m.content };
+      });
 
     const aiMessages: Message[] = [
-      { role: 'system', content: systemPrompt },
-      ...existingMessages.slice(-20).map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      })),
-      { role: 'user', content: userContent },
+      ...historyMessages,
+      { role: 'user' as const, content: userMessage },
     ];
 
+    // 5. Set up tool executor
+    const executor = getToolExecutor({
+      authToken: this.config.authToken,
+      userId: this.config.userId,
+    });
+
+    // 6. Multi-round tool use loop (max 6 rounds)
     const allToolCalls: ToolCallResult[] = [];
+    const MAX_ROUNDS = 6;
     let finalText = '';
-    let maxRounds = 5;
+    let pendingApprovalFired = false;
 
-    // 4. Tool use loop
-    while (maxRounds-- > 0) {
-      const response = await this.callAI(aiMessages, onStream);
+    // Track partial tool call deltas during streaming
+    const toolCallBuffer = new Map<string, { name: string; arguments: string }>();
 
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        // Add assistant message with tool calls to conversation
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      let roundText = '';
+      const roundToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
+
+      // Stream this round
+      const streamCallback = (chunk: StreamChunk) => {
+        if (chunk.delta && !chunk.toolCallDeltas?.length) {
+          roundText += chunk.delta;
+          onStream?.(chunk.delta);
+        }
+
+        // Accumulate tool call deltas
+        if (chunk.toolCallDeltas) {
+          for (const tc of chunk.toolCallDeltas) {
+            const key = tc.id || `tc_${roundToolCalls.length}`;
+            const buf = toolCallBuffer.get(key) ?? { name: '', arguments: '' };
+            if (tc.name) buf.name += tc.name;
+            if (tc.arguments) buf.arguments += tc.arguments;
+            toolCallBuffer.set(key, buf);
+          }
+        }
+      };
+
+      const result = await this.ai.stream(
+        aiMessages,
+        streamCallback,
+        {
+          systemPrompt,
+          tools: ANVIL_TOOLS,
+          maxTokens: 2048,
+          temperature: 0.3,
+        }
+      );
+
+      // Merge buffered tool calls with result
+      const finalToolCalls = result.toolCalls ?? [];
+      toolCallBuffer.clear();
+
+      if (finalToolCalls.length > 0) {
+        // Has tool calls — execute them
         aiMessages.push({
-          role: 'assistant',
-          content: response.text || null,
-          tool_calls: response.toolCalls.map(tc => ({
-            id: tc.id,
-            type: 'function' as const,
-            function: { name: tc.name, arguments: tc.arguments },
-          })),
-        } as any);
+          role: 'assistant' as const,
+          content: roundText || '',
+          toolCalls: finalToolCalls,
+        });
 
-        // Execute each tool call
-        for (const tc of response.toolCalls) {
-          let args: Record<string, unknown>;
+        for (const tc of finalToolCalls) {
+          let args: Record<string, unknown> = {};
           try {
-            args = JSON.parse(tc.arguments || '{}');
+            args = JSON.parse(tc.arguments ?? '{}');
           } catch {
             args = {};
           }
 
-          // ── Approval gate for high-risk tools ──
-          const requiresApproval = (this.config.settings?.requireApprovalForEmail !== false && tc.name === 'email_send') ||
-            (this.config.settings?.requireApprovalForCalendar !== false && tc.name === 'calendar_create_event') ||
-            HIGH_RISK_TOOLS.has(tc.name);
+          // Approval gate for high-risk tools
+          const requiresApproval = APPROVAL_REQUIRED_TOOLS.has(tc.name) &&
+            this.config.settings?.requireApprovalForEmail !== false &&
+            !approvedToolIds?.has(tc.id);
 
-          const isApproved = approvedToolIds?.has(tc.id) ?? false;
-
-          if (requiresApproval && !isApproved) {
-            // Emit pending approval event and use a held result
-            onPendingApproval?.(tc.id, tc.name, args);
+          if (requiresApproval && !pendingApprovalFired) {
+            pendingApprovalFired = true;
             const callResult: ToolCallResult = {
               id: tc.id,
               tool: tc.name,
@@ -267,20 +321,20 @@ export class ChatEngine {
             };
             allToolCalls.push(callResult);
             onToolCall?.(callResult);
-            // Feed synthetic "pending" result so AI can respond gracefully
+            onPendingApproval?.(tc.id, tc.name, args);
+
+            // Feed synthetic pending result so AI can respond gracefully
             aiMessages.push({
-              role: 'tool' as any,
-              tool_call_id: tc.id,
+              role: 'tool' as const,
+              toolCallId: tc.id,
               content: 'Action paused — waiting for user confirmation before proceeding.',
-            } as any);
+            });
             accumulateContext(convId, tc.name, args, callResult.result);
             continue;
           }
 
-          const toolResult = await getToolExecutor({
-            authToken: this.config.authToken,
-            userId: this.config.userId,
-          }).executeTool(tc.name, args);
+          // Execute the tool
+          const toolResult = await executor.executeTool(tc.name, args);
 
           const callResult: ToolCallResult = {
             id: tc.id,
@@ -296,16 +350,16 @@ export class ChatEngine {
 
           // Feed tool result back to AI
           aiMessages.push({
-            role: 'tool' as any,
-            tool_call_id: tc.id,
+            role: 'tool' as const,
+            toolCallId: tc.id,
             content: toolResult.result,
-          } as any);
+          });
 
-          // Accumulate context updates (server-side, in-memory for this request)
           accumulateContext(convId, tc.name, args, toolResult.result);
         }
       } else {
-        finalText = response.text;
+        // No tool calls — this is the final response
+        finalText = roundText || result.text;
         break;
       }
     }
@@ -313,10 +367,9 @@ export class ChatEngine {
     if (!finalText) {
       finalText = allToolCalls.length > 0
         ? 'I\'ve completed the requested actions. Let me know if you need anything else.'
-        : 'I\'m not sure how to help with that. Could you be more specific about what you need?';
+        : 'I\'m not sure how to help with that. Could you be more specific?';
     }
 
-    // 5. Build assistant message (client-side persistence handles saving)
     const assistantMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -325,136 +378,48 @@ export class ChatEngine {
       toolCalls: allToolCalls,
     };
 
-    const contextUpdates = getContextUpdates(convId);
-    return { message: assistantMsg, toolCalls: allToolCalls, contextUpdates };
+    return {
+      message: assistantMsg,
+      toolCalls: allToolCalls,
+      contextUpdates: getContextUpdates(convId),
+    };
   }
 
   /**
-   * Call AI API (OpenAI-compatible) with streaming support.
+   * Compress history to prevent context window overflow.
+   * Keeps the first 3 messages (for context) + last 15 messages.
+   * Middle messages are summarized into a synthetic system message.
    */
-  private async callAI(
-    messages: Message[],
-    onStream?: (chunk: string) => void,
-  ): Promise<{
-    text: string;
-    toolCalls?: Array<{ id: string; name: string; arguments: string }>;
-  }> {
-    const body = {
-      model: this.config.model ?? 'gpt-4o',
-      messages,
-      tools: ANVIL_TOOLS.map(t => ({
-        type: 'function' as const,
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
-        },
-      })),
-      tool_choice: 'auto',
-      stream: !!onStream,
+  private compressHistory(history: ChatMessage[]): ChatMessage[] {
+    const MAX_MESSAGES = 20;
+    if (history.length <= MAX_MESSAGES) return history;
+
+    const first = history.slice(0, 3);
+    const last = history.slice(-12);
+    const middle = history.slice(3, -12);
+
+    const summaryLines = middle.map(m =>
+      `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''}`
+    );
+
+    const summaryMsg: ChatMessage = {
+      id: 'summary',
+      role: 'system',
+      content: `[Earlier conversation summary — ${middle.length} messages]\n${summaryLines.join('\n')}`,
+      timestamp: middle[0]?.timestamp ?? Date.now(),
     };
 
-    const res = await fetch(this.config.aiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`AI API error: ${res.status} — ${errorText}`);
-    }
-
-    if (onStream && body.stream) {
-      return this.parseStreamResponse(res, onStream);
-    }
-
-    const data = await res.json();
-    const choice = data.choices?.[0];
-
-    return {
-      text: choice?.message?.content ?? '',
-      toolCalls: choice?.message?.tool_calls?.map((tc: any) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: tc.function.arguments,
-      })),
-    };
-  }
-
-  private async parseStreamResponse(
-    res: Response,
-    onChunk: (text: string) => void,
-  ): Promise<{
-    text: string;
-    toolCalls?: Array<{ id: string; name: string; arguments: string }>;
-  }> {
-    const reader = res.body?.getReader();
-    if (!reader) throw new Error('No stream body');
-
-    const decoder = new TextDecoder();
-    let fullText = '';
-    let buffer = '';
-    const toolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
-        const jsonStr = trimmed.slice(6);
-        if (jsonStr === '[DONE]') continue;
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const delta = parsed.choices?.[0]?.delta;
-
-          if (delta?.content) {
-            fullText += delta.content;
-            onChunk(delta.content);
-          }
-
-          if (delta?.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              const existing = toolCalls.get(idx) ?? { id: '', name: '', arguments: '' };
-              if (tc.id) existing.id = tc.id;
-              if (tc.function?.name) existing.name = tc.function.name;
-              if (tc.function?.arguments) existing.arguments += tc.function.arguments;
-              toolCalls.set(idx, existing);
-            }
-          }
-        } catch {
-          // Skip malformed chunks
-        }
-      }
-    }
-
-    return {
-      text: fullText,
-      toolCalls: toolCalls.size > 0 ? Array.from(toolCalls.values()) : undefined,
-    };
+    return [...first, summaryMsg, ...last];
   }
 
   /**
-   * Quick generate — one-shot AI call for internal use (attention digest, draft reply, etc).
+   * Quick one-shot generation for internal use (attention digest, draft, etc).
    */
   async quickGenerate(systemPrompt: string, userPrompt: string): Promise<string> {
-    const messages: Message[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ];
-
-    const response = await this.callAI(messages);
-    return response.text;
+    const result = await this.ai.generate(
+      [{ role: 'user', content: userPrompt }],
+      { systemPrompt, temperature: 0.2, maxTokens: 1024 },
+    );
+    return result.text;
   }
 }

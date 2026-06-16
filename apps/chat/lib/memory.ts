@@ -295,3 +295,52 @@ export async function cleanupOldConversations(maxAgeDays = 90): Promise<number> 
 
   return deleted;
 }
+
+// ── Server Sync ──
+
+let lastSyncTimestamp = 0;
+
+/**
+ * Push a conversation to the server for cross-device sync.
+ * Fire-and-forget — failures are silent.
+ */
+export async function syncConversationToServer(conv: Conversation, userId = 'default'): Promise<void> {
+  try {
+    await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'push', userId, conversation: conv }),
+    });
+  } catch {
+    // Silent fail — local IndexedDB is still the source of truth
+  }
+}
+
+/**
+ * Pull conversations from server and merge into local IndexedDB.
+ * Only fetches conversations updated since last sync.
+ */
+export async function syncFromServer(userId = 'default'): Promise<number> {
+  try {
+    const res = await fetch(`/api/memory?userId=${userId}&since=${lastSyncTimestamp}`);
+    if (!res.ok) return 0;
+
+    const data = await res.json() as { conversations: Conversation[]; synced?: string };
+    const incoming = data.conversations ?? [];
+
+    let merged = 0;
+    for (const conv of incoming) {
+      const existing = await getConversation(conv.id);
+      // Only update if server version is newer
+      if (!existing || conv.updatedAt > existing.updatedAt) {
+        await saveConversation(conv);
+        merged++;
+      }
+    }
+
+    lastSyncTimestamp = Date.now();
+    return merged;
+  } catch {
+    return 0;
+  }
+}

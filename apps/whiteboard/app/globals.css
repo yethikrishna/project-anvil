@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+* { box-sizing: border-box; }
+
+body {
+  background: #0a0a0a;
+  color: white;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Override Excalidraw's default styles to fit dark theme */
+.excalidraw {
+  --color-surface-primary-container: #1a1a1a !important;
+  --color-on-surface: #ffffff !important;
+}
+
+.excalidraw.theme--dark .Island {
+  background-color: #1a1a1a !important;
+  border-color: #333 !important;
+}
+
+.board-card {
+  @apply relative bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden cursor-pointer transition-all;
+}
+
+.board-card:hover {
+  @apply border-neutral-600 shadow-xl shadow-black/50;
+  transform: translateY(-2px);
+}
+
+.board-card:active {
+  transform: translateY(0);
+}
+
+.template-card {
+  @apply flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-neutral-700
+    cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-500/10;
+}
+
+.template-card.selected {
+  @apply border-blue-500 bg-blue-500/15;
+}
