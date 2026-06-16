@@ -28,6 +28,7 @@ interface UseVoiceInputReturn {
   isRecording: boolean;
   isProcessing: boolean;
   audioLevel: number;
+  mediaStream: MediaStream | null;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   error: string | null;
@@ -45,6 +46,7 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputRetur
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number>(0);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   // Audio level visualization
   const updateAudioLevel = useCallback(() => {
@@ -84,12 +86,16 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputRetur
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
+
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 16000,
         },
       });
+
+      // Expose stream for external visualizer
+      setMediaStream(stream);
 
       // Set up audio analyser for level visualization
       const audioContext = new AudioContext();
@@ -123,6 +129,7 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputRetur
 
         // Release mic
         stream.getTracks().forEach(t => t.stop());
+        setMediaStream(null);
 
         if (silenceTimerRef.current) {
           clearTimeout(silenceTimerRef.current);
@@ -193,6 +200,7 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputRetur
     isRecording,
     isProcessing,
     audioLevel,
+    mediaStream,
     startRecording,
     stopRecording,
     error,

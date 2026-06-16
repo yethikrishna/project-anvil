@@ -68,6 +68,13 @@ export const QUICK_COMMANDS: QuickCommand[] = [
     description: 'Read a Drive file and summarize key points',
     prompt: 'Which document should I summarize? Give me the name and I\'ll find it on Drive, read it, and give you the key points.',
   },
+  {
+    id: 'chain-goal',
+    icon: '🤖',
+    label: 'Autonomous task (AI chain)',
+    description: 'Let AI plan and execute a multi-step goal end-to-end',
+    prompt: '/chain ',
+  },
 ];
 
 /**

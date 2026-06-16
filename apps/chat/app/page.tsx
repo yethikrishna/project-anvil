@@ -41,6 +41,8 @@ import PinnedMessages from '@/components/PinnedMessages';
 import SaveToDocsModal from '@/components/SaveToDocsModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
+import ChainProgress from '@/components/ChainProgress';
+import { useChain } from '@/lib/use-chain';
 import type {
   Conversation, ChatMessage as ChatMessageType, ToolCallResult, ConversationContext,
 } from '@/lib/types';
@@ -90,6 +92,8 @@ export default function ChatPage() {
   const [userPatternSummary, setUserPatternSummary] = useState<string>('');
   const [chatSettings, setChatSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [agentMode, setAgentMode] = useState(false);
+  const chain = useChain();
+  const [chainVisible, setChainVisible] = useState(false);
   const [renamingConvId, setRenamingConvId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -279,6 +283,17 @@ export default function ChatPage() {
   const handleSend = useCallback(async (text: string, attachments?: AttachedFile[]) => {
     if ((!text.trim() && !attachments?.length) || isLoading) return;
 
+    // /chain command: run AI-driven autonomous multi-step tool chain
+    if (text.trim().startsWith('/chain ')) {
+      const goal = text.slice('/chain '.length).trim();
+      if (goal) {
+        chain.reset();
+        setChainVisible(true);
+        chain.run(goal, { userId: 'default' });
+        return;
+      }
+    }
+
     const effectiveApprovedIds = agentMode
       ? new Set([...approvedToolIds, '__agent_mode__'])
       : approvedToolIds;
@@ -331,6 +346,7 @@ export default function ChatPage() {
             agentMode,
           },
           approvedToolIds: Array.from(effectiveApprovedIds),
+          userId: 'default', // TODO: real userId from auth session
           attachments: attachments?.map(a => ({
             name: a.name,
             type: a.type,
@@ -645,6 +661,13 @@ export default function ChatPage() {
               >
                 ⌘K
               </button>
+              <a
+                href="/channels"
+                className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden sm:inline-block"
+                title="Team channels &amp; messaging"
+              >
+                💬 Channels
+              </a>
               <button
                 onClick={() => setShowSettings(true)}
                 className="text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
@@ -882,6 +905,31 @@ export default function ChatPage() {
 
       {showWeeklySummary && (
         <WeeklySummaryWidget onClose={() => setShowWeeklySummary(false)} />
+      )}
+
+      {/* Chain Progress — shown when /chain command is active */}
+      {chainVisible && (
+        <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="w-full max-w-2xl pointer-events-auto">
+            <ChainProgress
+              steps={chain.steps}
+              isRunning={chain.isRunning}
+              answer={chain.answer}
+              error={chain.error}
+              stoppedReason={chain.stoppedReason}
+              totalDurationMs={chain.totalDurationMs}
+              onCancel={() => { chain.cancel(); setChainVisible(false); }}
+            />
+            {!chain.isRunning && (
+              <button
+                onClick={() => { chain.reset(); setChainVisible(false); }}
+                className="mt-1.5 w-full text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {showDraftPreview && (

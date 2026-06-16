@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@anvil/ui';
+import AudioVisualizer from './AudioVisualizer';
 
 interface Props {
   text: string;
@@ -183,6 +184,19 @@ export default function VoiceOutput({ text, autoPlay = false, compact = true }: 
       </button>
 
       {playing && (
+        <AudioVisualizer
+          audioElement={audioRef.current ?? undefined}
+          mode="bars"
+          color="#3b82f6"
+          width={120}
+          height={28}
+          barCount={24}
+          active={playing}
+          className="flex-1 rounded"
+        />
+      )}
+
+      {!playing && (
         <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-blue-500 rounded-full transition-all duration-100"

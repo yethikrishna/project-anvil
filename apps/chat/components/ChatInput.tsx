@@ -15,6 +15,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@anvil/ui';
 import { useVoiceInput } from '@/lib/use-voice-input';
 import { getSlashCommandHints } from '@/lib/rich-renderer';
+import AudioVisualizer from './AudioVisualizer';
 
 export interface AttachedFile {
   id: string;
@@ -99,7 +100,7 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
   const dragCounterRef = useRef(0);
 
   // Voice input
-  const { isRecording, isProcessing, audioLevel, startRecording, stopRecording } =
+  const { isRecording, isProcessing, audioLevel, mediaStream, startRecording, stopRecording } =
     useVoiceInput({
       onTranscript: (text) => {
         setInput(prev => prev + (prev ? ' ' : '') + text);
@@ -525,15 +526,28 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
 
           {isRecording && (
             <div className="absolute inset-0 pointer-events-none">
-              <svg viewBox="0 0 32 32" className="w-full h-full">
-                <circle
-                  cx="16" cy="16" r={12 + audioLevel * 6}
-                  fill="none"
-                  stroke="rgba(239, 68, 68, 0.3)"
-                  strokeWidth="2"
-                  className="transition-all duration-75"
+              {mediaStream ? (
+                <AudioVisualizer
+                  stream={mediaStream}
+                  mode="circle"
+                  color="#ef4444"
+                  width={32}
+                  height={32}
+                  barCount={20}
+                  active={isRecording}
+                  className="w-full h-full"
                 />
-              </svg>
+              ) : (
+                <svg viewBox="0 0 32 32" className="w-full h-full">
+                  <circle
+                    cx="16" cy="16" r={12 + audioLevel * 6}
+                    fill="none"
+                    stroke="rgba(239, 68, 68, 0.3)"
+                    strokeWidth="2"
+                    className="transition-all duration-75"
+                  />
+                </svg>
+              )}
             </div>
           )}
         </div>

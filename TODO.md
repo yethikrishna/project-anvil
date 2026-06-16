@@ -246,7 +246,7 @@
 - [ ] Evaluate **Base UI** (MUI team) as Radix replacement in @anvil/ui
 - [x] Add **Hono edge gateway** on CF Workers for unified API routing, auth, rate limiting
 - [ ] Build **CRDT Debug Visualizer** — Yjs ops DAG, concurrent edit colors, conflict replay, perf metrics
-- [ ] Implement **event-driven cross-app bus** — file upload → index → tag → notify pipeline
+- [x] Implement **event-driven cross-app bus** — file upload → index → tag → notify pipeline
 - [ ] Create **zero-config Docker demo** — pre-seeded data, auto-configured auth, pre-indexed search
 
 ## Phase 12b: Research-Driven Enhancements (2026-05-21 Session 6)
@@ -382,13 +382,13 @@
 - [x] Voice output (LLM → TTS)
 - [x] Multi-turn tool use — AI chains actions (find doc → summarize → email)
 - [x] Context accumulation — AI remembers files, people, topics, preferences
-- [ ] Direct messages + group channels + threaded conversations
-- [ ] Message search via Meilisearch integration
+- [x] Direct messages + group channels + threaded conversations
+- [x] Message search via Meilisearch integration
 - [ ] 1:1 video calls with WebRTC + screen sharing
 - [ ] Virtual backgrounds (TensorFlow.js body segmentation)
-- [ ] Audio visualization via Web Audio API
+- [x] Audio visualization via Web Audio API
 - [ ] Multi-party calling with mediasoup SFU
-- [ ] Typing indicators + read receipts + presence
+- [x] Typing indicators + read receipts + presence
 
 ## Phase 25: Desktop & Mobile
 - [ ] Tauri 2.0 desktop app (10MB, system tray, native dialogs)
