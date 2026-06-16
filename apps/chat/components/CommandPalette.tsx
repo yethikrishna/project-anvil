@@ -21,6 +21,7 @@ interface Props {
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
   onOpenSettings: () => void;
+  onOpenMemorySearch?: () => void;
   onClose: () => void;
 }
 
@@ -39,6 +40,7 @@ export default function CommandPalette({
   onSelectConversation,
   onNewChat,
   onOpenSettings,
+  onOpenMemorySearch,
   onClose,
 }: Props) {
   const [query, setQuery] = useState('');
@@ -67,6 +69,16 @@ export default function CommandPalette({
       icon: '⚙️',
       action: onOpenSettings,
     });
+    if (onOpenMemorySearch) {
+      items.push({
+        id: 'memory-search',
+        type: 'action',
+        label: 'Search memory',
+        description: 'Find what was discussed in past conversations',
+        icon: '🧠',
+        action: () => { onOpenMemorySearch(); onClose(); },
+      });
+    }
 
     // Quick commands
     for (const cmd of QUICK_COMMANDS) {

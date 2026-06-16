@@ -29,6 +29,7 @@ import WelcomeScreen from '@/components/WelcomeScreen';
 import ExportButton from '@/components/ExportButton';
 import AttentionPanel from '@/components/AttentionPanel';
 import SearchModal from '@/components/SearchModal';
+import MemorySearchModal from '@/components/MemorySearchModal';
 import ConversationActions from '@/components/ConversationActions';
 import ContextIndicator from '@/components/ContextIndicator';
 import CommandPalette from '@/components/CommandPalette';
@@ -63,9 +64,14 @@ import { extractFullContext, mergeContext } from '@/lib/context-extractor';
 import { maybeAutoSummarize } from '@/lib/conversation-summarizer';
 import ContextPanel from '@/components/ContextPanel';
 import AttentionBadge from '@/components/AttentionBadge';
+import ProactiveNotifications from '@/components/ProactiveNotifications';
 import { useAttentionBadge } from '@/lib/use-attention-badge';
+import { useSmartInsights } from '@/lib/use-smart-insights';
 import type { AttachedFile } from '@/components/ChatInput';
 import { syncPatternsToServer, fetchPatternsFromServer } from '@/lib/memory';
+import { learnFromTurnProactive, buildProactiveContext } from '@/lib/proactive-context';
+import PersonaSelector, { PERSONAS, loadPersona, type Persona } from '@/components/PersonaSelector';
+import ConversationInsights from '@/components/ConversationInsights';
 
 export default function ChatPage() {
   // ── State ──
@@ -77,6 +83,7 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showMemorySearch, setShowMemorySearch] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
   const [showDraftPreview, setShowDraftPreview] = useState(false);
   const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
@@ -95,6 +102,9 @@ export default function ChatPage() {
   const chain = useChain();
   const [chainVisible, setChainVisible] = useState(false);
   const [renamingConvId, setRenamingConvId] = useState<string | null>(null);
+  const [activePersona, setActivePersona] = useState<Persona>(() => loadPersona());
+  const [showPersonaSelector, setShowPersonaSelector] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -102,6 +112,7 @@ export default function ChatPage() {
 
   // ── Attention badge (background scanner) ──
   const { badgeCount, urgentItems, lastFetched, isLoading: attLoading, refresh: refreshAttention } = useAttentionBadge({ enabled: true });
+  const { insightsSummary } = useSmartInsights(conversations);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -118,6 +129,10 @@ export default function ChatPage() {
         e.preventDefault();
         setShowSearch(prev => !prev);
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'M') {
+        e.preventDefault();
+        setShowMemorySearch(prev => !prev);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
         e.preventDefault();
         setShowAttention(prev => !prev);
@@ -130,6 +145,18 @@ export default function ChatPage() {
         setShowCommandPalette(false);
         setShowSearch(false);
         setShowPinnedMessages(false);
+        setShowPersonaSelector(false);
+        setShowInsights(false);
+      }
+      // Alt+1-5 for persona switching
+      if (e.altKey && !e.ctrlKey && !e.metaKey && ['1','2','3','4','5'].includes(e.key)) {
+        e.preventDefault();
+        const idx = parseInt(e.key) - 1;
+        if (idx >= 0 && idx < PERSONAS.length) {
+          setActivePersona(PERSONAS[idx]);
+          // savePersona is imported from PersonaSelector
+          import('@/components/PersonaSelector').then(({ savePersona }) => savePersona(PERSONAS[idx])).catch(() => {});
+        }
       }
       // Export current conversation
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
@@ -337,7 +364,7 @@ export default function ChatPage() {
           message: text,
           history: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           context: conv.context,
-          userPatterns: userPatternSummary,
+          userPatterns: [userPatternSummary, insightsSummary, activePersona.systemSuffix].filter(Boolean).join('\n'),
           settings: {
             requireApprovalForEmail: agentMode ? false : chatSettings.requireApprovalForEmail,
             requireApprovalForCalendar: agentMode ? false : chatSettings.requireApprovalForCalendar,
@@ -403,6 +430,12 @@ export default function ChatPage() {
         onDone: (data) => {
           if (data.message) {
             finalMessage = data.message as ChatMessageType;
+            // Learn from this turn for proactive context
+            learnFromTurnProactive(
+              text,
+              (data.message as ChatMessageType).content,
+              conv?.context ?? { files: [], people: [], topics: [], preferences: [], actions: [] },
+            );
           }
           // Apply context updates from server-side tool execution
           if (data.contextUpdates && conv) {
@@ -505,7 +538,7 @@ export default function ChatPage() {
       setStreamingText('');
       setActiveToolCalls([]);
     }
-  }, [activeConv, isLoading, userPatternSummary, chatSettings, detectAndStorePreferences]);
+  }, [activeConv, isLoading, userPatternSummary, insightsSummary, chatSettings, detectAndStorePreferences]);
 
   const handleApprove = useCallback((actionId: string) => {
     // Add to approved set so next retry executes the tool
@@ -551,6 +584,27 @@ export default function ChatPage() {
       });
       handleSend(lastUserMsg.content);
     }
+  }, [activeConv, handleSend]);
+
+  /**
+   * Edit a past user message and re-run the conversation from that point.
+   * All messages after the edited message are discarded, then the new text
+   * is sent — creating a clean branch.
+   */
+  const handleEditAndResend = useCallback((messageId: string, newText: string) => {
+    if (!activeConv) return;
+    const msgIndex = activeConv.messages.findIndex(m => m.id === messageId);
+    if (msgIndex < 0) return;
+
+    // Truncate history up to (not including) the edited message
+    const truncated = activeConv.messages.slice(0, msgIndex);
+    setActiveConv(prev => {
+      if (!prev) return prev;
+      return { ...prev, messages: truncated, updatedAt: Date.now() };
+    });
+
+    // Re-send with the new text
+    setTimeout(() => handleSend(newText), 50);
   }, [activeConv, handleSend]);
 
   const handleAttentionAction = useCallback((tool: string, args: Record<string, unknown>) => {
@@ -618,6 +672,10 @@ export default function ChatPage() {
           onDelete={handleDeleteConversation}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          model={process.env.NEXT_PUBLIC_AI_MODEL ?? 'GPT-4o'}
+          agentMode={agentMode}
+          personaIcon={activePersona.icon}
+          personaName={activePersona.name}
         />
 
         {/* Main chat area */}
@@ -728,6 +786,14 @@ export default function ChatPage() {
                 </button>
               )}
               <ThemeToggle />
+              {/* Persona selector */}
+              <div className="relative">
+                <PersonaSelector
+                  current={activePersona}
+                  onChange={(p) => { setActivePersona(p); setShowPersonaSelector(false); }}
+                  compact
+                />
+              </div>
               {activeConv && (
                 <button
                   onClick={() => setShowContextPanel(v => !v)}
@@ -780,6 +846,7 @@ export default function ChatPage() {
                       onRegenerate={i === messages.length - 1 && msg.role === 'assistant' && !isStreaming ? handleRegenerate : undefined}
                       onPin={handlePinMessage}
                       onSaveToDocs={(c) => setSaveToDocsContent(c)}
+                      onEditAndResend={msg.role === 'user' && !isStreaming ? handleEditAndResend : undefined}
                       context={activeConv?.context}
                     />
                   </div>
@@ -832,11 +899,23 @@ export default function ChatPage() {
           </div>
 
           {/* Input */}
+          {/* Proactive action chips — surfaces AI commitments as executable buttons */}
+          {messages.length > 0 && (
+            <ProactiveNotifications
+              messages={messages}
+              onExecute={handleSend}
+            />
+          )}
           <ChatInput
             onSend={handleSend}
             isLoading={isLoading}
             agentMode={agentMode}
             onAgentModeChange={setAgentMode}
+            contacts={activeConv?.context?.people ?? []}
+            personaId={activePersona.id}
+            personaIcon={activePersona.icon}
+            personaName={activePersona.name}
+            onPersonaClick={() => setShowPersonaSelector(v => !v)}
           />
         </div>
 
@@ -850,15 +929,21 @@ export default function ChatPage() {
 
         {/* Context / AI Memory panel */}
         {showContextPanel && activeConv?.context && (
-          <ContextPanel
-            context={activeConv.context}
-            patterns={null}
-            onAction={(text) => {
-              setShowContextPanel(false);
-              handleSend(text);
-            }}
-            onClose={() => setShowContextPanel(false)}
-          />
+          <div className="w-72 border-l border-gray-200 dark:border-gray-800 overflow-y-auto bg-white dark:bg-gray-950 flex flex-col gap-3 p-3">
+            <ContextPanel
+              context={activeConv.context}
+              patterns={null}
+              onAction={(text) => {
+                setShowContextPanel(false);
+                handleSend(text);
+              }}
+              onClose={() => setShowContextPanel(false)}
+            />
+            {/* Conversation insights below context panel */}
+            <ConversationInsights
+              context={activeConv.context}
+            />
+          </div>
         )}
 
         {/* Pinned messages panel */}
@@ -884,6 +969,7 @@ export default function ChatPage() {
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewConversation}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenMemorySearch={() => setShowMemorySearch(true)}
           onClose={() => setShowCommandPalette(false)}
         />
       )}
@@ -900,6 +986,20 @@ export default function ChatPage() {
           conversations={conversations}
           onSelect={handleSelectConversation}
           onClose={() => setShowSearch(false)}
+        />
+      )}
+
+      {showMemorySearch && (
+        <MemorySearchModal
+          onClose={() => setShowMemorySearch(false)}
+          onLoadConversation={(id) => {
+            handleSelectConversation(id);
+            setShowMemorySearch(false);
+          }}
+          onInsertContext={(text) => {
+            handleSend(`[Memory context]\n${text}\n\nBased on the above context from past conversations, `);
+            setShowMemorySearch(false);
+          }}
         />
       )}
 

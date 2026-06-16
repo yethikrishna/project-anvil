@@ -35,6 +35,13 @@ interface Props {
   /** When true, AI auto-approves all tool calls (agent mode) */
   agentMode?: boolean;
   onAgentModeChange?: (enabled: boolean) => void;
+  /** Known contacts for @mention autocomplete */
+  contacts?: string[];
+  /** Currently active AI persona */
+  personaId?: string;
+  personaIcon?: string;
+  personaName?: string;
+  onPersonaClick?: () => void;
 }
 
 const QUICK_CHIPS = [
@@ -54,8 +61,9 @@ const SLASH_COMMANDS: Record<string, string> = {
   '/summary': 'Generate a comprehensive weekly summary across Mail, Calendar, and Drive.',
   '/compose': 'Help me compose a new email.',
   '/search': 'Search the web for: ',
+  '/chain': '__chain_mode__ Goal: ',
   '/agent': '__agent_mode__',
-  '/help': 'I can help you with:\n\n- **Emails**: Search, draft replies, compose new, read threads\n- **Files**: Search Drive, read documents, share links\n- **Calendar**: Check availability, schedule meetings, see upcoming events\n- **Docs**: Create and edit documents\n- **Web**: Search the internet\n\nJust describe what you need in natural language!',
+  '/help': 'I can help you with:\n\n- **Emails**: Search, draft replies, compose new, read threads\n- **Files**: Search Drive, read documents, share links\n- **Calendar**: Check availability, schedule meetings, see upcoming events\n- **Docs**: Create and edit documents\n- **Web**: Search the internet\n\nPersona shortcuts: ⌥1 Executive · ⌥2 Researcher · ⌥3 Code Mentor · ⌥4 Coach · ⌥5 Creative\n\nJust describe what you need in natural language!',
 };
 
 const ACCEPTED_FILE_TYPES = [
@@ -87,7 +95,7 @@ async function readFileAsContent(file: File): Promise<string> {
   });
 }
 
-export default function ChatInput({ onSend, isLoading, disabled, agentMode = false, onAgentModeChange }: Props) {
+export default function ChatInput({ onSend, isLoading, disabled, agentMode = false, onAgentModeChange, contacts = [], personaId, personaIcon, personaName, onPersonaClick }: Props) {
   const [input, setInput] = useState('');
   const [showChips, setShowChips] = useState(true);
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string }>>([]);
@@ -95,6 +103,10 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
+  // @mention state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState<number>(-1);
+  const [selectedMentionIdx, setSelectedMentionIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -234,7 +246,47 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
     }
   }, [input, agentMode, onAgentModeChange, onSend, attachments]);
 
+  // Filtered mention results
+  const mentionResults = mentionQuery !== null
+    ? contacts.filter(c => c.toLowerCase().includes(mentionQuery)).slice(0, 6)
+    : [];
+
+  const applyMention = (contact: string) => {
+    if (mentionStart < 0) return;
+    const before = input.slice(0, mentionStart);
+    const after = input.slice(textareaRef.current?.selectionStart ?? input.length);
+    const newVal = `${before}@${contact} ${after}`;
+    setInput(newVal);
+    setMentionQuery(null);
+    setMentionStart(-1);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // @mention navigation
+    if (mentionResults.length > 0 && mentionQuery !== null) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIdx(i => Math.min(i + 1, mentionResults.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIdx(i => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        applyMention(mentionResults[selectedMentionIdx]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null);
+        setMentionStart(-1);
+        return;
+      }
+    }
+
     // Slash command navigation
     if (slashCommands.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -336,6 +388,31 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
             >
               <span className="text-xs">{chip.icon}</span>
               {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* @mention dropdown */}
+      {mentionResults.length > 0 && mentionQuery !== null && (
+        <div className="mx-4 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Contacts</div>
+          {mentionResults.map((contact, i) => (
+            <button
+              key={contact}
+              onClick={() => applyMention(contact)}
+              onMouseEnter={() => setSelectedMentionIdx(i)}
+              className={cn(
+                'w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors',
+                i === selectedMentionIdx
+                  ? 'bg-blue-50 dark:bg-blue-950'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+              )}
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                {contact.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm text-gray-800 dark:text-gray-200">{contact}</span>
             </button>
           ))}
         </div>
@@ -476,8 +553,21 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
             ref={textareaRef}
             value={input}
             onChange={(e) => {
-              setInput(e.target.value);
-              if (e.target.value) setShowChips(false);
+              const val = e.target.value;
+              setInput(val);
+              if (val) setShowChips(false);
+              // @mention detection
+              const cursorPos = e.target.selectionStart ?? val.length;
+              const textBefore = val.slice(0, cursorPos);
+              const atMatch = textBefore.match(/@(\w*)$/);
+              if (atMatch && contacts.length > 0) {
+                setMentionQuery(atMatch[1].toLowerCase());
+                setMentionStart(cursorPos - atMatch[0].length);
+                setSelectedMentionIdx(0);
+              } else {
+                setMentionQuery(null);
+                setMentionStart(-1);
+              }
             }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
@@ -586,7 +676,7 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
       </div>
 
       {/* Footer hint */}
-      <div className="px-4 pb-2 text-[10px] text-gray-400 flex justify-between">
+      <div className="px-4 pb-2 text-[10px] text-gray-400 flex justify-between items-center">
         <span>
           {isRecording ? (
             <span className="text-red-500 font-medium animate-pulse">Recording...</span>
@@ -596,11 +686,24 @@ export default function ChatInput({ onSend, isLoading, disabled, agentMode = fal
             <>Shift+Enter for new line · <kbd className="px-1 border border-gray-200 dark:border-gray-700 rounded text-[9px]">/</kbd> for commands · drag files to attach</>
           )}
         </span>
-        {input.length > 0 && (
-          <span className={input.length > 2000 ? 'text-amber-500' : ''}>
-            {input.length > 2000 ? `${input.length} chars` : ''}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Persona indicator */}
+          {personaIcon && personaName && (
+            <button
+              onClick={onPersonaClick}
+              className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              title={`AI persona: ${personaName} — click to change`}
+            >
+              <span>{personaIcon}</span>
+              <span>{personaName}</span>
+            </button>
+          )}
+          {input.length > 0 && (
+            <span className={input.length > 2000 ? 'text-amber-500' : ''}>
+              {input.length > 2000 ? `${input.length} chars` : ''}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

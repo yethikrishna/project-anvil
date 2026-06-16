@@ -179,6 +179,7 @@ export function getSlashCommandHints(partial: string): Array<{ command: string; 
     { command: '/summary', description: 'Weekly summary' },
     { command: '/compose', description: 'Compose an email' },
     { command: '/search', description: 'Search the web' },
+    { command: '/chain', description: 'Run autonomous multi-step AI agent' },
     { command: '/clear', description: 'Clear conversation' },
     { command: '/export', description: 'Export conversation' },
     { command: '/help', description: 'Show available commands' },

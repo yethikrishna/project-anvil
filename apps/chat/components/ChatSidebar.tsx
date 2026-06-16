@@ -14,7 +14,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
-import { relativeTime } from '@/lib/rich-renderer';
+import AIStatusBar from './AIStatusBar';
 
 interface Props {
   conversations: Conversation[];
@@ -24,6 +24,10 @@ interface Props {
   onDelete: (id: string) => void;
   collapsed: boolean;
   onToggle: () => void;
+  model?: string;
+  agentMode?: boolean;
+  personaIcon?: string;
+  personaName?: string;
 }
 
 export default function ChatSidebar({
@@ -34,6 +38,10 @@ export default function ChatSidebar({
   onDelete,
   collapsed,
   onToggle,
+  model,
+  agentMode,
+  personaIcon,
+  personaName,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -319,27 +327,15 @@ export default function ChatSidebar({
         )}
       </div>
 
-      {/* Footer with app status */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-2 text-[10px] text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            Mail
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            Drive
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            Calendar
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            Docs
-          </span>
-        </div>
-        <div className="text-[9px] text-gray-400 mt-1">
+      {/* Footer with live AI + service status */}
+      <div className="border-t border-gray-200 dark:border-gray-800">
+        <AIStatusBar
+          model={model}
+          agentMode={agentMode}
+          personaIcon={personaIcon}
+          personaName={personaName}
+        />
+        <div className="px-3 pb-2 text-[9px] text-gray-400">
           {totalConvs} conversation{totalConvs !== 1 ? 's' : ''}
         </div>
       </div>

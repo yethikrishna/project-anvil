@@ -3,10 +3,10 @@
  * - Rich markdown rendering (tables, code, links)
  * - Rich tool result cards (email previews, file cards, calendar, web results)
  * - Voice input badge
- * - Message actions (copy, read aloud, pin, save-to-docs)
+ * - Message actions (copy, read aloud, pin, save-to-docs, edit & re-run)
  * - Streaming cursor during generation
- * - Collapsible thinking/reasoning sections
  * - Pinned message indicator
+ * - Inline message editing + re-run for user messages
  */
 
 'use client';
@@ -20,6 +20,7 @@ import VoiceOutput from './VoiceOutput';
 import RichToolResults from './RichToolResults';
 import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
 import SmartSuggestions from './SmartSuggestions';
+import MessageEditor from './MessageEditor';
 import type { ConversationContext } from '@/lib/types';
 
 function toWorkflowStep(tc: import('@/lib/types').ToolCallResult): WorkflowStepResult {
@@ -40,6 +41,7 @@ interface Props {
   onRegenerate?: () => void;
   onPin?: (messageId: string, pinned: boolean) => void;
   onSaveToDocs?: (content: string) => void;
+  onEditAndResend?: (messageId: string, newText: string) => void;
   context?: ConversationContext;
 }
 
@@ -64,17 +66,14 @@ function generateFollowUpSuggestions(message: ChatMessage): string[] {
   if (toolNames.includes('web_search')) {
     return ['Tell me more about the top result', 'Save this to Drive', 'Find related articles'];
   }
-  // Attention scan
   if (content.includes('attention') || content.includes('urgent') || content.includes('priority')) {
     return ['Draft replies for the urgent items', 'Mark the low-priority ones for later', 'Give me a summary of what to do today'];
   }
   return [];
 }
 
-// ── Detect if message is long enough for "Save to Docs" ──
 function isSaveToDocsEligible(message: ChatMessage): boolean {
   if (message.role !== 'assistant') return false;
-  // Eligible if: substantial content (400+ chars), or contains markdown structure
   const hasStructure = /#{1,3}\s|^-\s|^\d+\.\s|\|\s.+\s\|/m.test(message.content);
   return message.content.length >= 400 || hasStructure;
 }
@@ -87,12 +86,14 @@ function MessageActions({
   onRegenerate,
   onPin,
   onSaveToDocs,
+  onEdit,
 }: {
   message: ChatMessage;
   isLast: boolean;
   onRegenerate?: () => void;
   onPin?: (id: string, pinned: boolean) => void;
   onSaveToDocs?: (content: string) => void;
+  onEdit?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [savedToDocs, setSavedToDocs] = useState(false);
@@ -121,6 +122,15 @@ function MessageActions({
       >
         {copied ? '✓ Copied' : 'Copy'}
       </button>
+      {!isAssistant && onEdit && (
+        <button
+          onClick={onEdit}
+          className="text-[10px] text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/30"
+          title="Edit and re-run"
+        >
+          ✏️ Edit
+        </button>
+      )}
       {showSaveToDocs && (
         <button
           onClick={handleSaveToDocs}
@@ -170,14 +180,22 @@ export default function MessageBubble({
   onRegenerate,
   onPin,
   onSaveToDocs,
+  onEditAndResend,
   context,
 }: Props) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
-  const suggestions = isLast && !isUser && !isStreaming && onSuggestionClick
+  const suggestions = isLast && !isUser && !isStreaming && onSuggestionClick && !context
     ? generateFollowUpSuggestions(message)
     : [];
+
+  const handleEditSave = useCallback((newText: string) => {
+    setIsEditing(false);
+    onEditAndResend?.(message.id, newText);
+  }, [message.id, onEditAndResend]);
 
   // System messages (summaries, context notes)
   if (isSystem) {
@@ -202,137 +220,142 @@ export default function MessageBubble({
         </div>
       )}
 
+      {/* Inline editor for user messages */}
+      {isEditing && isUser && (
+        <div className="w-full">
+          <MessageEditor
+            originalText={message.content}
+            onSave={handleEditSave}
+            onCancel={() => setIsEditing(false)}
+          />
+        </div>
+      )}
+
       {/* Main message row */}
-      <div className="flex gap-3">
-        {/* Avatar */}
-        {!isUser && (
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 shadow-sm">
-            A
-          </div>
-        )}
-
-        <div className={cn('min-w-0', isUser ? 'max-w-[75%] ml-auto' : 'flex-1 max-w-[85%]')}>
-          {/* Bubble */}
-          <div className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-            isUser
-              ? 'bg-blue-600 text-white rounded-br-md'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-md',
-          )}>
-            {isUser ? (
-              <p className="whitespace-pre-wrap">{message.content}</p>
-            ) : (
-              <div className={cn('prose-chat', isStreaming && 'streaming-cursor')}>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children }) => (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cn(
-                          'underline underline-offset-2',
-                          isUser
-                            ? 'text-blue-200 hover:text-white'
-                            : 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300',
-                        )}
-                      >
-                        {children}
-                      </a>
-                    ),
-                    code: ({ className, children }) => {
-                      const isInline = !className;
-                      if (isInline) {
-                        return (
-                          <code className={cn(
-                            'px-1.5 py-0.5 rounded text-xs font-mono',
-                            isUser
-                              ? 'bg-blue-500/30 text-blue-100'
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
-                          )}>
-                            {children}
-                          </code>
-                        );
-                      }
-                      return (
-                        <pre className="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-3 overflow-x-auto my-2 text-xs leading-relaxed">
-                          <code className={className}>{children}</code>
-                        </pre>
-                      );
-                    },
-                    table: ({ children }) => (
-                      <div className="overflow-x-auto my-2">
-                        <table className="w-full text-xs border-collapse">{children}</table>
-                      </div>
-                    ),
-                    th: ({ children }) => (
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-left text-[11px] font-semibold uppercase tracking-wide">
-                        {children}
-                      </th>
-                    ),
-                    td: ({ children }) => (
-                      <td className="border border-gray-200 dark:border-gray-700 px-3 py-1.5">
-                        {children}
-                      </td>
-                    ),
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              </div>
-            )}
-          </div>
-
-          {/* Rich tool results */}
-          {hasToolCalls && !isUser && (
-            message.toolCalls!.length > 1 ? (
-              <WorkflowProgress
-                steps={message.toolCalls!.map(toWorkflowStep)}
-                isRunning={false}
-                summary={`${message.toolCalls!.filter(tc => tc.status === 'success').length}/${message.toolCalls!.length} steps completed`}
-                totalDurationMs={message.toolCalls!.reduce((sum, tc) => sum + (tc.duration ?? 0), 0)}
-              />
-            ) : (
-              <RichToolResults toolCalls={message.toolCalls!} />
-            )
+      {!isEditing && (
+        <div className="flex gap-3">
+          {/* AI Avatar */}
+          {!isUser && (
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 shadow-sm">
+              A
+            </div>
           )}
 
-          {/* Meta row */}
-          <div className={cn(
-            'flex items-center gap-2 mt-1',
-            isUser ? 'justify-end' : 'justify-start',
-          )}>
-            <span className="text-[10px] text-gray-400">
-              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            {message.voiceInput && (
-              <span className="text-[10px] text-gray-400" title="Voice input">🎤</span>
-            )}
-            {hasToolCalls && (
-              <span className="text-[10px] text-gray-400">
-                {message.toolCalls!.length} tool{message.toolCalls!.length !== 1 ? 's' : ''}
-              </span>
-            )}
-            <MessageActions
-              message={message}
-              isLast={isLast ?? false}
-              onRegenerate={onRegenerate}
-              onPin={onPin}
-              onSaveToDocs={onSaveToDocs}
-            />
-          </div>
-        </div>
+          <div className={cn('min-w-0', isUser ? 'max-w-[75%] ml-auto' : 'flex-1 max-w-[85%]')}>
+            {/* Bubble */}
+            <div className={cn(
+              'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+              isUser
+                ? 'bg-blue-600 text-white rounded-br-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-md',
+            )}>
+              {isUser ? (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              ) : (
+                <div className={cn('prose-chat', isStreaming && 'streaming-cursor')}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline underline-offset-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                        >
+                          {children}
+                        </a>
+                      ),
+                      code: ({ className, children }) => {
+                        const isInline = !className;
+                        if (isInline) {
+                          return (
+                            <code className="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                              {children}
+                            </code>
+                          );
+                        }
+                        return (
+                          <pre className="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-3 overflow-x-auto my-2 text-xs leading-relaxed">
+                            <code className={className}>{children}</code>
+                          </pre>
+                        );
+                      },
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-2">
+                          <table className="w-full text-xs border-collapse">{children}</table>
+                        </div>
+                      ),
+                      th: ({ children }) => (
+                        <th className="border border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-left text-[11px] font-semibold uppercase tracking-wide">
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-1.5">
+                          {children}
+                        </td>
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
 
-        {isUser && (
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-xs font-bold shrink-0 mt-0.5 shadow-sm">
-            U
+            {/* Rich tool results */}
+            {hasToolCalls && !isUser && (
+              message.toolCalls!.length > 1 ? (
+                <WorkflowProgress
+                  steps={message.toolCalls!.map(toWorkflowStep)}
+                  isRunning={false}
+                  summary={`${message.toolCalls!.filter(tc => tc.status === 'success').length}/${message.toolCalls!.length} steps completed`}
+                  totalDurationMs={message.toolCalls!.reduce((sum, tc) => sum + (tc.duration ?? 0), 0)}
+                />
+              ) : (
+                <RichToolResults toolCalls={message.toolCalls!} />
+              )
+            )}
+
+            {/* Meta row */}
+            <div className={cn(
+              'flex items-center gap-2 mt-1',
+              isUser ? 'justify-end' : 'justify-start',
+            )}>
+              <span className="text-[10px] text-gray-400">
+                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              {message.voiceInput && (
+                <span className="text-[10px] text-gray-400" title="Voice input">🎤</span>
+              )}
+              {hasToolCalls && (
+                <span className="text-[10px] text-gray-400">
+                  {message.toolCalls!.length} tool{message.toolCalls!.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              <MessageActions
+                message={message}
+                isLast={isLast ?? false}
+                onRegenerate={onRegenerate}
+                onPin={onPin}
+                onSaveToDocs={onSaveToDocs}
+                onEdit={isUser && onEditAndResend ? () => setIsEditing(true) : undefined}
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* User Avatar */}
+          {isUser && (
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-xs font-bold shrink-0 mt-0.5 shadow-sm">
+              U
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Smart contextual suggestions — AI-powered follow-up chips */}
-      {isLast && !isUser && !isStreaming && onSuggestionClick && context && (
+      {!isEditing && isLast && !isUser && !isStreaming && onSuggestionClick && context && (
         <div className="mt-1.5 pl-11">
           <SmartSuggestions
             lastMessage={message}
@@ -341,13 +364,14 @@ export default function MessageBubble({
           />
         </div>
       )}
+
       {/* Fallback rule-based suggestions when no context provided */}
-      {isLast && !isUser && !isStreaming && onSuggestionClick && !context && suggestions.length > 0 && (
+      {!isEditing && isLast && !isUser && !isStreaming && onSuggestionClick && !context && suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2 pl-11">
           {suggestions.map((s, i) => (
             <button
               key={i}
-              onClick={() => onSuggestionClick!(s)}
+              onClick={() => onSuggestionClick(s)}
               className="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all"
             >
               {s}
