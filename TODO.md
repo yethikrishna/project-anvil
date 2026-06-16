@@ -384,8 +384,8 @@
 - [x] Context accumulation — AI remembers files, people, topics, preferences
 - [x] Direct messages + group channels + threaded conversations
 - [x] Message search via Meilisearch integration
-- [ ] 1:1 video calls with WebRTC + screen sharing
-- [ ] Virtual backgrounds (TensorFlow.js body segmentation)
+- [x] 1:1 video calls with WebRTC + screen sharing
+- [x] Virtual backgrounds (TensorFlow.js body segmentation)
 - [x] Audio visualization via Web Audio API
 - [ ] Multi-party calling with mediasoup SFU
 - [x] Typing indicators + read receipts + presence
