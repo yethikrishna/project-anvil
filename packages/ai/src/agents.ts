@@ -79,10 +79,10 @@ function shouldRequireApproval(action: AgentAction, threshold: ActionRisk): bool
 
 // ── Action executors registry ────────────────────────────
 
-type ActionExecutorFn = (params: Record<string, any>) => Promise<any>;
-type RollbackFn = (params: Record<string, any>, result: any) => Promise<void | Record<string, any>>;
+export type ActionExecutorFn = (params: Record<string, any>) => Promise<any>;
+export type RollbackFn = (params: Record<string, any>, result: any) => Promise<void | Record<string, any>>;
 
-interface ActionDefinition {
+export interface ActionDefinition {
   execute: ActionExecutorFn;
   rollback?: RollbackFn;
   risk: ActionRisk;

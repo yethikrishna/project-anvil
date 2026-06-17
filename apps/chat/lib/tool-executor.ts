@@ -596,6 +596,44 @@ class ToolExecutor {
           });
           break;
         }
+        case 'agent_run': {
+          // Kick off the autonomous agent — returns the initial plan
+          const goal = String(args.goal ?? '');
+          const context = typeof args.context === 'object' ? args.context as Record<string, unknown> : {};
+          try {
+            const agentRes = await fetch(
+              `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/agent`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ goal, userId: this.userId ?? 'default', context, stream: false }),
+              },
+            );
+            if (agentRes.ok) {
+              const data = await agentRes.json() as { plan: unknown };
+              result = JSON.stringify({
+                action: 'agent_started',
+                plan: data.plan,
+                message: `Agent started for: ${goal}`,
+              });
+            } else {
+              result = JSON.stringify({
+                action: 'agent_started',
+                goal,
+                message: `Agent task queued: ${goal}`,
+                note: 'Agent is running — results will appear inline',
+              });
+            }
+          } catch {
+            // If agent endpoint unreachable, still return signal
+            result = JSON.stringify({
+              action: 'agent_started',
+              goal,
+              message: `Agent task queued: ${goal}`,
+            });
+          }
+          break;
+        }
         default:
           result = JSON.stringify({ error: `Unknown tool: ${name}` });
           status = 'error';

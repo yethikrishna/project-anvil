@@ -448,6 +448,25 @@ export const RUN_WORKFLOW_TOOL: ToolDefinition = {
   },
 };
 
+export const AGENT_RUN_TOOL: ToolDefinition = {
+  name: 'agent_run',
+  description: 'Launch an autonomous agent to complete a complex multi-step goal. The agent plans, executes actions across Mail/Drive/Calendar, and pauses for human approval on high-risk actions (email sends, event creation). Use for tasks like "triage my inbox", "organize my Drive project folder", "find all emails about X and summarize them", or any goal requiring 3+ coordinated actions.',
+  parameters: {
+    type: 'object',
+    properties: {
+      goal: {
+        type: 'string',
+        description: 'Clear natural-language description of what the agent should accomplish',
+      },
+      context: {
+        type: 'object',
+        description: 'Optional context like project name, date range, or specific people',
+      },
+    },
+    required: ['goal'],
+  },
+};
+
 // ── ANVIL_TOOLS must come LAST to avoid forward-reference TDZ errors ──
 export const ANVIL_TOOLS: ToolDefinition[] = [
   FILE_SEARCH_TOOL,
@@ -470,4 +489,5 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   EMAIL_BULK_ACTION_TOOL,
   FILE_EXTRACT_STRUCTURED_TOOL,
   RUN_WORKFLOW_TOOL,
+  AGENT_RUN_TOOL,
 ];
