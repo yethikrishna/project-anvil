@@ -21,6 +21,7 @@ import RichToolResults from './RichToolResults';
 import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
 import SmartSuggestions from './SmartSuggestions';
 import MessageEditor from './MessageEditor';
+import MessageReactions from './MessageReactions';
 import type { ConversationContext } from '@/lib/types';
 
 function toWorkflowStep(tc: import('@/lib/types').ToolCallResult): WorkflowStepResult {
@@ -42,6 +43,7 @@ interface Props {
   onPin?: (messageId: string, pinned: boolean) => void;
   onSaveToDocs?: (content: string) => void;
   onEditAndResend?: (messageId: string, newText: string) => void;
+  onFork?: (message: ChatMessage) => void;
   context?: ConversationContext;
 }
 
@@ -87,6 +89,7 @@ function MessageActions({
   onPin,
   onSaveToDocs,
   onEdit,
+  onFork,
 }: {
   message: ChatMessage;
   isLast: boolean;
@@ -94,6 +97,7 @@ function MessageActions({
   onPin?: (id: string, pinned: boolean) => void;
   onSaveToDocs?: (content: string) => void;
   onEdit?: () => void;
+  onFork?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [savedToDocs, setSavedToDocs] = useState(false);
@@ -163,6 +167,15 @@ function MessageActions({
           ↺ Retry
         </button>
       )}
+      {onFork && (
+        <button
+          onClick={onFork}
+          className="text-[10px] text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 px-1.5 py-0.5 rounded hover:bg-violet-50 dark:hover:bg-violet-950/30"
+          title="Fork conversation from this message"
+        >
+          🌿 Fork
+        </button>
+      )}
       {isAssistant && isLast && (
         <VoiceOutput text={message.content} />
       )}
@@ -181,6 +194,7 @@ export default function MessageBubble({
   onPin,
   onSaveToDocs,
   onEditAndResend,
+  onFork,
   context,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
@@ -314,7 +328,7 @@ export default function MessageBubble({
                   totalDurationMs={message.toolCalls!.reduce((sum, tc) => sum + (tc.duration ?? 0), 0)}
                 />
               ) : (
-                <RichToolResults toolCalls={message.toolCalls!} />
+                <RichToolResults toolCalls={message.toolCalls!} onAction={onSuggestionClick} />
               )
             )}
 
@@ -341,6 +355,7 @@ export default function MessageBubble({
                 onPin={onPin}
                 onSaveToDocs={onSaveToDocs}
                 onEdit={isUser && onEditAndResend ? () => setIsEditing(true) : undefined}
+                onFork={onFork ? () => onFork(message) : undefined}
               />
             </div>
           </div>
@@ -362,6 +377,13 @@ export default function MessageBubble({
             context={context}
             onSelect={onSuggestionClick}
           />
+        </div>
+      )}
+
+      {/* Message Reactions — emoji feedback that trains AI context */}
+      {!isEditing && !isStreaming && !isUser && (
+        <div className="pl-11 mt-0.5">
+          <MessageReactions messageId={message.id} />
         </div>
       )}
 

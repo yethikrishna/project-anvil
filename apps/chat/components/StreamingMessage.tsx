@@ -19,6 +19,7 @@ interface Props {
   text: string;
   toolCalls: ToolCallResult[];
   onCancel: () => void;
+  onAction?: (prompt: string) => void;
 }
 
 function toWorkflowStep(tc: ToolCallResult): WorkflowStepResult {
@@ -31,7 +32,7 @@ function toWorkflowStep(tc: ToolCallResult): WorkflowStepResult {
   };
 }
 
-export default function StreamingMessage({ text, toolCalls, onCancel }: Props) {
+export default function StreamingMessage({ text, toolCalls, onCancel, onAction }: Props) {
   const completedTools = toolCalls.filter(tc => tc.status !== 'running');
   const runningTools = toolCalls.filter(tc => tc.status === 'running');
   const isMultiStep = toolCalls.length > 1;
@@ -93,7 +94,7 @@ export default function StreamingMessage({ text, toolCalls, onCancel }: Props) {
           <>
             {/* Completed tool results (single-tool) */}
             {completedTools.length > 0 && (
-              <RichToolResults toolCalls={completedTools} />
+              <RichToolResults toolCalls={completedTools} onAction={onAction} />
             )}
 
             {/* Running tools indicator (single-tool) */}

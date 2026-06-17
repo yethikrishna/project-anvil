@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
 import CommandCenterDashboard from './CommandCenterDashboard';
+import QuickActionsBar from './QuickActionsBar';
 
 interface Props {
   onSend: (text: string) => void;
@@ -126,6 +127,11 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowSched
         draft replies, and chain actions across all your apps.
       </p>
 
+      {/* Live quick-actions bar — inbox, next meeting, recent files, pending replies */}
+      <div className="w-full max-w-lg mb-5">
+        <QuickActionsBar onAction={onSend} />
+      </div>
+
       {/* Live command center dashboard */}
       <div className="w-full max-w-sm mb-6">
         <CommandCenterDashboard
@@ -201,6 +207,9 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowSched
         </span>
         <span>
           <kbd className="px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded text-[9px] font-mono">/</kbd> Slash commands
+        </span>
+        <span>
+          <kbd className="px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded text-[9px] font-mono">?</kbd> Keyboard shortcuts
         </span>
       </div>
     </div>

@@ -348,7 +348,7 @@ function detectCardType(tool: string, data: Record<string, unknown>): CardType {
 
 // ── Render tool results as rich cards ──
 
-function renderToolResult(tc: ToolCallResult, index: number) {
+function renderToolResult(tc: ToolCallResult, index: number, onAction?: (prompt: string) => void) {
   let data: unknown;
   try {
     data = JSON.parse(tc.result);
@@ -420,10 +420,25 @@ function renderToolResult(tc: ToolCallResult, index: number) {
           {items.slice(0, 5).map((item: unknown, i: number) => {
             const itemObj = (typeof item === 'object' && item !== null ? item : { raw: item }) as Record<string, unknown>;
             return (
-              <div key={i}>
-                {cardType === 'email' && <EmailCard data={itemObj} />}
-                {cardType === 'file' && <FileCard data={itemObj} />}
-                {cardType === 'calendar' && <CalendarCard data={itemObj} />}
+        <div key={i}>
+                {cardType === 'email' && (
+                  <div>
+                    <EmailCard data={itemObj} />
+                    <EmailActions data={itemObj} onAction={onAction} />
+                  </div>
+                )}
+                {cardType === 'file' && (
+                  <div>
+                    <FileCard data={itemObj} />
+                    <FileActions data={itemObj} onAction={onAction} />
+                  </div>
+                )}
+                {cardType === 'calendar' && (
+                  <div>
+                    <CalendarCard data={itemObj} />
+                    <CalendarActions data={itemObj} onAction={onAction} />
+                  </div>
+                )}
                 {cardType === 'web' && <WebResultCard data={itemObj} />}
                 {cardType === 'share' && <ShareLinkCard data={itemObj} />}
                 {cardType === 'generic' && <GenericCard data={itemObj} label={`${toolName} #${i + 1}`} />}
@@ -440,8 +455,6 @@ function renderToolResult(tc: ToolCallResult, index: number) {
     );
   }
 
-  // Single-item result
-  return (
     <div key={tc.id}>
       <div className="flex items-center gap-2 px-1 mb-1.5">
         <span className={cn('text-[10px] font-medium', statusCls)}>{statusIcon}</span>
@@ -450,12 +463,123 @@ function renderToolResult(tc: ToolCallResult, index: number) {
           {tc.duration ? ` · ${tc.duration}ms` : ''}
         </span>
       </div>
-      {cardType === 'email' && <EmailCard data={dataObj} />}
-      {cardType === 'file' && <FileCard data={dataObj} />}
-      {cardType === 'calendar' && <CalendarCard data={dataObj} />}
+      {cardType === 'email' && (
+        <div>
+          <EmailCard data={dataObj} />
+          <EmailActions data={dataObj} onAction={onAction} />
+        </div>
+      )}
+      {cardType === 'file' && (
+        <div>
+          <FileCard data={dataObj} />
+          <FileActions data={dataObj} onAction={onAction} />
+        </div>
+      )}
+      {cardType === 'calendar' && (
+        <div>
+          <CalendarCard data={dataObj} />
+          <CalendarActions data={dataObj} onAction={onAction} />
+        </div>
+      )}
       {cardType === 'web' && <WebResultCard data={dataObj} />}
       {cardType === 'share' && <ShareLinkCard data={dataObj} />}
       {cardType === 'generic' && <GenericCard data={dataObj} label={toolName} />}
+    </div>
+}
+
+// ── Email Action Buttons ──
+
+function EmailActions({ data, onAction }: { data: Record<string, unknown>; onAction?: (prompt: string) => void }) {
+  if (!onAction) return null;
+  const subject = String(data.subject ?? '');
+  const from = String(data.from ?? data.sender ?? '');
+  const threadId = String(data.id ?? data.threadId ?? '');
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+      <button
+        onClick={() => onAction(`Draft a reply to the email from ${from} about "${subject}"${threadId ? ` (thread: ${threadId})` : ''}`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/50 border border-blue-200 dark:border-blue-800 transition-colors"
+      >
+        ↩ Reply
+      </button>
+      <button
+        onClick={() => onAction(`Read the full email thread from ${from} about "${subject}"${threadId ? ` (thread ID: ${threadId})` : ''}`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+      >
+        👁 Read thread
+      </button>
+      <button
+        onClick={() => onAction(`Archive the email from ${from} about "${subject}"`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+      >
+        📦 Archive
+      </button>
+    </div>
+  );
+}
+
+// ── File Action Buttons ──
+
+function FileActions({ data, onAction }: { data: Record<string, unknown>; onAction?: (prompt: string) => void }) {
+  if (!onAction) return null;
+  const name = String(data.name ?? data.title ?? data.filename ?? '');
+  const fileId = String(data.id ?? data.fileId ?? '');
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+      <button
+        onClick={() => onAction(`Read and summarize the file "${name}"${fileId ? ` (ID: ${fileId})` : ''}`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-800/50 border border-yellow-200 dark:border-yellow-800 transition-colors"
+      >
+        📄 Summarize
+      </button>
+      <button
+        onClick={() => onAction(`Create a shareable link for "${name}"${fileId ? ` (ID: ${fileId})` : ''}`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+      >
+        🔗 Share
+      </button>
+      <button
+        onClick={() => onAction(`Send "${name}" to my team via email`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+      >
+        📤 Email to team
+      </button>
+    </div>
+  );
+}
+
+// ── Calendar Action Buttons ──
+
+function CalendarActions({ data, onAction }: { data: Record<string, unknown>; onAction?: (prompt: string) => void }) {
+  if (!onAction) return null;
+  const title = String(data.title ?? data.summary ?? '');
+  const start = data.start ?? data.startTime ?? data.start_time;
+  const attendees = Array.isArray(data.attendees) ? (data.attendees as string[]).join(', ') : '';
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-blue-100 dark:border-blue-900">
+      <button
+        onClick={() => onAction(`Add an agenda to the "${title}" meeting${start ? ` on ${new Date(String(start)).toLocaleDateString()}` : ''}`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/50 border border-blue-200 dark:border-blue-800 transition-colors"
+      >
+        📋 Add agenda
+      </button>
+      {attendees && (
+        <button
+          onClick={() => onAction(`Send a prep email to ${attendees} for the "${title}" meeting`)}
+          className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+        >
+          📧 Prep email
+        </button>
+      )}
+      <button
+        onClick={() => onAction(`Reschedule the "${title}" meeting to next week`)}
+        className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+      >
+        🔄 Reschedule
+      </button>
     </div>
   );
 }
@@ -464,14 +588,15 @@ function renderToolResult(tc: ToolCallResult, index: number) {
 
 interface Props {
   toolCalls: ToolCallResult[];
+  onAction?: (prompt: string) => void;
 }
 
-export default function RichToolResults({ toolCalls }: Props) {
+export default function RichToolResults({ toolCalls, onAction }: Props) {
   if (!toolCalls || toolCalls.length === 0) return null;
 
   return (
     <div className="mt-2 space-y-2 max-w-full">
-      {toolCalls.map((tc, i) => renderToolResult(tc, i))}
+      {toolCalls.map((tc, i) => renderToolResult(tc, i, onAction))}
     </div>
   );
 }

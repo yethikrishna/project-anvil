@@ -299,6 +299,12 @@ export function dbGetPreferences(userId: string): Record<string, string> {
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
+export function dbDeletePreference(userId: string, key: string): boolean {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM preferences WHERE user_id = ? AND key = ?').run(userId, key);
+  return result.changes > 0;
+}
+
 // ── Attention cache ──
 
 export function dbCacheAttention(userId: string, data: unknown, ttlMs = 5 * 60 * 1000): void {

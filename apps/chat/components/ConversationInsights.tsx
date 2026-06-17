@@ -18,7 +18,6 @@ import { useState, useEffect } from 'react';
 import { cn } from '@anvil/ui';
 import type { ConversationContext } from '@/lib/types';
 import { loadContextSnapshot } from '@/lib/proactive-context';
-import { dbGetPreferences } from '@/lib/db';
 
 interface InsightGroup {
   label: string;
@@ -129,8 +128,8 @@ export default function ConversationInsights({ context, onDismiss, className }: 
       const snapshot = loadContextSnapshot();
       let prefs: Record<string, string> = {};
       try {
-        const storedPrefs = await dbGetPreferences('default');
-        prefs = storedPrefs ?? {};
+        const prefRes = await fetch('/api/preferences?userId=default');
+        if (prefRes.ok) prefs = await prefRes.json() as Record<string, string>;
       } catch {}
 
       if (!cancelled) {

@@ -42,6 +42,7 @@ import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
 import PinnedMessages from '@/components/PinnedMessages';
 import SaveToDocsModal from '@/components/SaveToDocsModal';
 import ThemeToggle from '@/components/ThemeToggle';
+import NotificationBell from '@/components/NotificationBell';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
 import ChainProgress from '@/components/ChainProgress';
 import { useChain } from '@/lib/use-chain';
@@ -75,6 +76,10 @@ import { syncPatternsToServer, fetchPatternsFromServer } from '@/lib/memory';
 import { learnFromTurnProactive, buildProactiveContext } from '@/lib/proactive-context';
 import PersonaSelector, { PERSONAS, loadPersona, type Persona } from '@/components/PersonaSelector';
 import ConversationInsights from '@/components/ConversationInsights';
+import ConversationForkModal, { type ForkConfig } from '@/components/ConversationForkModal';
+import AgentActivityMonitor, { toolCallsToAgentSteps } from '@/components/AgentActivityMonitor';
+import KeyboardShortcutsHelp from '@/components/KeyboardShortcutsHelp';
+import MemoryManagerPanel from '@/components/MemoryManagerPanel';
 
 export default function ChatPage() {
   // ── State ──
@@ -112,6 +117,10 @@ export default function ChatPage() {
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [forkMessage, setForkMessage] = useState<ChatMessageType | null>(null);
+  const [showAgentMonitor, setShowAgentMonitor] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showMemoryManager, setShowMemoryManager] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { generateTitle } = useAutoTitle();
@@ -170,6 +179,13 @@ export default function ChatPage() {
         setShowPinnedMessages(false);
         setShowPersonaSelector(false);
         setShowInsights(false);
+        setShowKeyboardHelp(false);
+        setShowMemoryManager(false);
+      }
+      // '?' to show keyboard shortcuts (when not typing in an input)
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setShowKeyboardHelp(prev => !prev);
       }
       // Alt+1-5 for persona switching
       if (e.altKey && !e.ctrlKey && !e.metaKey && ['1','2','3','4','5'].includes(e.key)) {
@@ -352,6 +368,8 @@ export default function ChatPage() {
     if (!conv) {
       const title = generateTitle(text);
       conv = await createConversation(title);
+      // After first AI response, upgrade to AI-generated title
+      const isNew = true; void isNew; // flag for post-response title upgrade
       setConversations(prev => [conv!, ...prev]);
       setActiveConv(conv);
       setActiveConversationId(conv.id);
@@ -496,6 +514,24 @@ export default function ChatPage() {
           const mergedCtx = mergeContext(prev.context, extracted);
           // Auto-refine title after first exchange (first user + first AI message)
           const isFirstExchange = prev.messages.length === 1 && prev.messages[0].role === 'user';
+          // Upgrade title using AI route on first exchange (fire-and-forget)
+          if (isFirstExchange) {
+            fetch('/api/conversations/auto-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                firstUserMessage: text,
+                firstAssistantMessage: finalMessage!.content.slice(0, 300),
+              }),
+            })
+              .then(r => r.json())
+              .then(({ title: aiTitle }) => {
+                if (aiTitle && prev?.id) {
+                  handleRenameConversation(prev.id, aiTitle);
+                }
+              })
+              .catch(() => {});
+          }
           const refinedTitle = isFirstExchange
             ? generateTitle(`${text}: ${finalMessage!.content.slice(0, 60)}`)
             : prev.title;
@@ -659,6 +695,41 @@ export default function ChatPage() {
     toastSuccess(pinned ? 'Message pinned' : 'Message unpinned');
   }, []);
 
+  // ── Conversation Fork ──
+  const handleFork = useCallback(async (forkConfig: ForkConfig) => {
+    try {
+      const res = await fetch('/api/conversations/fork', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceConversationId: forkConfig.sourceConversationId,
+          forkFromMessageId: forkConfig.forkFromMessageId,
+          newTitle: forkConfig.newTitle,
+          preserveContext: forkConfig.preserveContext,
+          userId: 'default',
+        }),
+      });
+      if (!res.ok) throw new Error('Fork failed');
+      const { forkId } = await res.json() as { forkId: string };
+
+      // Load the forked conversation
+      const forkedConv = await getConversation(forkId);
+      if (forkedConv) {
+        setConversations(prev => [forkedConv, ...prev]);
+        setActiveConv(forkedConv);
+        setActiveConversationId(forkId);
+        setForkMessage(null);
+        toastSuccess(`Forked: "${forkConfig.newTitle}"`);
+        // If an initial prompt was given, send it
+        if (forkConfig.initialPrompt) {
+          setTimeout(() => handleSend(forkConfig.initialPrompt), 100);
+        }
+      }
+    } catch {
+      toastError('Failed to fork conversation');
+    }
+  }, [getConversation, handleSend]);
+
   const handleScrollToMessage = useCallback((messageId: string) => {
     const el = messageRefs.current.get(messageId);
     if (el) {
@@ -809,6 +880,7 @@ export default function ChatPage() {
                 </button>
               )}
               <ThemeToggle />
+              <NotificationBell onAction={(prompt) => { handleSend(prompt); setShowCommandPalette(false); }} />
               {/* Persona selector */}
               <div className="relative">
                 <PersonaSelector
@@ -851,6 +923,7 @@ export default function ChatPage() {
                 📥
               </button>
               {activeConv && (
+                <>
                 <button
                   onClick={() => { setShowContextPanel(v => !v); setShowTaskPanel(false); setShowInboxTriage(false); }}
                   className={
@@ -862,6 +935,14 @@ export default function ChatPage() {
                 >
                   🧠
                 </button>
+                <button
+                  onClick={() => setShowMemoryManager(true)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                  title="Manage AI memory (saved preferences &amp; facts)"
+                >
+                  🗂️ Memory
+                </button>
+                </>
               )}
             </div>
           </div>
@@ -905,6 +986,7 @@ export default function ChatPage() {
                       onPin={handlePinMessage}
                       onSaveToDocs={(c) => setSaveToDocsContent(c)}
                       onEditAndResend={msg.role === 'user' && !isStreaming ? handleEditAndResend : undefined}
+                      onFork={activeConv ? (m) => setForkMessage(m) : undefined}
                       context={activeConv?.context}
                     />
                   </div>
@@ -919,13 +1001,26 @@ export default function ChatPage() {
                   />
                 )}
 
-                {/* Streaming response with rich tool cards */}
+                {/* Streaming response with rich tool cards + agent activity monitor */}
                 {(streamingText || activeToolCalls.length > 0) && (
-                  <StreamingMessage
-                    text={streamingText}
-                    toolCalls={activeToolCalls}
-                    onCancel={handleCancelStream}
-                  />
+                  <div className="space-y-2">
+                    {agentMode && activeToolCalls.length > 0 && (
+                      <div className="px-4">
+                        <AgentActivityMonitor
+                          steps={toolCallsToAgentSteps(activeToolCalls)}
+                          isRunning={isLoading}
+                          onStop={handleCancelStream}
+                          className="text-xs"
+                        />
+                      </div>
+                    )}
+                    <StreamingMessage
+                      text={streamingText}
+                      toolCalls={activeToolCalls}
+                      onCancel={handleCancelStream}
+                      onAction={handleSend}
+                    />
+                  </div>
                 )}
 
                 {/* Loading indicator (thinking, before any stream) */}
@@ -1129,6 +1224,30 @@ export default function ChatPage() {
         <SaveToDocsModal
           content={saveToDocsContent}
           onClose={() => setSaveToDocsContent(null)}
+        />
+      )}
+
+      {/* Conversation Fork Modal */}
+      {forkMessage && activeConv && (
+        <ConversationForkModal
+          conversation={activeConv}
+          forkFromMessage={forkMessage}
+          onFork={handleFork}
+          onClose={() => setForkMessage(null)}
+        />
+      )}
+
+      {showKeyboardHelp && (
+        <KeyboardShortcutsHelp onClose={() => setShowKeyboardHelp(false)} />
+      )}
+
+      {showMemoryManager && (
+        <MemoryManagerPanel
+          onClose={() => setShowMemoryManager(false)}
+          onInjectContext={(text) => {
+            setShowMemoryManager(false);
+            handleSend(text);
+          }}
         />
       )}
 

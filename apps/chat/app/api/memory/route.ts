@@ -31,6 +31,7 @@ import {
   dbGetPatterns,
   dbSetPreference,
   dbGetPreferences,
+  dbDeletePreference,
   dbCacheAttention,
   dbGetAttentionCache,
 } from '@/lib/db';
@@ -130,6 +131,13 @@ export async function POST(req: NextRequest) {
       case 'get_preferences': {
         const prefs = dbGetPreferences(userId);
         return NextResponse.json({ preferences: prefs });
+      }
+
+      case 'delete_preference': {
+        const { key } = body;
+        if (!key) return NextResponse.json({ error: 'Missing key' }, { status: 400 });
+        const deleted = dbDeletePreference(userId, key);
+        return NextResponse.json({ success: deleted });
       }
 
       case 'cache_attention': {
