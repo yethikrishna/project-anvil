@@ -39,10 +39,12 @@ import WeeklySummaryWidget from '@/components/WeeklySummaryWidget';
 import DraftPreviewModal from '@/components/DraftPreviewModal';
 import SmartCompose from '@/components/SmartCompose';
 import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
+import MeetingPrepPanel from '@/components/MeetingPrepPanel';
 import PinnedMessages from '@/components/PinnedMessages';
 import SaveToDocsModal from '@/components/SaveToDocsModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
+import FollowUpPanel from '@/components/FollowUpPanel';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
 import ChainProgress from '@/components/ChainProgress';
 import { useChain } from '@/lib/use-chain';
@@ -73,13 +75,17 @@ import { useAttentionBadge } from '@/lib/use-attention-badge';
 import { useSmartInsights } from '@/lib/use-smart-insights';
 import type { AttachedFile } from '@/components/ChatInput';
 import { syncPatternsToServer, fetchPatternsFromServer } from '@/lib/memory';
+import { startWarmup, registerVisibilityRefresh } from '@/lib/smart-warmup';
 import { learnFromTurnProactive, buildProactiveContext } from '@/lib/proactive-context';
 import PersonaSelector, { PERSONAS, loadPersona, type Persona } from '@/components/PersonaSelector';
 import ConversationInsights from '@/components/ConversationInsights';
 import ConversationForkModal, { type ForkConfig } from '@/components/ConversationForkModal';
 import AgentActivityMonitor, { toolCallsToAgentSteps } from '@/components/AgentActivityMonitor';
 import KeyboardShortcutsHelp from '@/components/KeyboardShortcutsHelp';
+import ConversationExportMenu from '@/components/ConversationExportMenu';
 import MemoryManagerPanel from '@/components/MemoryManagerPanel';
+import AttentionToast from '@/components/AttentionToast';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 
 export default function ChatPage() {
   // ── State ──
@@ -96,12 +102,14 @@ export default function ChatPage() {
   const [showDraftPreview, setShowDraftPreview] = useState(false);
   const [showSmartCompose, setShowSmartCompose] = useState(false);
   const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
+  const [meetingPrepData, setMeetingPrepData] = useState<{ title?: string; startTime?: string; attendees?: string[] } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [showInboxTriage, setShowInboxTriage] = useState(false);
+  const [showFollowUp, setShowFollowUp] = useState(false);
   const [saveToDocsContent, setSaveToDocsContent] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<ApprovalAction | null>(null);
@@ -124,6 +132,9 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { generateTitle } = useAutoTitle();
+
+  // ── Realtime events (SSE) ──
+  const { latestAlert, dismissAlert } = useRealtimeEvents();
 
   // ── Attention badge (background scanner) ──
   const { badgeCount, urgentItems, lastFetched, isLoading: attLoading, refresh: refreshAttention } = useAttentionBadge({ enabled: true });
@@ -210,6 +221,8 @@ export default function ChatPage() {
   // ── Initialize ──
   useEffect(() => {
     startSession();
+    startWarmup('default');
+    const cleanupVisibility = registerVisibilityRefresh('default');
     (async () => {
       const convs = await listConversations();
       setConversations(convs);
@@ -250,6 +263,7 @@ export default function ChatPage() {
         }
       }).catch(() => {});
     })();
+      return () => cleanupVisibility();
   }, []);
 
   // ── Scroll to bottom ──
@@ -890,6 +904,12 @@ export default function ChatPage() {
                 />
               </div>
               {activeConv && (
+                <ConversationExportMenu
+                  conversationId={activeConv.id}
+                  conversationTitle={activeConv.title}
+                />
+              )}
+              {activeConv && (
                 <button
                   onClick={() => setShowSmartCompose(true)}
                   className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
@@ -1220,6 +1240,19 @@ export default function ChatPage() {
         <MeetingSchedulerModal onClose={() => setShowMeetingScheduler(false)} />
       )}
 
+      {meetingPrepData && (
+        <MeetingPrepPanel
+          eventTitle={meetingPrepData.title}
+          startTime={meetingPrepData.startTime}
+          attendees={meetingPrepData.attendees}
+          onClose={() => setMeetingPrepData(null)}
+          onAction={(prompt) => {
+            setMeetingPrepData(null);
+            handleSend(prompt);
+          }}
+        />
+      )}
+
       {saveToDocsContent && (
         <SaveToDocsModal
           content={saveToDocsContent}
@@ -1252,6 +1285,11 @@ export default function ChatPage() {
       )}
 
       <ToastContainer />
+      <AttentionToast
+        alert={latestAlert}
+        onAction={(prompt) => handleSend(prompt)}
+        onDismiss={dismissAlert}
+      />
     </div>
     </ErrorBoundary>
   );

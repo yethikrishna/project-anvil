@@ -11,11 +11,12 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
 import CommandCenterDashboard from './CommandCenterDashboard';
 import QuickActionsBar from './QuickActionsBar';
+import AIMorningBriefing from './AIMorningBriefing';
 
 interface Props {
   onSend: (text: string) => void;
@@ -105,6 +106,65 @@ function getSuggestedPrompts(): SuggestedPrompt[] {
   return prompts;
 }
 
+// ── Tabbed Briefing / Dashboard panel ──
+
+function BriefingOrDashboard({
+  onSend,
+  onShowWeeklySummary,
+  onShowScheduler,
+  onOpenTriage,
+  onOpenTasks,
+}: {
+  onSend: (text: string) => void;
+  onShowWeeklySummary: () => void;
+  onShowScheduler?: () => void;
+  onOpenTriage?: () => void;
+  onOpenTasks?: () => void;
+}) {
+  const [tab, setTab] = useState<'briefing' | 'dashboard'>('briefing');
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-950 shadow-sm">
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-100 dark:border-gray-800">
+        {[
+          { id: 'briefing', label: '🌅 Briefing' },
+          { id: 'dashboard', label: '⚡ Dashboard' },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id as typeof tab)}
+            className={cn(
+              'flex-1 text-[11px] font-medium py-2 transition-colors',
+              tab === t.id
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-4">
+        {tab === 'briefing' ? (
+          <AIMorningBriefing onAction={onSend} />
+        ) : (
+          <CommandCenterDashboard
+            onAction={(prompt) => {
+              if (prompt === '__weekly_summary__') { onShowWeeklySummary(); return; }
+              if (prompt === '__schedule__') { onShowScheduler?.(); return; }
+              onSend(prompt);
+            }}
+            onOpenTriage={() => onOpenTriage?.()}
+            onOpenTasks={() => onOpenTasks?.()}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, onOpenTriage, onOpenTasks, recentConversations }: Props) {
   const greeting = useMemo(getGreeting, []);
   const prompts = useMemo(getSuggestedPrompts, []);
@@ -132,16 +192,14 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowSched
         <QuickActionsBar onAction={onSend} />
       </div>
 
-      {/* Live command center dashboard */}
-      <div className="w-full max-w-sm mb-6">
-        <CommandCenterDashboard
-          onAction={(prompt) => {
-            if (prompt === '__weekly_summary__') { onShowWeeklySummary(); return; }
-            if (prompt === '__schedule__') { onShowScheduler?.(); return; }
-            onSend(prompt);
-          }}
-          onOpenTriage={() => onOpenTriage?.()}
-          onOpenTasks={() => onOpenTasks?.()}
+      {/* Tabbed context panel: Morning Briefing + Command Center */}
+      <div className="w-full max-w-lg mb-6">
+        <BriefingOrDashboard
+          onSend={onSend}
+          onShowWeeklySummary={onShowWeeklySummary}
+          onShowScheduler={onShowScheduler}
+          onOpenTriage={onOpenTriage}
+          onOpenTasks={onOpenTasks}
         />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-w-lg w-full mb-8">

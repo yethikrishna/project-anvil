@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DraftReply } from '@/lib/types';
 import { toastSuccess, toastError } from './Toast';
+import EmailCoachWidget from './EmailCoachWidget';
 
 interface Props {
   threadId?: string;
@@ -195,6 +196,19 @@ export default function DraftPreviewModal({ threadId, initialDraft, onClose, onS
                 <div className="mt-1 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
                   {draft.body}
                 </div>
+              </div>
+            )}
+
+            {/* AI Email Coach */}
+            {draft.body && draft.body.length > 20 && (
+              <div>
+                <EmailCoachWidget
+                  subject={draft.subject}
+                  body={draft.body}
+                  to={draft.to}
+                  tone={tone ?? 'professional'}
+                  onApplyRewrite={(revised) => setDraft({ ...draft, body: revised })}
+                />
               </div>
             )}
           </div>
