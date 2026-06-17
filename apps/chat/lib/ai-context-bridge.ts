@@ -21,7 +21,7 @@ export interface EnrichedContext {
   /** For tool selection */
   preferredTools: string[];
   /** For response style */
-  responseStyle: 'professional' | 'casual' | 'concise' | 'detailed';
+  responseStyle: 'professional' | 'casual' | 'concise' | 'detailed' | 'technical';
   /** For scheduling preferences */
   schedulingPrefs: {
     preferredDays: number[];

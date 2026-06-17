@@ -38,7 +38,7 @@ export interface UserProfile {
 
 export interface CommunicationStyle {
   /** Detected tone preference */
-  tone: 'professional' | 'casual' | 'concise' | 'detailed';
+  tone: 'professional' | 'casual' | 'concise' | 'detailed' | 'technical';
   /** Preferred response length */
   responseLength: 'brief' | 'standard' | 'thorough';
   /** Language preference */
@@ -203,32 +203,130 @@ export class UserContext {
 
   /**
    * Infer communication preferences from a message.
+   * Applies behavioral signals to update tone, length, markdown, and jargon.
    */
   inferFromMessage(message: Message): void {
-    const text = message.content.toLowerCase();
+    const raw = message.content;
+    const text = raw.toLowerCase();
 
-    // Detect brevity preference
-    if (text.length < 50 && message.role === 'user') {
-      // Short user messages suggest preference for brevity
+    if (message.role === 'user') {
+      // ── Brevity / response-length signals ──
+      const wordCount = raw.trim().split(/\s+/).length;
+      if (wordCount < 6 && raw.length < 40) {
+        // Very short user messages → prefers brief replies
+        const current = this.data.communicationStyle.responseLength;
+        if (current === 'thorough') {
+          this.data.communicationStyle.responseLength = 'standard';
+        } else if (current === 'standard') {
+          this.data.communicationStyle.responseLength = 'brief';
+        }
+      } else if (wordCount > 60) {
+        // Long, detailed user messages → user is comfortable with thoroughness
+        if (this.data.communicationStyle.responseLength === 'brief') {
+          this.data.communicationStyle.responseLength = 'standard';
+        }
+      }
+
+      // ── Tone signals ──
+      const casualPhrases = /\b(hey|hiya|sup|yeah|yep|nope|gonna|wanna|kinda|sorta|lol|haha|thanks!|cool|awesome|nice)\b/;
+      const technicalPhrases = /\b(api|sdk|endpoint|codebase|repo|pr|ci|cd|deploy|infra|terraform|kubernetes|microservice|latency|throughput)\b/;
+      const formalPhrases = /\b(please|kindly|sincerely|regarding|pursuant|henceforth|therein|accordingly)\b/;
+
+      if (casualPhrases.test(text)) {
+        if (this.data.communicationStyle.tone === 'professional') {
+          this.data.communicationStyle.tone = 'casual';
+        }
+      } else if (technicalPhrases.test(text)) {
+        this.data.communicationStyle.tone = 'technical';
+      } else if (formalPhrases.test(text) && this.data.communicationStyle.tone === 'casual') {
+        this.data.communicationStyle.tone = 'professional';
+      }
+
+      // ── Confirmation preference ──
+      // If user keeps saying "yes, do it" / "go ahead" without asking — lower confirmation bar
+      if (/\b(go ahead|just do it|don'?t ask|auto|automatically|no need to confirm|skip confirmation)\b/.test(text)) {
+        this.data.communicationStyle.requiresConfirmation = false;
+      } else if (/\b(always (ask|confirm|check)|ask me first|confirm before|don'?t (send|create|delete) without)\b/.test(text)) {
+        this.data.communicationStyle.requiresConfirmation = true;
+      }
+
+      // ── Timezone detection ──
+      const tzMatch = text.match(/\b(pst|pdt|est|edt|cst|cdt|mst|mdt|gmt|utc|ist|cet|aest|jst)\b/);
+      if (tzMatch && !this.data.profile.timezone) {
+        const tzMap: Record<string, string> = {
+          pst: 'America/Los_Angeles', pdt: 'America/Los_Angeles',
+          est: 'America/New_York', edt: 'America/New_York',
+          cst: 'America/Chicago', cdt: 'America/Chicago',
+          mst: 'America/Denver', mdt: 'America/Denver',
+          gmt: 'GMT', utc: 'UTC',
+          ist: 'Asia/Kolkata', cet: 'Europe/Paris',
+          aest: 'Australia/Sydney', jst: 'Asia/Tokyo',
+        };
+        const tz = tzMap[tzMatch[1]];
+        if (tz) this.data.profile.timezone = tz;
+      }
+
+      // ── Language preference ──
+      // Detect non-English if common non-ASCII chars dominate
+      const nonAscii = (raw.match(/[^\x00-\x7F]/g) ?? []).length;
+      if (nonAscii > raw.length * 0.15) {
+        // Likely non-English — keep language as-is (don't overwrite)
+        this.data.communicationStyle.language = this.data.communicationStyle.language === 'en'
+          ? 'auto'
+          : this.data.communicationStyle.language;
+      }
     }
 
-    // Detect markdown preference
-    if (text.includes('```') || text.includes('**') || text.includes('- ')) {
+    // ── Markdown preference (both roles) ──
+    if (raw.includes('```') || raw.includes('**') || raw.includes('## ') || (raw.includes('- ') && raw.includes('\n'))) {
       this.data.communicationStyle.prefersMarkdown = true;
     }
 
-    // Detect jargon
-    const words = text.split(/\s+/).filter(w => w.length > 4);
+    // ── Jargon / technical terms ──
+    const words = raw.split(/\s+/);
     const existingJargon = new Set(this.data.communicationStyle.jargon);
     for (const word of words) {
-      if (word.match(/[A-Z]{2,}/) || word.match(/[a-z]+[A-Z]/)) {
-        // Acronyms or camelCase suggest technical terms
-        if (!existingJargon.has(word) && this.data.communicationStyle.jargon.length < 50) {
-          this.data.communicationStyle.jargon.push(word);
+      const clean = word.replace(/[^a-zA-Z0-9_-]/g, '');
+      if (clean.length < 4) continue;
+      const isAcronym = /^[A-Z]{2,}$/.test(clean);
+      const isCamelCase = /^[a-z]+[A-Z]/.test(clean);
+      const isScreamCase = /^[A-Z_]{3,}$/.test(clean);
+      if ((isAcronym || isCamelCase || isScreamCase) && !existingJargon.has(clean)) {
+        if (this.data.communicationStyle.jargon.length < 80) {
+          this.data.communicationStyle.jargon.push(clean);
+          existingJargon.add(clean);
         }
       }
     }
 
+    this.data.updatedAt = Date.now();
+  }
+
+  /**
+   * Learn from an explicit feedback signal (user rating or correction).
+   */
+  recordFeedback(type: 'too_long' | 'too_short' | 'too_formal' | 'too_casual' | 'correct'): void {
+    switch (type) {
+      case 'too_long':
+        this.data.communicationStyle.responseLength =
+          this.data.communicationStyle.responseLength === 'thorough' ? 'standard' : 'brief';
+        break;
+      case 'too_short':
+        this.data.communicationStyle.responseLength =
+          this.data.communicationStyle.responseLength === 'brief' ? 'standard' : 'thorough';
+        break;
+      case 'too_formal':
+        this.data.communicationStyle.tone =
+          this.data.communicationStyle.tone === 'professional' ? 'casual' : this.data.communicationStyle.tone;
+        break;
+      case 'too_casual':
+        this.data.communicationStyle.tone =
+          this.data.communicationStyle.tone === 'casual' ? 'professional' : this.data.communicationStyle.tone;
+        break;
+      case 'correct':
+        // Reinforce current style
+        break;
+    }
     this.data.updatedAt = Date.now();
   }
 
@@ -466,6 +564,32 @@ export class UserContext {
     if (recent.length > 0) {
       const summaries = recent.map(i => i.summary).join('; ');
       sections.push(`Recent activity: ${summaries}`);
+    }
+
+    // User memos (persistent notes the AI has saved about the user)
+    if (this.data.memos.length > 0) {
+      const recentMemos = this.data.memos
+        .slice(-8)
+        .map(m => `- ${m.text}`)
+        .join('\n');
+      sections.push(`Saved notes about user:\n${recentMemos}`);
+    }
+
+    // Most-used tools (for personalized workflow suggestions)
+    const topTools = this.getMostUsedTools(3);
+    if (topTools.length > 0 && topTools[0].invocations > 2) {
+      const toolStr = topTools.map(t => `${t.toolName}(×${t.invocations})`).join(', ');
+      sections.push(`Preferred tools: ${toolStr}`);
+    }
+
+    // Custom preferences
+    const customPrefs = Object.entries(this.data.profile.preferences)
+      .filter(([, v]) => v !== undefined && v !== '')
+      .slice(0, 8)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ');
+    if (customPrefs) {
+      sections.push(`Preferences: ${customPrefs}`);
     }
 
     // Enforce token budget (~4 chars per token)

@@ -12,9 +12,10 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { cn } from '@anvil/ui';
 import type { ToolCallResult } from '@/lib/types';
+import SmartReplyPanel from './SmartReplyPanel';
 
 // ── File type icons ──
 
@@ -348,7 +349,14 @@ function detectCardType(tool: string, data: Record<string, unknown>): CardType {
 
 // ── Render tool results as rich cards ──
 
-function renderToolResult(tc: ToolCallResult, index: number, onAction?: (prompt: string) => void) {
+function ToolResultCard({ tc, onAction }: { tc: ToolCallResult; onAction?: (prompt: string) => void }) {
+  const [smartReplyDismissed, setSmartReplyDismissed] = useState(false);
+  const handleDraft = useCallback((body: string, subject: string) => {
+    if (onAction) {
+      onAction(`Draft an email reply with this content:\n\nSubject: ${subject}\n\n${body}`);
+    }
+  }, [onAction]);
+
   let data: unknown;
   try {
     data = JSON.parse(tc.result);
@@ -455,18 +463,35 @@ function renderToolResult(tc: ToolCallResult, index: number, onAction?: (prompt:
     );
   }
 
-    <div key={tc.id}>
+  return (
+    <div>
       <div className="flex items-center gap-2 px-1 mb-1.5">
         <span className={cn('text-[10px] font-medium', statusCls)}>{statusIcon}</span>
         <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
           {toolName}
-          {tc.duration ? ` · ${tc.duration}ms` : ''}
+          {tc.duration ? ` \u00b7 ${tc.duration}ms` : ''}
         </span>
       </div>
       {cardType === 'email' && (
         <div>
           <EmailCard data={dataObj} />
           <EmailActions data={dataObj} onAction={onAction} />
+          {tc.tool === 'email_read_thread' && !smartReplyDismissed && (
+            <SmartReplyPanel
+              subject={String(dataObj.subject ?? dataObj.title ?? '')}
+              thread={String(
+                dataObj.body ??
+                dataObj.content ??
+                dataObj.messages ??
+                tc.result
+              ).slice(0, 5000)}
+              senderName={String(dataObj.senderName ?? dataObj.from ?? '').split('<')[0].trim() || undefined}
+              tone="professional"
+              onDraft={handleDraft}
+              onClose={() => setSmartReplyDismissed(true)}
+              className="mt-2"
+            />
+          )}
         </div>
       )}
       {cardType === 'file' && (
@@ -485,6 +510,7 @@ function renderToolResult(tc: ToolCallResult, index: number, onAction?: (prompt:
       {cardType === 'share' && <ShareLinkCard data={dataObj} />}
       {cardType === 'generic' && <GenericCard data={dataObj} label={toolName} />}
     </div>
+  );
 }
 
 // ── Email Action Buttons ──
@@ -596,7 +622,9 @@ export default function RichToolResults({ toolCalls, onAction }: Props) {
 
   return (
     <div className="mt-2 space-y-2 max-w-full">
-      {toolCalls.map((tc, i) => renderToolResult(tc, i, onAction))}
+      {toolCalls.map((tc, i) => (
+        <ToolResultCard key={tc.id ?? i} tc={tc} onAction={onAction} />
+      ))}
     </div>
   );
 }

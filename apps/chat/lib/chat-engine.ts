@@ -57,6 +57,11 @@ function buildSystemPrompt(
 ): string {
   const sections: string[] = [];
 
+  // Live date/time context
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+
   const styleMap: Record<string, string> = {
     concise: 'Be extremely concise. 1-3 sentences per response unless more detail is needed.',
     detailed: 'Provide thorough, detailed explanations with context and examples.',
@@ -69,6 +74,7 @@ function buildSystemPrompt(
     : 'When drafting emails, use a professional tone by default.';
 
   sections.push(`You are Anvil AI, an intelligent executive assistant embedded in the Anvil productivity suite.
+Current date/time: ${dateStr} at ${timeStr}
 
 CORE PERSONALITY:
 - ${styleInstruction}
