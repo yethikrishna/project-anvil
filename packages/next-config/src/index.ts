@@ -42,8 +42,15 @@ export function createAnvilNextConfig(options: AnvilNextConfigOptions = {}): Nex
     },
   };
 
+  // Packages that are ESM-only and should NOT be bundled by webpack.
+  // Next.js will import them via native Node ESM instead.
+  const serverExternalPackages = [
+    '@anvil/ai',
+  ];
+
   const config: NextConfig = {
     transpilePackages,
+    serverExternalPackages,
 
     ...(experimental ? { experimental } : {}),
 

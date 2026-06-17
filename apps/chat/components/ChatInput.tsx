@@ -64,7 +64,12 @@ const SLASH_COMMANDS: Record<string, string> = {
   '/search': 'Search the web for: ',
   '/chain': '__chain_mode__ Goal: ',
   '/agent': '__agent_mode__',
-  '/help': 'I can help you with:\n\n- **Emails**: Search, draft replies, compose new, read threads\n- **Files**: Search Drive, read documents, share links\n- **Calendar**: Check availability, schedule meetings, see upcoming events\n- **Docs**: Create and edit documents\n- **Web**: Search the internet\n\nPersona shortcuts: ⌥1 Executive · ⌥2 Researcher · ⌥3 Code Mentor · ⌥4 Coach · ⌥5 Creative\n\nJust describe what you need in natural language!',
+  '/prep': 'Prepare me for my next meeting. Find it on my calendar, pull relevant emails and docs, and give me a briefing with key talking points.',
+  '/catchup': "I've been away. What emails and events did I miss in the last 24 hours? Give me the highlights and what needs action.",
+  '/followup': 'Scan my sent emails from the last 7 days. Find conversations where I sent something and haven\'t received a reply. Tell me what needs a follow-up.',
+  '/digest': 'Summarize all emails I received today into a quick digest. Who sent what, what\'s important, what needs a response.',
+  '/meetingprep': 'Get me ready for my next calendar meeting — attendee context, relevant docs, suggested talking points.',
+  '/help': 'I can help you with:\n\n- **Emails**: Search, draft replies, compose new, read threads\n- **Files**: Search Drive, read documents, share links\n- **Calendar**: Check availability, schedule meetings, see upcoming events\n- **Docs**: Create and edit documents\n- **Web**: Search the internet\n\nSlash commands: /attention /draft /find /share /schedule /summary /prep /catchup /followup /digest /meetingprep /compose /chain /agent\n\nPersona shortcuts: ⌥1 Executive · ⌥2 Researcher · ⌥3 Code Mentor · ⌥4 Coach · ⌥5 Creative\n\nJust describe what you need in natural language!',
 };
 
 const ACCEPTED_FILE_TYPES = [

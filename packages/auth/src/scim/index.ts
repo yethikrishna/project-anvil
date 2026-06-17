@@ -166,7 +166,7 @@ export function matchesFilter(user: SCIMUser, filter: SCIMFilter | null): boolea
   const getValue = (attr: string): string => {
     switch (attr) {
       case 'username': return user.userName ?? '';
-      case 'emails': return user.emails?.find(e => e.primary)?.value ?? user.emails?.[0]?.value ?? '';
+      case 'emails': return ((user.emails?.find(e => e.primary)?.value) ?? (user.emails?.[0]?.value) ?? '');
       case 'active': return String(user.active);
       case 'externalid': return user.externalId ?? '';
       case 'name.givenname': return user.name?.givenName ?? '';
@@ -214,16 +214,16 @@ export function scimUserToAnvil(
   const attrMap = config.attributeMap ?? {};
 
   // Resolve primary email
-  const primaryEmail = scimUser.emails?.find(e => e.primary)?.value
-    ?? scimUser.emails?.[0]?.value
-    ?? scimUser.userName;
+  const primaryEmail = ((scimUser.emails?.find(e => e.primary)?.value)
+    ?? (scimUser.emails?.[0]?.value)
+    ?? scimUser.userName);
 
   // Resolve name
   const firstName = scimUser.name?.givenName ?? '';
   const lastName = scimUser.name?.familyName ?? '';
-  const name = scimUser.displayName
+  const name = (scimUser.displayName
     ?? scimUser.name?.formatted
-    ?? `${firstName} ${lastName}`.trim()
+    ?? `${firstName} ${lastName}`.trim())
     || scimUser.userName;
 
   // Resolve role from group membership

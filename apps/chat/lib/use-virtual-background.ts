@@ -57,9 +57,13 @@ export function useVirtualBackground(
   const loadModel = useCallback(async () => {
     try {
       // Dynamic import to avoid SSR issues and allow tree-shaking
+      // Use dynamic string imports to prevent webpack from bundling optional TF.js deps
+      const tfPkg = '@tensorflow/tfjs-core';
+      const bsPkg = '@tensorflow-models/body-segmentation';
       const [tf, bodySegmentation] = await Promise.all([
-        import('@tensorflow/tfjs-core' as never).catch(() => null),
-        import('@tensorflow-models/body-segmentation' as never).catch(() => null),
+        // eslint-disable-next-line @typescript-eslint/no-implied-eval
+        import(/* webpackIgnore: true */ tfPkg as never).catch(() => null),
+        import(/* webpackIgnore: true */ bsPkg as never).catch(() => null),
       ]);
 
       if (!tf || !bodySegmentation) {

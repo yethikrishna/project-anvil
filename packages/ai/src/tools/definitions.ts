@@ -274,23 +274,24 @@ export const EMAIL_ARCHIVE_TOOL: ToolDefinition = {
 /**
  * All built-in Anvil tools.
  */
-export const ANVIL_TOOLS: ToolDefinition[] = [
-  FILE_SEARCH_TOOL,
-  FILE_READ_TOOL,
-  FILE_SHARE_TOOL,
-  DOCUMENT_WRITE_TOOL,
-  EMAIL_SEARCH_TOOL,
-  EMAIL_SEND_TOOL,
-  EMAIL_READ_THREAD_TOOL,
-  EMAIL_SAVE_DRAFT_TOOL,
-  EMAIL_ARCHIVE_TOOL,
-  WEB_SEARCH_TOOL,
-  CALENDAR_CREATE_TOOL,
-  CALENDAR_GET_EVENTS_TOOL,
-  CALENDAR_CHECK_AVAILABILITY_TOOL,
-  CONTEXT_MEMO_TOOL,
-  CONTEXT_RECALL_TOOL,
-];
+export const CROSS_REFERENCE_TOOL: ToolDefinition = {
+  name: 'cross_reference',
+  description: 'Search across Mail, Calendar, and Drive simultaneously for a topic, person, project, or keyword. Use when the user wants to find everything related to something — emails, events, and files in one result set.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Search query — can be a person name, project name, topic, or keyword',
+      },
+      limit: {
+        type: 'number',
+        description: 'Max results per source (default 5)',
+      },
+    },
+    required: ['query'],
+  },
+};
 
 export const CALENDAR_GET_EVENTS_TOOL: ToolDefinition = {
   name: 'calendar_get_events',
@@ -344,3 +345,23 @@ export const CONTEXT_RECALL_TOOL: ToolDefinition = {
     required: ['key'],
   },
 };
+
+// ── ANVIL_TOOLS must come LAST to avoid forward-reference TDZ errors ──
+export const ANVIL_TOOLS: ToolDefinition[] = [
+  FILE_SEARCH_TOOL,
+  FILE_READ_TOOL,
+  FILE_SHARE_TOOL,
+  DOCUMENT_WRITE_TOOL,
+  EMAIL_SEARCH_TOOL,
+  EMAIL_SEND_TOOL,
+  EMAIL_READ_THREAD_TOOL,
+  EMAIL_SAVE_DRAFT_TOOL,
+  EMAIL_ARCHIVE_TOOL,
+  WEB_SEARCH_TOOL,
+  CALENDAR_CREATE_TOOL,
+  CALENDAR_GET_EVENTS_TOOL,
+  CALENDAR_CHECK_AVAILABILITY_TOOL,
+  CONTEXT_MEMO_TOOL,
+  CONTEXT_RECALL_TOOL,
+  CROSS_REFERENCE_TOOL,
+];

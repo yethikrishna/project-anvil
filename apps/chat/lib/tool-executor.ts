@@ -487,7 +487,25 @@ class ToolExecutor {
         case 'web_search':
           result = await this.webSearch(String(args.query ?? ''), Number(args.limit ?? 5));
           break;
-        default:
+        case 'cross_reference': {
+          // Parallel search across Mail + Calendar + Drive
+          const query = String(args.query ?? '');
+          const [emails, calEvents, files] = await Promise.allSettled([
+            this.searchEmails(query, 'inbox', 5),
+            this.getCalendarEvents(
+              new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            ),
+            this.searchFiles(query, 'any', 5),
+          ]);
+          result = JSON.stringify({
+            query,
+            emails: emails.status === 'fulfilled' ? JSON.parse(emails.value) : [],
+            calendar: calEvents.status === 'fulfilled' ? JSON.parse(calEvents.value) : [],
+            drive: files.status === 'fulfilled' ? JSON.parse(files.value) : [],
+          });
+          break;
+        }
           result = JSON.stringify({ error: `Unknown tool: ${name}` });
           status = 'error';
       }
