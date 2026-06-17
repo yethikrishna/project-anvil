@@ -392,7 +392,7 @@
 
 ## Phase 25: Desktop & Mobile
 - [ ] Tauri 2.0 desktop app (10MB, system tray, native dialogs)
-- [ ] PWA with Web Push + offline access + share target
+- [x] PWA with Web Push + offline access + share target (manifest.json + sw.js + SW registration)
 - [ ] React Native mobile app (Expo, biometric auth, camera)
 
 ## Phase 26: Data Portability & Compliance
@@ -435,6 +435,14 @@
 - [x] Template library: pre-built flows (invoice processing, weekly digest, meeting prep)
 - [x] Cron triggers: "Every Friday at 5pm → email summary"
 - [x] Community flow sharing via marketplace
+- [x] AI Workflow Engine in @anvil/ai (WorkflowEngine + composable steps + SSE streaming)
+- [x] Built-in workflows: Inbox Zero, Deal Room, Weekly Brief, Meeting Prep
+- [x] WorkflowPanel UI component — launcher + real-time progress visualization
+- [x] Workflow API endpoint (POST /api/workflow — SSE, GET /api/workflow — list/status)
+- [x] Chat sidebar Workflows tab — launch AI workflows directly from sidebar
+- [x] Workflow results injected as AI messages into active conversation
+- [x] New tools: tasks_create, email_bulk_action, file_extract_structured, run_workflow
+- [x] Action History panel — persistent log of all AI tool calls (filterable, exportable CSV)
 
 ## Phase 32: Collaborative Whiteboard
 - [x] Infinite canvas with drawing tools (pen, shapes, text, sticky notes, arrows)

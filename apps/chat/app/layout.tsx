@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Anvil — AI Command Center',
   description: 'Your intelligent assistant across Mail, Drive, Calendar, and Docs.',
   keywords: ['AI', 'assistant', 'productivity', 'mail', 'calendar', 'drive'],
+  manifest: '/manifest.json',
   appleWebApp: {
     title: 'Anvil AI',
     capable: true,
@@ -47,6 +48,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function() {});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

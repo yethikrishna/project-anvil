@@ -15,6 +15,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
 import AIStatusBar from './AIStatusBar';
+import WorkflowPanel from './WorkflowPanel';
 
 interface Props {
   conversations: Conversation[];
@@ -28,6 +29,8 @@ interface Props {
   agentMode?: boolean;
   personaIcon?: string;
   personaName?: string;
+  userId?: string;
+  onWorkflowResult?: (workflowId: string, output: string) => void;
 }
 
 export default function ChatSidebar({
@@ -42,11 +45,14 @@ export default function ChatSidebar({
   agentMode,
   personaIcon,
   personaName,
+  userId,
+  onWorkflowResult,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [keyboardIdx, setKeyboardIdx] = useState<number | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'workflows'>('chats');
   const listRef = useRef<HTMLDivElement>(null);
 
   // Filter conversations by search
@@ -228,8 +234,40 @@ export default function ChatSidebar({
         )}
       </div>
 
+      {/* Tab switcher */}
+      <div className="flex border-b border-gray-200 dark:border-gray-800">
+        <button
+          onClick={() => setSidebarTab('chats')}
+          className={`flex-1 py-2 text-xs font-medium transition-colors ${
+            sidebarTab === 'chats'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Chats
+        </button>
+        <button
+          onClick={() => setSidebarTab('workflows')}
+          className={`flex-1 py-2 text-xs font-medium transition-colors ${
+            sidebarTab === 'workflows'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Workflows
+        </button>
+      </div>
+
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto chat-scroll">
+        {sidebarTab === 'workflows' ? (
+          <div className="p-3">
+            <WorkflowPanel
+              userId={userId}
+              onResult={onWorkflowResult}
+            />
+          </div>
+        ) : (<>
         {Object.entries(groups).map(([label, convs]) => {
           if (convs.length === 0) return null;
           return (
@@ -325,6 +363,7 @@ export default function ChatSidebar({
             <p className="text-xs mt-1">Start one with the + button!</p>
           </div>
         )}
+        </>)}
       </div>
 
       {/* Footer with live AI + service status */}

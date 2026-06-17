@@ -77,6 +77,30 @@ export type {SessionState, SessionConfig, SessionMessage, SessionSummary, Sessio
 // export {useChat, useCompletion} from './react/index.js';
 // export type {UseChatOptions, UseChatReturn, UseCompletionOptions, UseCompletionReturn} from './react/index.js';
 
+// Workflow engine
+export {WorkflowEngine, workflowEngine} from './workflows/engine.js';
+export {
+  BUILT_IN_WORKFLOWS,
+  INBOX_ZERO_WORKFLOW,
+  DEAL_ROOM_WORKFLOW,
+  WEEKLY_BRIEF_WORKFLOW,
+  MEETING_PREP_WORKFLOW,
+  getWorkflow,
+  searchWorkflows,
+} from './workflows/library.js';
+export type {
+  WorkflowDefinition,
+  WorkflowStep,
+  WorkflowRun,
+  WorkflowContext,
+  WorkflowEvent,
+  WorkflowStepResult,
+  WorkflowStatus,
+  StepStatus,
+  StepType,
+  WorkflowInputField,
+} from './workflows/types.js';
+
 export {
   ANVIL_TOOLS,
   FILE_SEARCH_TOOL, FILE_READ_TOOL, FILE_SHARE_TOOL, DOCUMENT_WRITE_TOOL,

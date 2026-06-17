@@ -71,6 +71,7 @@ import AttentionBadge from '@/components/AttentionBadge';
 import ProactiveNotifications from '@/components/ProactiveNotifications';
 import TaskExtractionPanel from '@/components/TaskExtractionPanel';
 import InboxTriagePanel from '@/components/InboxTriagePanel';
+import ActionHistory, { type ActionRecord } from '@/components/ActionHistory';
 import { useAttentionBadge } from '@/lib/use-attention-badge';
 import { useSmartInsights } from '@/lib/use-smart-insights';
 import type { AttachedFile } from '@/components/ChatInput';
@@ -109,6 +110,8 @@ export default function ChatPage() {
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [showInboxTriage, setShowInboxTriage] = useState(false);
+  const [showActionHistory, setShowActionHistory] = useState(false);
+  const [actionHistory, setActionHistory] = useState<ActionRecord[]>([]);
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [saveToDocsContent, setSaveToDocsContent] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -339,6 +342,41 @@ export default function ChatPage() {
     }
   }, [activeConv]);
 
+  // ── Workflow result → inject as AI message ──
+  const handleWorkflowResult = useCallback(async (workflowId: string, output: string) => {
+    // Create a new conversation or use active one
+    let conv = activeConv;
+    if (!conv) {
+      conv = await createConversation();
+      setConversations(prev => [conv!, ...prev]);
+      setActiveConv(conv);
+      setActiveConversationId(conv.id);
+    }
+
+    const workflowNames: Record<string, string> = {
+      inbox_zero: 'Inbox Zero',
+      deal_room: 'Deal Room',
+      weekly_brief: 'Weekly Brief',
+      meeting_prep: 'Meeting Prep',
+    };
+
+    const aiMessage = {
+      id: `wf_${Date.now()}`,
+      role: 'assistant' as const,
+      content: `**🔄 Workflow Complete: ${workflowNames[workflowId] ?? workflowId}**\n\n${output}`,
+      timestamp: Date.now(),
+      toolCalls: [],
+    };
+
+    await addMessage(conv.id, aiMessage);
+    const updated = await getConversation(conv.id);
+    if (updated) {
+      setActiveConv(updated);
+      setConversations(prev => prev.map(c => c.id === updated.id ? updated : c));
+    }
+    toastSuccess(`${workflowNames[workflowId] ?? workflowId} complete!`);
+  }, [activeConv]);
+
   // ── Inline rename ──
   const handleStartRename = useCallback((id: string, currentTitle: string) => {
     setRenamingConvId(id);
@@ -560,7 +598,26 @@ export default function ChatPage() {
       }
 
       setStreamingText('');
-      setActiveToolCalls([]);
+
+      // Persist tool calls to action history
+      setActiveToolCalls(prev => {
+        if (prev.length > 0) {
+          const newActions: ActionRecord[] = prev.map(tc => ({
+            id: tc.id,
+            tool: tc.tool,
+            args: tc.args as Record<string, unknown>,
+            result: tc.result,
+            status: tc.status === 'error' ? 'error' : 'success',
+            durationMs: tc.duration ?? 0,
+            conversationId: conv.id,
+            timestamp: Date.now(),
+            userId: 'default',
+          }));
+          setActionHistory(hist => [...hist, ...newActions].slice(-200)); // keep last 200
+        }
+        return [];
+      });
+
       setPendingApproval(null);
 
       const reloadedConv = await getConversation(conv.id);
@@ -784,6 +841,8 @@ export default function ChatPage() {
           agentMode={agentMode}
           personaIcon={activePersona.icon}
           personaName={activePersona.name}
+          userId="default"
+          onWorkflowResult={handleWorkflowResult}
         />
 
         {/* Main chat area */}
@@ -945,7 +1004,7 @@ export default function ChatPage() {
               {activeConv && (
                 <>
                 <button
-                  onClick={() => { setShowContextPanel(v => !v); setShowTaskPanel(false); setShowInboxTriage(false); }}
+                  onClick={() => { setShowContextPanel(v => !v); setShowTaskPanel(false); setShowInboxTriage(false); setShowActionHistory(false); }}
                   className={
                     showContextPanel
                       ? 'text-[11px] px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium'
@@ -954,6 +1013,17 @@ export default function ChatPage() {
                   title="AI Memory panel"
                 >
                   🧠
+                </button>
+                <button
+                  onClick={() => { setShowActionHistory(v => !v); setShowContextPanel(false); setShowTaskPanel(false); setShowInboxTriage(false); }}
+                  className={
+                    showActionHistory
+                      ? 'text-[11px] px-2.5 py-1 rounded-lg bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-medium'
+                      : 'text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                  }
+                  title="Action History — see every tool call the AI made"
+                >
+                  ⚡ {actionHistory.length > 0 && <span className="ml-0.5 text-orange-500">{actionHistory.length}</span>}
                 </button>
                 <button
                   onClick={() => setShowMemoryManager(true)}
@@ -1132,6 +1202,25 @@ export default function ChatPage() {
             {/* Conversation insights below context panel */}
             <ConversationInsights
               context={activeConv.context}
+            />
+          </div>
+        )}
+
+        {/* Action History panel */}
+        {showActionHistory && (
+          <div className="w-72 border-l border-gray-200 dark:border-gray-800 overflow-y-auto bg-white dark:bg-gray-950 flex flex-col p-3 gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Action History</h3>
+              <button
+                onClick={() => setShowActionHistory(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <ActionHistory
+              actions={actionHistory}
+              onClear={() => setActionHistory([])}
             />
           </div>
         )}

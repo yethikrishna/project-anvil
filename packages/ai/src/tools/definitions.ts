@@ -346,6 +346,108 @@ export const CONTEXT_RECALL_TOOL: ToolDefinition = {
   },
 };
 
+export const TASKS_CREATE_TOOL: ToolDefinition = {
+  name: 'tasks_create',
+  description: 'Create one or more tasks in the Anvil Tasks app. Use when the user asks to create a task, to-do, or action item, or when extracting action items from emails/meetings.',
+  parameters: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+        description: 'Task title',
+      },
+      description: {
+        type: 'string',
+        description: 'Detailed description or notes',
+      },
+      due_date: {
+        type: 'string',
+        description: 'Due date in ISO 8601 format',
+      },
+      priority: {
+        type: 'string',
+        description: 'Task priority',
+        enum: ['urgent', 'high', 'medium', 'low'],
+      },
+      related_email_id: {
+        type: 'string',
+        description: 'Email ID this task was created from (for context linking)',
+      },
+    },
+    required: ['title'],
+  },
+};
+
+export const EMAIL_BULK_ACTION_TOOL: ToolDefinition = {
+  name: 'email_bulk_action',
+  description: 'Perform batch actions on multiple emails at once: archive, delete, label, mark read/unread, or move. Use for inbox zero workflows or bulk cleanup.',
+  parameters: {
+    type: 'object',
+    properties: {
+      message_ids: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'List of email message IDs to act on',
+      },
+      action: {
+        type: 'string',
+        description: 'Action to perform',
+        enum: ['archive', 'delete', 'mark_read', 'mark_unread', 'label', 'move_to_folder'],
+      },
+      label: {
+        type: 'string',
+        description: 'Label name (required for action=label)',
+      },
+      folder: {
+        type: 'string',
+        description: 'Target folder (required for action=move_to_folder)',
+      },
+    },
+    required: ['message_ids', 'action'],
+  },
+};
+
+export const FILE_EXTRACT_STRUCTURED_TOOL: ToolDefinition = {
+  name: 'file_extract_structured',
+  description: 'Extract structured data from a document in Drive — action items, key facts, dates, people, decisions. Returns clean JSON. Use when the user wants to process or analyze a document.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file_id: {
+        type: 'string',
+        description: 'Drive file ID to analyze',
+      },
+      extract: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Types of data to extract',
+        enum: ['action_items', 'key_facts', 'dates', 'people', 'decisions', 'risks', 'summary'],
+      },
+    },
+    required: ['file_id', 'extract'],
+  },
+};
+
+export const RUN_WORKFLOW_TOOL: ToolDefinition = {
+  name: 'run_workflow',
+  description: 'Execute a multi-step AI workflow. Available workflows: inbox_zero (triage all email), deal_room (find everything about a project), weekly_brief (generate weekly summary), meeting_prep (prep for upcoming meeting). Use when the user asks for a complex task that requires multiple steps.',
+  parameters: {
+    type: 'object',
+    properties: {
+      workflow_id: {
+        type: 'string',
+        description: 'Workflow identifier',
+        enum: ['inbox_zero', 'deal_room', 'weekly_brief', 'meeting_prep'],
+      },
+      inputs: {
+        type: 'object',
+        description: 'Input parameters for the workflow (e.g. { topic: "Project Alpha" } for deal_room)',
+      },
+    },
+    required: ['workflow_id'],
+  },
+};
+
 // ── ANVIL_TOOLS must come LAST to avoid forward-reference TDZ errors ──
 export const ANVIL_TOOLS: ToolDefinition[] = [
   FILE_SEARCH_TOOL,
@@ -364,4 +466,8 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   CONTEXT_MEMO_TOOL,
   CONTEXT_RECALL_TOOL,
   CROSS_REFERENCE_TOOL,
+  TASKS_CREATE_TOOL,
+  EMAIL_BULK_ACTION_TOOL,
+  FILE_EXTRACT_STRUCTURED_TOOL,
+  RUN_WORKFLOW_TOOL,
 ];

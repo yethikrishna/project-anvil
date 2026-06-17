@@ -86,6 +86,18 @@ function initSchema(db: Database.Database): void {
       data       TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS user_facts (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT NOT NULL DEFAULT 'default',
+      category   TEXT NOT NULL,
+      key        TEXT NOT NULL,
+      value      TEXT NOT NULL,
+      confidence REAL NOT NULL DEFAULT 0.8,
+      source     TEXT NOT NULL DEFAULT 'inferred',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(user_id, category, key)
+    );
   `);
 }
 
