@@ -104,6 +104,8 @@ export async function POST(req: NextRequest) {
           context,
           // Stream handler
           (chunk) => send('delta', { content: chunk }),
+          // Thinking handler
+          (thinking) => send('thinking', { text: thinking }),
           // Tool call handler
           (toolCall) => send('tool', toolCall),
           // Pending approval handler

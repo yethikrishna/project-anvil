@@ -92,6 +92,7 @@ export async function parseSSEStream(
 export interface ChatSSEEvents {
   onStart?: (data: { conversationId: string }) => void;
   onDelta?: (content: string) => void;
+  onThinking?: (text: string) => void;
   onTool?: (toolCall: {
     id: string;
     tool: string;
@@ -121,8 +122,17 @@ export async function parseChatStream(
         break;
       case 'delta':
         if (typeof event.data === 'object' && event.data !== null) {
-          const d = event.data as { content?: string };
+          const d = event.data as { content?: string; thinking?: string };
           if (d.content) handlers.onDelta?.(d.content);
+          if (d.thinking) handlers.onThinking?.(d.thinking);
+        }
+        break;
+      case 'thinking':
+        if (typeof event.data === 'object' && event.data !== null) {
+          const d = event.data as { text?: string };
+          if (d.text) handlers.onThinking?.(d.text);
+        } else if (typeof event.data === 'string') {
+          handlers.onThinking?.(event.data);
         }
         break;
       case 'tool':

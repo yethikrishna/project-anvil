@@ -635,8 +635,68 @@ class ToolExecutor {
           break;
         }
         default:
-          result = JSON.stringify({ error: `Unknown tool: ${name}` });
-          status = 'error';
+          // ── New tools: image_analyze, notes_create, smart_summarize, goal_plan ──
+          if (name === 'image_analyze') {
+            // Image analysis is handled by the AI directly via vision;
+            // this tool result acts as a signal to include attached images.
+            const question = String(args.question ?? 'Describe this image');
+            result = JSON.stringify({
+              action: 'image_analyze',
+              question,
+              message: 'Image analysis requested — AI will use attached image context.',
+              note: 'Ensure the image is attached to the current message.',
+            });
+            status = 'success';
+          } else if (name === 'notes_create') {
+            const title = String(args.title ?? 'Note');
+            const content = String(args.content ?? '');
+            const tags = Array.isArray(args.tags) ? args.tags as string[] : [];
+            const noteId = `note_${Date.now()}`;
+            // Store in localStorage via a signal — client handles persistence
+            result = JSON.stringify({
+              action: 'note_created',
+              id: noteId,
+              title,
+              content,
+              tags,
+              createdAt: new Date().toISOString(),
+              message: `Note "${title}" saved successfully.`,
+            });
+            status = 'success';
+          } else if (name === 'smart_summarize') {
+            // The AI handles the actual summarization — this tool signals the format
+            const text = String(args.text ?? '');
+            const format = String(args.format ?? 'bullets');
+            const maxPoints = Number(args.max_points ?? 5);
+            if (!text) {
+              result = JSON.stringify({ error: 'No text provided to summarize' });
+              status = 'error';
+            } else {
+              // Return text to AI for summarization — the AI generates the actual summary
+              result = JSON.stringify({
+                action: 'summarize',
+                text: text.slice(0, 4000),
+                format,
+                maxPoints,
+                message: 'Text ready for summarization.',
+              });
+              status = 'success';
+            }
+          } else if (name === 'goal_plan') {
+            const goal = String(args.goal ?? '');
+            const showToUser = args.show_to_user !== false;
+            result = JSON.stringify({
+              action: 'goal_plan_requested',
+              goal,
+              showToUser,
+              message: `Planning goal: "${goal}" — I'll break this into concrete steps.`,
+              steps_note: 'Execute each step using available tools in sequence.',
+            });
+            status = 'success';
+          } else {
+            result = JSON.stringify({ error: `Unknown tool: ${name}` });
+            status = 'error';
+          }
       }
     } catch (err) {
       result = JSON.stringify({

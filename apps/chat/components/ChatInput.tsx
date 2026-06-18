@@ -47,10 +47,11 @@ interface Props {
 
 const QUICK_CHIPS = [
   { icon: '⚡', label: 'Attention', prompt: 'What needs my attention right now?' },
-  { icon: '✉️', label: 'Reply', prompt: 'Draft a reply to my latest email' },
+  { icon: '✅', label: 'Reply', prompt: 'Draft a reply to my latest email' },
   { icon: '📄', label: 'Find', prompt: 'Search Drive for ' },
   { icon: '📅', label: 'Schedule', prompt: 'Schedule a meeting ' },
   { icon: '📊', label: 'Summary', prompt: 'Give me a weekly summary' },
+  { icon: '🚀', label: 'Autopilot', prompt: '__autopilot__' },
 ];
 
 const SLASH_COMMANDS: Record<string, string> = {
@@ -63,6 +64,11 @@ const SLASH_COMMANDS: Record<string, string> = {
   '/compose': 'Help me compose a new email.',
   '/search': 'Search the web for: ',
   '/chain': '__chain_mode__ Goal: ',
+  '/analyze': 'Use image_analyze to analyze my attached image: ',
+  '/note': 'Use notes_create to save a note titled "" with content: ',
+  '/summarize': 'Use smart_summarize to summarize the following text: ',
+  '/plan': 'Use goal_plan to create a step-by-step plan for: ',
+  '/autopilot': '__autopilot__',
   '/agent': '__agent_mode__',
   '/prep': 'Prepare me for my next meeting. Find it on my calendar, pull relevant emails and docs, and give me a briefing with key talking points.',
   '/catchup': "I've been away. What emails and events did I miss in the last 24 hours? Give me the highlights and what needs action.",

@@ -87,6 +87,9 @@ import ConversationExportMenu from '@/components/ConversationExportMenu';
 import MemoryManagerPanel from '@/components/MemoryManagerPanel';
 import AttentionToast from '@/components/AttentionToast';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import ChatAnalyticsPanel from '@/components/ChatAnalyticsPanel';
+import GoalAutopilotPanel from '@/components/GoalAutopilotPanel';
+import ThinkingDisplay from '@/components/ThinkingDisplay';
 
 export default function ChatPage() {
   // ── State ──
@@ -96,6 +99,7 @@ export default function ChatPage() {
   const [showAttention, setShowAttention] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [streamingThinking, setStreamingThinking] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [showMemorySearch, setShowMemorySearch] = useState(false);
@@ -132,6 +136,8 @@ export default function ChatPage() {
   const [showAgentMonitor, setShowAgentMonitor] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showMemoryManager, setShowMemoryManager] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAutopilot, setShowAutopilot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { generateTitle } = useAutoTitle();
@@ -215,6 +221,14 @@ export default function ChatPage() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         // Handled by ExportButton
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        setShowAnalytics(prev => !prev);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        setShowAutopilot(prev => !prev);
       }
     };
     window.addEventListener('keydown', handler);
@@ -401,6 +415,12 @@ export default function ChatPage() {
   const handleSend = useCallback(async (text: string, attachments?: AttachedFile[]) => {
     if ((!text.trim() && !attachments?.length) || isLoading) return;
 
+    // Autopilot shortcut
+    if (text.trim() === '__autopilot__') {
+      setShowAutopilot(true);
+      return;
+    }
+
     // /chain command: run AI-driven autonomous multi-step tool chain
     if (text.trim().startsWith('/chain ')) {
       const goal = text.slice('/chain '.length).trim();
@@ -440,6 +460,7 @@ export default function ChatPage() {
     setActiveConv(updatedConv);
     setIsLoading(true);
     setStreamingText('');
+    setStreamingThinking('');
     setActiveToolCalls([]);
 
     await addMessage(conv.id, { role: 'user', content: text });
@@ -486,6 +507,9 @@ export default function ChatPage() {
         onStart: () => {},
         onDelta: (content) => {
           setStreamingText(prev => prev + content);
+        },
+        onThinking: (text) => {
+          setStreamingThinking(prev => prev + text);
         },
         onTool: (toolCall) => {
           setActiveToolCalls(prev => {
@@ -598,8 +622,7 @@ export default function ChatPage() {
       }
 
       setStreamingText('');
-
-      // Persist tool calls to action history
+      setStreamingThinking('');
       setActiveToolCalls(prev => {
         if (prev.length > 0) {
           const newActions: ActionRecord[] = prev.map(tc => ({
@@ -666,6 +689,7 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false);
       setStreamingText('');
+      setStreamingThinking('');
       setActiveToolCalls([]);
     }
   }, [activeConv, isLoading, userPatternSummary, insightsSummary, chatSettings, detectAndStorePreferences]);
@@ -815,6 +839,7 @@ export default function ChatPage() {
     abortRef.current?.abort();
     setIsLoading(false);
     setStreamingText('');
+    setStreamingThinking('');
     setActiveToolCalls([]);
   }, []);
 
@@ -899,6 +924,20 @@ export default function ChatPage() {
                 title="Settings"
               >
                 ⚙️
+              </button>
+              <button
+                onClick={() => setShowAutopilot(true)}
+                className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-medium transition-colors hidden lg:flex items-center gap-1"
+                title="AI Autopilot — set a goal, AI executes it (Ctrl+Shift+G)"
+              >
+                🚀 Autopilot
+              </button>
+              <button
+                onClick={() => setShowAnalytics(true)}
+                className="text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors hidden lg:block"
+                title="Chat analytics (Ctrl+Shift+A)"
+              >
+                📈
               </button>
               <button
                 onClick={() => setShowMeetingScheduler(true)}
@@ -1109,6 +1148,8 @@ export default function ChatPage() {
                       toolCalls={activeToolCalls}
                       onCancel={handleCancelStream}
                       onAction={handleSend}
+                      thinking={streamingThinking}
+                      isThinking={isLoading && !streamingText && activeToolCalls.length === 0}
                     />
                   </div>
                 )}
@@ -1371,6 +1412,26 @@ export default function ChatPage() {
             handleSend(text);
           }}
         />
+      )}
+
+      {showAnalytics && (
+        <ChatAnalyticsPanel
+          conversations={conversations}
+          model={chatSettings?.defaultModel ?? 'gpt-4o'}
+          onClose={() => setShowAnalytics(false)}
+        />
+      )}
+
+      {showAutopilot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <GoalAutopilotPanel
+            onSendMessage={(msg) => {
+              setShowAutopilot(false);
+              handleSend(msg);
+            }}
+            onClose={() => setShowAutopilot(false)}
+          />
+        </div>
       )}
 
       <ToastContainer />

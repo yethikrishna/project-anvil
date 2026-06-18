@@ -1,8 +1,9 @@
 /**
  * StreamingMessage — renders a live-streaming AI response with:
+ * - Collapsible thinking/reasoning display (extended thinking)
  * - Progressive text rendering with markdown
  * - Live tool call cards appearing as they execute
- * - Collapsed/expanded tool results
+ * - Multi-step workflow progress bar
  * - Cancel button
  */
 
@@ -14,12 +15,16 @@ import { cn } from '@anvil/ui';
 import type { ToolCallResult } from '@/lib/types';
 import RichToolResults from './RichToolResults';
 import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
+import ThinkingDisplay from './ThinkingDisplay';
 
 interface Props {
   text: string;
   toolCalls: ToolCallResult[];
   onCancel: () => void;
   onAction?: (prompt: string) => void;
+  /** Extended reasoning text (from o1/Claude extended thinking) */
+  thinking?: string;
+  isThinking?: boolean;
 }
 
 function toWorkflowStep(tc: ToolCallResult): WorkflowStepResult {
@@ -32,7 +37,7 @@ function toWorkflowStep(tc: ToolCallResult): WorkflowStepResult {
   };
 }
 
-export default function StreamingMessage({ text, toolCalls, onCancel, onAction }: Props) {
+export default function StreamingMessage({ text, toolCalls, onCancel, onAction, thinking, isThinking }: Props) {
   const completedTools = toolCalls.filter(tc => tc.status !== 'running');
   const runningTools = toolCalls.filter(tc => tc.status === 'running');
   const isMultiStep = toolCalls.length > 1;
@@ -45,7 +50,14 @@ export default function StreamingMessage({ text, toolCalls, onCancel, onAction }
         A
       </div>
 
-      <div className="max-w-[85%] min-w-0">
+      <div className="max-w-[85%] min-w-0 space-y-2">
+        {/* Thinking display (extended reasoning) */}
+        {(thinking || isThinking) && (
+          <ThinkingDisplay
+            thinking={thinking ?? ''}
+            isStreaming={isThinking && !text}
+          />
+        )}
         {/* Streaming text */}
         {text && (
           <div className="rounded-2xl rounded-bl-md bg-gray-100 dark:bg-gray-800 px-4 py-2.5 text-sm">

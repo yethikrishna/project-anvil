@@ -467,6 +467,92 @@ export const AGENT_RUN_TOOL: ToolDefinition = {
   },
 };
 
+export const IMAGE_ANALYZE_TOOL: ToolDefinition = {
+  name: 'image_analyze',
+  description: 'Analyze an image attached to the conversation. Describe contents, extract text (OCR), identify objects, read charts/graphs, or answer questions about the image. The image must be attached to the current message.',
+  parameters: {
+    type: 'object',
+    properties: {
+      question: {
+        type: 'string',
+        description: 'What to analyze or extract from the image (e.g. "describe this screenshot", "extract the table data", "what does this chart show?")',
+      },
+      image_index: {
+        type: 'number',
+        description: 'Index of the attached image to analyze (0-based, default: 0)',
+      },
+    },
+    required: ['question'],
+  },
+};
+
+export const NOTES_CREATE_TOOL: ToolDefinition = {
+  name: 'notes_create',
+  description: 'Create a quick note or memo that persists in the conversation memory. Use for capturing key facts, decisions, action items, or reminders the user wants to save.',
+  parameters: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+        description: 'Short title for the note',
+      },
+      content: {
+        type: 'string',
+        description: 'Full note content (supports Markdown)',
+      },
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Optional tags for categorization',
+      },
+    },
+    required: ['title', 'content'],
+  },
+};
+
+export const SMART_SUMMARIZE_TOOL: ToolDefinition = {
+  name: 'smart_summarize',
+  description: 'Generate a structured summary of a long text or document with key points, action items, decisions, and sentiment. Use when asked to summarize emails, documents, or meeting notes.',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: {
+        type: 'string',
+        description: 'The text to summarize',
+      },
+      format: {
+        type: 'string',
+        enum: ['bullets', 'prose', 'action_items', 'exec_brief'],
+        description: 'Output format (default: bullets)',
+      },
+      max_points: {
+        type: 'number',
+        description: 'Maximum number of bullet points (default: 5)',
+      },
+    },
+    required: ['text'],
+  },
+};
+
+export const GOAL_PLAN_TOOL: ToolDefinition = {
+  name: 'goal_plan',
+  description: 'Break a complex goal into a step-by-step execution plan with dependencies. Use before starting multi-step tasks to show the user exactly what actions will be taken and in what order.',
+  parameters: {
+    type: 'object',
+    properties: {
+      goal: {
+        type: 'string',
+        description: 'The complex goal to plan',
+      },
+      show_to_user: {
+        type: 'boolean',
+        description: 'Whether to display the plan to the user before executing (default: true)',
+      },
+    },
+    required: ['goal'],
+  },
+};
+
 // ── ANVIL_TOOLS must come LAST to avoid forward-reference TDZ errors ──
 export const ANVIL_TOOLS: ToolDefinition[] = [
   FILE_SEARCH_TOOL,
@@ -490,4 +576,8 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   FILE_EXTRACT_STRUCTURED_TOOL,
   RUN_WORKFLOW_TOOL,
   AGENT_RUN_TOOL,
+  IMAGE_ANALYZE_TOOL,
+  NOTES_CREATE_TOOL,
+  SMART_SUMMARIZE_TOOL,
+  GOAL_PLAN_TOOL,
 ];

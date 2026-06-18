@@ -25,7 +25,7 @@ export interface OpenAIChatOptions extends GenerationOptions {
   /** Presence penalty (-2 to 2) */
   presencePenalty?: number;
   /** Response format: 'text' | 'json_object' | { type: 'json_schema', json_schema: ... } */
-  responseFormat?: 'text' | 'json_object' | Record<string, unknown>;
+  responseFormat?: 'text' | 'json_object' | { type: 'json_object' | 'json_schema'; schema?: Record<string, unknown> };
   /** Seed for deterministic sampling */
   seed?: number;
   /** User ID for abuse monitoring */

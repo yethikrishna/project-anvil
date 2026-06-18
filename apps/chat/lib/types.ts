@@ -27,6 +27,8 @@ export interface ChatMessage {
   streaming?: boolean;
   /** Whether this message is pinned */
   pinned?: boolean;
+  /** Extended thinking/reasoning text (shown in collapsible panel) */
+  thinking?: string;
 }
 
 export interface ToolCallResult {

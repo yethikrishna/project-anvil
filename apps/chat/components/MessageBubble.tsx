@@ -18,6 +18,7 @@ import { cn } from '@anvil/ui';
 import type { ChatMessage } from '@/lib/types';
 import VoiceOutput from './VoiceOutput';
 import RichToolResults from './RichToolResults';
+import ThinkingDisplay from './ThinkingDisplay';
 import WorkflowProgress, { type WorkflowStepResult } from './WorkflowProgress';
 import SmartSuggestions from './SmartSuggestions';
 import MessageEditor from './MessageEditor';
@@ -256,6 +257,14 @@ export default function MessageBubble({
           )}
 
           <div className={cn('min-w-0', isUser ? 'max-w-[75%] ml-auto' : 'flex-1 max-w-[85%]')}>
+            {/* Thinking display for assistant messages with reasoning */}
+            {!isUser && (message as ChatMessage & { thinking?: string }).thinking && (
+              <ThinkingDisplay
+                thinking={(message as ChatMessage & { thinking?: string }).thinking!}
+                isStreaming={false}
+                className="mb-2"
+              />
+            )}
             {/* Bubble */}
             <div className={cn(
               'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',

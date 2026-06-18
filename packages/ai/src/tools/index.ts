@@ -20,6 +20,11 @@ export {
   EMAIL_BULK_ACTION_TOOL,
   FILE_EXTRACT_STRUCTURED_TOOL,
   RUN_WORKFLOW_TOOL,
+  AGENT_RUN_TOOL,
+  IMAGE_ANALYZE_TOOL,
+  NOTES_CREATE_TOOL,
+  SMART_SUMMARIZE_TOOL,
+  GOAL_PLAN_TOOL,
 } from './definitions.js';
 
 export {ToolRegistry} from './registry.js';

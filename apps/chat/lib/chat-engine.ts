@@ -208,6 +208,7 @@ export class ChatEngine {
     history: ChatMessage[],
     context: ConversationContext,
     onStream?: (chunk: string) => void,
+    onThinking?: (text: string) => void,
     onToolCall?: (toolCall: ToolCallResult) => void,
     onPendingApproval?: (toolId: string, toolName: string, args: Record<string, unknown>) => void,
     approvedToolIds?: Set<string>,
@@ -267,6 +268,11 @@ export class ChatEngine {
         if (chunk.delta && !chunk.toolCallDeltas?.length) {
           roundText += chunk.delta;
           onStream?.(chunk.delta);
+        }
+
+        // Extended thinking/reasoning (o1, Claude 3.7+)
+        if (chunk.thinkingDelta) {
+          onThinking?.(chunk.thinkingDelta);
         }
 
         // Accumulate tool call deltas

@@ -74,6 +74,12 @@ export interface GenerationOptions {
   toolExecutor?: ToolExecutor;
   /** Max tool call rounds before forcing a text response */
   maxToolRounds?: number;
+  /** Enable extended thinking/reasoning (supported by o1, Claude 3.7+) */
+  enableThinking?: boolean;
+  /** Budget tokens for thinking (Claude extended thinking) */
+  thinkingBudget?: number;
+  /** Response format for structured outputs */
+  responseFormat?: { type: 'json_object' | 'json_schema'; schema?: Record<string, unknown> } | 'json_object' | 'text';
 }
 
 // ── Generation Result ──
@@ -93,6 +99,8 @@ export interface GenerationResult {
   toolCalls?: ToolCall[];
   /** Finish reason: 'stop' | 'tool_use' | 'max_tokens' | 'error' */
   finishReason: string;
+  /** Extended reasoning/thinking text (o1, Claude extended thinking) */
+  thinking?: string;
 }
 
 // ── Streaming ──
@@ -106,6 +114,10 @@ export interface StreamChunk {
   toolCallDeltas?: ToolCall[];
   /** Usage (only on final chunk) */
   usage?: GenerationResult['usage'];
+  /** Reasoning/thinking delta (for models with extended thinking) */
+  thinkingDelta?: string;
+  /** Tool call status update */
+  toolCallStatus?: { id: string; status: 'running' | 'done' | 'error' };
 }
 
 export type StreamCallback = (chunk: StreamChunk) => void;

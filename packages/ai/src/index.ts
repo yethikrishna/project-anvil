@@ -39,6 +39,8 @@ export {WebGPUEmbedding, isWebGPUAvailable, embedClientSide} from './webgpu-embe
 export type {WebGPUEmbeddingConfig, WebGPUEmbeddingResult} from './webgpu-embeddings.js';
 export {AgentRuntime, createEmailTriageAgent, createFileOrganizationAgent, createScheduleAgent} from './agents.js';
 export type {AgentStatus, ActionRisk, ApprovalDecision, AgentAction, AgentPlan, ApprovalRequest, AgentConfig} from './agents.js';
+export {GoalPlanner, createPlanner} from './planner.js';
+export type {ExecutionPlan, PlanTask, PlanEvent, PlannerConfig, TaskStatus, TaskRisk} from './planner.js';
 
 // RAG pipeline
 export {DocumentIndexer} from './rag/indexer.js';
@@ -106,6 +108,8 @@ export {
   FILE_SEARCH_TOOL, FILE_READ_TOOL, FILE_SHARE_TOOL, DOCUMENT_WRITE_TOOL,
   EMAIL_SEARCH_TOOL, EMAIL_SEND_TOOL, EMAIL_READ_THREAD_TOOL, EMAIL_SAVE_DRAFT_TOOL,
   WEB_SEARCH_TOOL, CALENDAR_CREATE_TOOL, CALENDAR_CHECK_AVAILABILITY_TOOL,
+  IMAGE_ANALYZE_TOOL, NOTES_CREATE_TOOL, SMART_SUMMARIZE_TOOL, GOAL_PLAN_TOOL,
+  AGENT_RUN_TOOL,
 } from './tools/index.js';
 
 import {OpenAIProvider} from './providers/openai.js';
