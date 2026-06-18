@@ -22,6 +22,19 @@ interface MemoryEntry {
 
 // Categorize keys into friendly groups
 function categorizeKey(key: string): string {
+  // Handle user_memory:category:key format from user_remember tool
+  if (key.startsWith('user_memory:')) {
+    const parts = key.split(':');
+    const cat = parts[1];
+    const catMap: Record<string, string> = {
+      preference: 'Preferences',
+      fact: 'About You',
+      instruction: 'Instructions',
+      contact: 'Contacts',
+      schedule: 'Calendar',
+    };
+    return catMap[cat] ?? 'About You';
+  }
   const k = key.toLowerCase();
   if (k.includes('email') || k.includes('inbox') || k.includes('draft')) return 'Email';
   if (k.includes('meet') || k.includes('calendar') || k.includes('schedule') || k.includes('event')) return 'Calendar';
@@ -39,6 +52,8 @@ const CATEGORY_ICONS: Record<string, string> = {
   'About You': '👤',
   Files: '📁',
   Preferences: '⚙️',
+  Instructions: '📍',
+  Contacts: '👥',
   General: '🧠',
 };
 
@@ -201,15 +216,28 @@ export default function MemoryManagerPanel({ onClose, onInjectContext }: Props) 
   const loadMemories = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/memory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'preferences', userId: 'default' }),
-      });
-      if (!res.ok) return;
-      const data = await res.json() as { preferences?: Record<string, string> };
-      const prefs = data.preferences ?? {};
-      const loaded: MemoryEntry[] = Object.entries(prefs).map(([key, value]) => ({
+      // Fetch both session preferences and user_memory facts in parallel
+      const [prefsRes, userMemRes] = await Promise.all([
+        fetch('/api/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'preferences', userId: 'default' }),
+        }),
+        fetch('/api/user-memory?userId=default&category=all'),
+      ]);
+
+      const combined: Record<string, string> = {};
+
+      if (prefsRes.ok) {
+        const data = await prefsRes.json() as { preferences?: Record<string, string> };
+        Object.assign(combined, data.preferences ?? {});
+      }
+
+      if (userMemRes.ok) {
+        // user-memory keys are already in user_memory:category:key format
+        // so they'll be picked up naturally from preferences — skip dedup
+      }
+      const loaded: MemoryEntry[] = Object.entries(combined).map(([key, value]) => ({
         key,
         value: String(value),
         category: categorizeKey(key),

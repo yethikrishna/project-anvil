@@ -534,6 +534,235 @@ export const SMART_SUMMARIZE_TOOL: ToolDefinition = {
   },
 };
 
+export const EMAIL_REPLY_TOOL: ToolDefinition = {
+  name: 'email_reply',
+  description: 'Reply to an existing email thread. Fetches the thread context automatically and sends or saves a draft reply. Prefer this over email_send when responding to an existing conversation.',
+  parameters: {
+    type: 'object',
+    properties: {
+      thread_id: {
+        type: 'string',
+        description: 'Thread ID to reply to',
+      },
+      body: {
+        type: 'string',
+        description: 'Reply body content',
+      },
+      send: {
+        type: 'boolean',
+        description: 'true = send immediately, false = save as draft (default: false)',
+      },
+      tone: {
+        type: 'string',
+        enum: ['professional', 'casual', 'brief', 'formal'],
+        description: 'Reply tone (default: professional)',
+      },
+    },
+    required: ['thread_id', 'body'],
+  },
+};
+
+export const CALENDAR_UPDATE_TOOL: ToolDefinition = {
+  name: 'calendar_update_event',
+  description: 'Update an existing calendar event — change title, time, description, attendees, or location.',
+  parameters: {
+    type: 'object',
+    properties: {
+      event_id: {
+        type: 'string',
+        description: 'Event ID to update',
+      },
+      title: {
+        type: 'string',
+        description: 'New title (omit to keep existing)',
+      },
+      start_time: {
+        type: 'string',
+        description: 'New start time ISO 8601 (omit to keep existing)',
+      },
+      end_time: {
+        type: 'string',
+        description: 'New end time ISO 8601 (omit to keep existing)',
+      },
+      description: {
+        type: 'string',
+        description: 'Updated description/agenda',
+      },
+      attendees: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Updated attendee list (email addresses)',
+      },
+    },
+    required: ['event_id'],
+  },
+};
+
+export const CALENDAR_CANCEL_TOOL: ToolDefinition = {
+  name: 'calendar_cancel_event',
+  description: 'Cancel a calendar event and optionally notify attendees.',
+  parameters: {
+    type: 'object',
+    properties: {
+      event_id: {
+        type: 'string',
+        description: 'Event ID to cancel',
+      },
+      notify_attendees: {
+        type: 'boolean',
+        description: 'Send cancellation notification to attendees (default: true)',
+      },
+      reason: {
+        type: 'string',
+        description: 'Optional cancellation reason to include in notification',
+      },
+    },
+    required: ['event_id'],
+  },
+};
+
+export const EMAIL_MARK_READ_TOOL: ToolDefinition = {
+  name: 'email_mark_read',
+  description: 'Mark one or more emails as read or unread.',
+  parameters: {
+    type: 'object',
+    properties: {
+      email_ids: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'List of email IDs to update',
+      },
+      read: {
+        type: 'boolean',
+        description: 'true = mark as read, false = mark as unread (default: true)',
+      },
+    },
+    required: ['email_ids'],
+  },
+};
+
+export const EMAIL_LABEL_TOOL: ToolDefinition = {
+  name: 'email_label',
+  description: 'Add or remove labels/tags on emails for organization (e.g. important, follow-up, @waiting).',
+  parameters: {
+    type: 'object',
+    properties: {
+      email_ids: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'List of email IDs to label',
+      },
+      add_labels: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Labels to add',
+      },
+      remove_labels: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Labels to remove',
+      },
+    },
+    required: ['email_ids'],
+  },
+};
+
+export const SMART_SEARCH_TOOL: ToolDefinition = {
+  name: 'smart_search',
+  description: 'Cross-app unified search across Mail, Drive, and Calendar simultaneously. Returns ranked results from all sources. Use when the user asks to find something without specifying which app.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Search query',
+      },
+      sources: {
+        type: 'array',
+        items: { type: 'string', enum: ['mail', 'drive', 'calendar'] },
+        description: 'Sources to search (default: all)',
+      },
+      limit: {
+        type: 'number',
+        description: 'Max results per source (default: 5)',
+      },
+      time_range: {
+        type: 'string',
+        description: 'Time filter: today | this_week | this_month | last_7_days | last_30_days',
+      },
+    },
+    required: ['query'],
+  },
+};
+
+export const MEMORY_SEARCH_SEMANTIC_TOOL: ToolDefinition = {
+  name: 'memory_search_semantic',
+  description: 'Semantic search across indexed emails, documents, calendar events, and past conversations using AI-powered retrieval. Use for questions like "what did we decide about X?", "find emails about Y", "what was in the Q3 report?", or "when did we last discuss Z?". More powerful than text search — understands meaning and context.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Natural language question or search query',
+      },
+      source: {
+        type: 'string',
+        enum: ['gmail', 'drive', 'calendar', 'conversation', 'all'],
+        description: 'Which source to search (default: all)',
+      },
+      top_k: {
+        type: 'number',
+        description: 'Number of results to return (default: 5)',
+      },
+      generate_answer: {
+        type: 'boolean',
+        description: 'Generate a synthesized answer from retrieved context (default: false for raw results, true for Q&A)',
+      },
+    },
+    required: ['query'],
+  },
+};
+
+export const USER_REMEMBER_TOOL: ToolDefinition = {
+  name: 'user_remember',
+  description: 'Permanently store an important fact, preference, or instruction about the user. Persists across all future conversations. Use when the user says "remember", "always do", "my X is Y", or shares a preference.',
+  parameters: {
+    type: 'object',
+    properties: {
+      key: {
+        type: 'string',
+        description: 'Short key/category for this memory (e.g. preferred_email_tone, work_hours, boss_name)',
+      },
+      value: {
+        type: 'string',
+        description: 'The fact or preference to remember',
+      },
+      category: {
+        type: 'string',
+        enum: ['preference', 'fact', 'instruction', 'contact', 'schedule'],
+        description: 'Category of this memory',
+      },
+    },
+    required: ['key', 'value'],
+  },
+};
+
+export const USER_RECALL_TOOL: ToolDefinition = {
+  name: 'user_recall',
+  description: 'Recall all stored facts and preferences about the user. Use to personalize responses or check what you know about the user.',
+  parameters: {
+    type: 'object',
+    properties: {
+      category: {
+        type: 'string',
+        enum: ['preference', 'fact', 'instruction', 'contact', 'schedule', 'all'],
+        description: 'Filter by category (default: all)',
+      },
+    },
+    required: [],
+  },
+};
+
 export const GOAL_PLAN_TOOL: ToolDefinition = {
   name: 'goal_plan',
   description: 'Break a complex goal into a step-by-step execution plan with dependencies. Use before starting multi-step tasks to show the user exactly what actions will be taken and in what order.',
@@ -580,4 +809,13 @@ export const ANVIL_TOOLS: ToolDefinition[] = [
   NOTES_CREATE_TOOL,
   SMART_SUMMARIZE_TOOL,
   GOAL_PLAN_TOOL,
+  EMAIL_REPLY_TOOL,
+  CALENDAR_UPDATE_TOOL,
+  CALENDAR_CANCEL_TOOL,
+  EMAIL_MARK_READ_TOOL,
+  EMAIL_LABEL_TOOL,
+  SMART_SEARCH_TOOL,
+  USER_REMEMBER_TOOL,
+  USER_RECALL_TOOL,
+  MEMORY_SEARCH_SEMANTIC_TOOL,
 ];

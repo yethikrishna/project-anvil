@@ -22,6 +22,7 @@ interface Props {
   onSend: (text: string) => void;
   onShowWeeklySummary: () => void;
   onShowScheduler?: () => void;
+  onShowSmartSearch?: () => void;
   onOpenTriage?: () => void;
   onOpenTasks?: () => void;
   recentConversations: Conversation[];
@@ -47,7 +48,7 @@ interface SuggestedPrompt {
   title: string;
   description: string;
   prompt: string;
-  special?: 'weekly_summary' | 'schedule';
+  special?: 'weekly_summary' | 'schedule' | 'smart_search';
   accent: string;
 }
 
@@ -57,6 +58,21 @@ function getSuggestedPrompts(): SuggestedPrompt[] {
   const isFriday = day === 5;
 
   const prompts: SuggestedPrompt[] = [
+    {
+      icon: '🔍',
+      title: 'Smart search',
+      description: 'Mail + Drive + Calendar',
+      prompt: '__smart_search__',
+      special: 'smart_search',
+      accent: 'from-sky-500 to-blue-500',
+    },
+    {
+      icon: '↩️',
+      title: 'Reply to email',
+      description: 'AI-drafted, you decide',
+      prompt: 'Find the most recent email in my inbox that needs a reply. Read the thread and draft a professional reply. Save it as a draft.',
+      accent: 'from-blue-500 to-cyan-500',
+    },
     {
       icon: '⚡',
       title: 'Attention scan',
@@ -165,7 +181,7 @@ function BriefingOrDashboard({
   );
 }
 
-export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, onOpenTriage, onOpenTasks, recentConversations }: Props) {
+export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowScheduler, onShowSmartSearch, onOpenTriage, onOpenTasks, recentConversations }: Props) {
   const greeting = useMemo(getGreeting, []);
   const prompts = useMemo(getSuggestedPrompts, []);
 
@@ -211,6 +227,8 @@ export default function WelcomeScreen({ onSend, onShowWeeklySummary, onShowSched
                 onShowWeeklySummary();
               } else if (item.special === 'schedule') {
                 onShowScheduler?.();
+              } else if (item.special === 'smart_search') {
+                onShowSmartSearch?.();
               } else {
                 onSend(item.prompt);
               }

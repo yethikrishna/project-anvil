@@ -15,7 +15,7 @@
  * - Streaming with tool call deltas
  */
 
-import { createAI } from '@anvil/ai';
+import { createAI, createSmartRouterFromEnv } from '@anvil/ai';
 import type { AIInstance, Message, StreamChunk, ToolCall } from '@anvil/ai';
 import { ANVIL_TOOLS } from '@anvil/ai';
 import { getToolExecutor } from './tool-executor';
@@ -88,11 +88,17 @@ CORE PERSONALITY:
 CAPABILITIES (use tools for these):
 📧 Mail:
 - email_search: Search emails by subject, sender, content, date
-- email_send: Send emails (always confirm first)
+- email_send: Send new emails (always confirm first)
+- email_reply: Reply to a thread (PREFER this over email_send for replies)
 - email_read_thread: Read full email thread
 - email_save_draft: Save draft reply
+- email_mark_read: Mark emails as read/unread
+- email_label: Add/remove labels for organization
+- email_archive: Archive emails
+- email_bulk_action: Process multiple emails at once
 
 📁 Drive:
+- smart_search: Cross-app unified search across Mail + Drive + Calendar (USE THIS FIRST when searching)
 - file_search: Search Drive files by name or content
 - file_read: Read file contents
 - file_share: Create shareable link
@@ -102,22 +108,39 @@ CAPABILITIES (use tools for these):
 
 📅 Calendar:
 - calendar_create_event: Create events, send invites (always confirm first)
+- calendar_update_event: Update existing events (time, title, attendees)
+- calendar_cancel_event: Cancel events and notify attendees
 - calendar_check_availability: Find free time slots
+- calendar_get_events: Get events for a date range
 
 🌐 Web:
 - web_search: Search the web for current information
 
+🧠 Memory (ALWAYS USE THESE):
+- user_remember: Store user facts/preferences permanently (use when user says "remember", "my X is", "always do")
+- user_recall: Retrieve all stored facts about user (use at session start or when personalizing)
+- memory_search_semantic: Semantic search across indexed emails, docs, and conversations. Use for "what did we discuss about X?", "find emails about Y", "what was in the Z report?". MUCH more powerful than text search — understands meaning and context.
+- context_memo: Store context for this conversation
+- context_recall: Retrieve conversation context
+
+✅ Tasks:
+- tasks_create: Create a task or reminder
+
 MULTI-STEP WORKFLOWS (chain tools automatically):
-- "find doc → summarize → email team": file_search → file_read → email_send
-- "check email → draft reply → save draft": email_search → email_read_thread → email_save_draft
-- "find availability → book meeting": calendar_check_availability → calendar_create_event
-- "research topic → create doc": web_search → document_write
+- Reply to thread: email_read_thread → email_reply
+- Find + share: smart_search → file_share
+- Find + summarize + email: smart_search → file_read → email_send
+- Check + book: calendar_check_availability → calendar_create_event
+- Research + document: web_search → document_write
+- Triage inbox: email_search → email_mark_read + email_label + email_archive
+- Update meeting: calendar_get_events → calendar_update_event or calendar_cancel_event
 
 APPROVAL PROTOCOL:
-- email_send: ALWAYS confirm recipient + content before executing
-- calendar_create_event: ALWAYS confirm time + attendees before executing
+- email_send / email_reply (when send=true): ALWAYS confirm recipient + content before executing
+- calendar_create_event / calendar_update_event / calendar_cancel_event: ALWAYS confirm before executing
 - file_share: Confirm recipient before sharing
 - document_write: Confirm before overwriting existing docs`);
+
 
   // Conversation context
   if (context.files.length > 0) {
@@ -159,10 +182,13 @@ APPROVAL PROTOCOL:
 export interface ChatEngineConfig {
   aiEndpoint?: string;
   apiKey?: string;
+  anthropicApiKey?: string;
   model?: string;
   userPatterns?: string;
   authToken?: string;
   userId?: string;
+  /** If true, use smart multi-provider routing (Claude for writing, GPT for tools) */
+  useSmartRouter?: boolean;
   settings?: {
     requireApprovalForEmail?: boolean;
     requireApprovalForCalendar?: boolean;
@@ -176,7 +202,10 @@ export interface ChatEngineConfig {
 
 const APPROVAL_REQUIRED_TOOLS = new Set([
   'email_send',
+  'email_reply', // only when send=true (checked inline)
   'calendar_create_event',
+  'calendar_update_event',
+  'calendar_cancel_event',
   'document_write',
   'file_share',
 ]);
@@ -190,13 +219,23 @@ export class ChatEngine {
   constructor(config: ChatEngineConfig) {
     this.config = config;
 
-    // Use @anvil/ai createAI factory for provider abstraction
-    this.ai = createAI({
-      provider: 'openai',
-      apiKey: config.apiKey ?? '',
-      baseUrl: config.aiEndpoint?.replace('/chat/completions', '') ?? 'https://api.openai.com/v1',
-      model: config.model ?? 'gpt-4o',
-    });
+    // Use smart multi-provider router if both keys are available or explicitly requested
+    const hasAnthropic = !!(config.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY);
+    const hasOpenAI = !!(config.apiKey ?? process.env.OPENAI_API_KEY);
+    const useSmartRouter = config.useSmartRouter !== false && hasAnthropic && hasOpenAI;
+
+    if (useSmartRouter) {
+      // Smart router: Claude for writing/analysis, GPT-4o for tool use
+      this.ai = createSmartRouterFromEnv() as unknown as AIInstance;
+    } else {
+      // Fallback: single provider (OpenAI-compatible)
+      this.ai = createAI({
+        provider: 'openai',
+        apiKey: config.apiKey ?? process.env.OPENAI_API_KEY ?? '',
+        baseUrl: config.aiEndpoint?.replace('/chat/completions', '') ?? 'https://api.openai.com/v1',
+        model: config.model ?? process.env.AI_MODEL ?? 'gpt-4o',
+      });
+    }
   }
 
   /**
@@ -223,9 +262,28 @@ export class ChatEngine {
 
     // 2. Build system prompt with full context
     const baseSystemPrompt = buildSystemPrompt(context, this.config.userPatterns, this.config.settings);
-    const systemPrompt = intentPrompt
+
+    // Inject stored user facts into the system prompt for personalization
+    let userFactsSection = '';
+    try {
+      const { dbGetPreferences } = await import('./db.js');
+      const prefs = dbGetPreferences(this.config.userId ?? 'default');
+      const userMemories: string[] = [];
+      for (const [k, v] of Object.entries(prefs)) {
+        if (k.startsWith('user_memory:')) {
+          const parts = k.split(':');
+          const shortKey = parts.slice(2).join(':');
+          userMemories.push(`- ${shortKey}: ${v}`);
+        }
+      }
+      if (userMemories.length > 0) {
+        userFactsSection = `\n\nUSER FACTS YOU'VE REMEMBERED:\n${userMemories.join('\n')}\n(Use these to personalize every response. Never ask about these again.)`;
+      }
+    } catch { /* skip if DB unavailable */ }
+
+    const systemPrompt = (intentPrompt
       ? `${baseSystemPrompt}\n\n${intentPrompt}`
-      : baseSystemPrompt;
+      : baseSystemPrompt) + userFactsSection;
 
     // 3. Compress history if too long (prevent context window overflow)
     const compressedHistory = this.compressHistory(history);
@@ -295,7 +353,14 @@ export class ChatEngine {
           tools: ANVIL_TOOLS,
           maxTokens: 2048,
           temperature: 0.3,
-        }
+          // Smart router task hint: first round with tools → openai, subsequent → use intent
+          ...(round === 0 && ANVIL_TOOLS.length > 0
+            ? { task: (intent.category === 'email_search' || intent.category === 'email_reply' || intent.category === 'email_compose') ? 'email_draft'
+                : intent.category === 'document_summarize' ? 'summarize'
+                : intent.category === 'file_search' || intent.isMultiStep ? 'tool_use'
+                : 'chat' }
+            : { task: 'tool_use' as const }),
+        } as Parameters<typeof this.ai.stream>[2]
       );
 
       // Merge buffered tool calls with result
@@ -323,7 +388,11 @@ export class ChatEngine {
             this.config.settings?.agentMode === true;
 
           // Approval gate for high-risk tools
+          // email_reply only requires approval when send=true (draft mode is safe)
+          // calendar_update/cancel always require approval
+          const isEmailReplyDraftOnly = tc.name === 'email_reply' && args.send !== true;
           const requiresApproval = APPROVAL_REQUIRED_TOOLS.has(tc.name) &&
+            !isEmailReplyDraftOnly &&
             this.config.settings?.requireApprovalForEmail !== false &&
             !isAgentMode &&
             !approvedToolIds?.has(tc.id);

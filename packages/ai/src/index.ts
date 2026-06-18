@@ -21,7 +21,7 @@
  * ```
  */
 
-export type {AIProvider, ProviderConfig, OpenAIConfig, OllamaConfig, CustomProviderConfig} from './types.js';
+export type {AIProvider, ProviderConfig, OpenAIConfig, AnthropicConfig, OllamaConfig, CustomProviderConfig} from './types.js';
 export type {
   Message, SystemMessage, UserMessage, AssistantMessage, ToolResultMessage,
   ToolDefinition, ToolCall, ToolExecutor,
@@ -32,6 +32,9 @@ export type {
 } from './types.js';
 
 export {OpenAIProvider} from './providers/openai.js';
+export {AnthropicProvider} from './providers/anthropic.js';
+export {SmartAIRouter, createSmartRouter, createSmartRouterFromEnv} from './providers/smart-router.js';
+export type {SmartRouterConfig, AITask as SmartRouterTask} from './providers/smart-router.js';
 export {OllamaProvider} from './providers/ollama.js';
 export {LocalEmbeddingService} from './local-embeddings.js';
 export type {LocalEmbeddingConfig, LocalEmbeddingModel, EmbeddingCacheEntry} from './local-embeddings.js';
@@ -109,21 +112,24 @@ export {
   EMAIL_SEARCH_TOOL, EMAIL_SEND_TOOL, EMAIL_READ_THREAD_TOOL, EMAIL_SAVE_DRAFT_TOOL,
   WEB_SEARCH_TOOL, CALENDAR_CREATE_TOOL, CALENDAR_CHECK_AVAILABILITY_TOOL,
   IMAGE_ANALYZE_TOOL, NOTES_CREATE_TOOL, SMART_SUMMARIZE_TOOL, GOAL_PLAN_TOOL,
-  AGENT_RUN_TOOL,
+  AGENT_RUN_TOOL, MEMORY_SEARCH_SEMANTIC_TOOL,
 } from './tools/index.js';
 
 import {OpenAIProvider} from './providers/openai.js';
+import {AnthropicProvider} from './providers/anthropic.js';
 import {OllamaProvider} from './providers/ollama.js';
 import type {AIProvider, Message, GenerationOptions, GenerationResult, StreamCallback, EmbeddingOptions, EmbeddingResult} from './types.js';
 
 // ── Factory ──
 
 export interface AIFactoryConfig {
-  provider: 'openai' | 'ollama';
+  provider: 'openai' | 'anthropic' | 'ollama';
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   embeddingModel?: string;
+  /** Anthropic beta features (e.g. 'interleaved-thinking-2025-05-14') */
+  betaFeatures?: string[];
 }
 
 export interface AIInstance {
@@ -150,6 +156,15 @@ export function createAI(config: AIFactoryConfig): AIInstance {
         embeddingModel: config.embeddingModel,
       });
       break;
+    case 'anthropic':
+      provider = new AnthropicProvider({
+        type: 'anthropic',
+        apiKey: config.apiKey ?? '',
+        baseUrl: config.baseUrl,
+        defaultModel: config.model,
+        betaFeatures: config.betaFeatures,
+      });
+      break;
     case 'ollama':
       provider = new OllamaProvider({
         type: 'ollama',
@@ -159,7 +174,7 @@ export function createAI(config: AIFactoryConfig): AIInstance {
       });
       break;
     default:
-      throw new Error(`Unknown provider: ${config.provider}`);
+      throw new Error(`Unknown provider: ${(config as AIFactoryConfig).provider}`);
   }
 
   return {

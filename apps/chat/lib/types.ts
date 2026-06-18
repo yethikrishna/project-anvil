@@ -53,6 +53,17 @@ export interface ConversationContext {
   preferences: string[];
   /** App actions taken */
   actions: ActionRecord[];
+  // ── Extended context fields (populated by conversation-intelligence) ──
+  /** Most recently discussed topics (alias / extended list) */
+  recentTopics?: string[];
+  /** Pending action items the AI should follow up on */
+  pendingActions?: string[];
+  /** People mentioned across the conversation */
+  mentionedPeople?: string[];
+  /** Key decisions made in this conversation */
+  keyDecisions?: string[];
+  /** Detected conversation intent */
+  intent?: string;
 }
 
 export interface ReferencedFile {

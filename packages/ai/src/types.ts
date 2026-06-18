@@ -195,6 +195,14 @@ export interface OllamaConfig {
   embeddingModel?: string;
 }
 
+export interface AnthropicConfig {
+  type: 'anthropic';
+  apiKey: string;
+  baseUrl?: string;
+  defaultModel?: string;
+  betaFeatures?: string[];
+}
+
 export interface CustomProviderConfig {
   type: 'custom';
   name: string;
@@ -208,4 +216,4 @@ export interface CustomProviderConfig {
   transformResponse?: (response: unknown) => GenerationResult;
 }
 
-export type ProviderConfig = OpenAIConfig | OllamaConfig | CustomProviderConfig;
+export type ProviderConfig = OpenAIConfig | AnthropicConfig | OllamaConfig | CustomProviderConfig;

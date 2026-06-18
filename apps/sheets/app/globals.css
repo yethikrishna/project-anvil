@@ -1,0 +1,585 @@
+@import "tailwindcss";
+
+/* Dark mode: class-based strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ===== Spreadsheet CSS Variables ===== */
+:root {
+  --cell-height: 25px;
+  --col-header-height: 25px;
+  --row-header-width: 46px;
+  --default-col-width: 100px;
+  --selection-color: #1a73e8;
+  --selection-bg: rgba(26, 115, 232, 0.1);
+  --header-bg: #f8f9fa;
+  --header-border: #e0e0e0;
+  --cell-border: #e0e0e0;
+  --frozen-shadow: 3px 0 6px rgba(0,0,0,0.1);
+  --grid-bg: #ffffff;
+  --active-cell-border: #1a73e8;
+}
+
+.dark {
+  --header-bg: #1e1e1e;
+  --header-border: #3c3c3c;
+  --cell-border: #3c3c3c;
+  --grid-bg: #121212;
+}
+
+/* ===== Grid Layout ===== */
+.sheets-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+.grid-container {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  background: var(--grid-bg);
+}
+
+.grid-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  will-change: scroll-position;
+}
+
+/* ===== Cell Styles ===== */
+.cell {
+  position: absolute;
+  border-right: 1px solid var(--cell-border);
+  border-bottom: 1px solid var(--cell-border);
+  padding: 0 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+  cursor: cell;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  background: var(--grid-bg);
+}
+
+.cell.selected {
+  background: var(--selection-bg) !important;
+  outline: 1px solid var(--selection-color);
+  outline-offset: -1px;
+  z-index: 2;
+}
+
+.cell.active {
+  outline: 2px solid var(--active-cell-border) !important;
+  outline-offset: -2px;
+  z-index: 3;
+}
+
+.cell.editing {
+  padding: 0;
+  z-index: 10;
+}
+
+/* Marching ants for copied range */
+@keyframes marchingAnts {
+  to { stroke-dashoffset: -16; }
+}
+
+.cell.copied {
+  outline: 2px dashed #1a73e8;
+  outline-offset: -2px;
+  animation: none;
+}
+
+/* ===== Column/Row Headers ===== */
+.col-header {
+  position: sticky;
+  top: 0;
+  background: var(--header-bg);
+  border-right: 1px solid var(--header-border);
+  border-bottom: 2px solid var(--header-border);
+  text-align: center;
+  font-size: 12px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.col-header:hover {
+  background: #e8eaed;
+}
+
+.col-header.selected {
+  background: #d3e3fd;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.row-header {
+  position: sticky;
+  left: 0;
+  background: var(--header-bg);
+  border-right: 2px solid var(--header-border);
+  border-bottom: 1px solid var(--cell-border);
+  text-align: center;
+  font-size: 12px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-header:hover {
+  background: #e8eaed;
+}
+
+.row-header.selected {
+  background: #d3e3fd;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.corner-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  background: var(--header-bg);
+  border-right: 2px solid var(--header-border);
+  border-bottom: 2px solid var(--header-border);
+  z-index: 25;
+  cursor: pointer;
+}
+
+.corner-header:hover {
+  background: #e8eaed;
+}
+
+/* ===== Column Resize Handle ===== */
+.col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 30;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle.dragging {
+  background: var(--selection-color);
+}
+
+.row-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  cursor: row-resize;
+  z-index: 30;
+}
+
+.row-resize-handle:hover,
+.row-resize-handle.dragging {
+  background: var(--selection-color);
+}
+
+/* ===== Inline Cell Editor ===== */
+.cell-editor {
+  position: absolute;
+  border: 2px solid var(--active-cell-border);
+  background: white;
+  z-index: 100;
+  padding: 0 3px;
+  font-family: inherit;
+  font-size: inherit;
+  resize: none;
+  outline: none;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* ===== Formula Bar ===== */
+.formula-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--header-border);
+  background: white;
+  height: 30px;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.formula-bar .name-box {
+  width: 80px;
+  min-width: 80px;
+  border: 1px solid #dadce0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.formula-bar .formula-input {
+  flex: 1;
+  border: 1px solid #dadce0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+}
+
+.formula-bar .formula-input:focus {
+  border-color: var(--selection-color);
+  outline: none;
+}
+
+/* ===== Toolbar ===== */
+.sheets-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--header-border);
+  background: white;
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: #dadce0;
+  margin: 0 4px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #444;
+  transition: background 0.1s;
+}
+
+.toolbar-btn:hover {
+  background: #f1f3f4;
+}
+
+.toolbar-btn.active {
+  background: #d3e3fd;
+  color: #1a73e8;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-select {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  height: 28px;
+}
+
+.toolbar-select:hover {
+  border-color: #dadce0;
+  background: #f1f3f4;
+}
+
+/* ===== Sheet Tabs ===== */
+.sheet-tabs {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--header-border);
+  background: #f8f9fa;
+  height: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.sheet-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  height: 100%;
+  border-right: 1px solid var(--header-border);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+  position: relative;
+}
+
+.sheet-tab:hover {
+  background: #e8eaed;
+}
+
+.sheet-tab.active {
+  background: white;
+  border-top: 2px solid var(--selection-color);
+  color: var(--selection-color);
+  font-weight: 500;
+}
+
+.sheet-tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 100%;
+  cursor: pointer;
+  color: #444;
+  flex-shrink: 0;
+}
+
+.sheet-tab-add:hover {
+  background: #e8eaed;
+}
+
+/* ===== Context Menu ===== */
+.context-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 180px;
+  padding: 4px 0;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+}
+
+.context-menu-item:hover {
+  background: #f1f3f4;
+}
+
+.context-menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  max-height: 90vh;
+  overflow-y: auto;
+  min-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.modal-body {
+  padding: 16px 20px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* ===== Frozen rows/cols ===== */
+.frozen-col {
+  position: sticky;
+  z-index: 10;
+}
+
+.frozen-row {
+  position: sticky;
+  z-index: 10;
+}
+
+.frozen-corner {
+  z-index: 15;
+}
+
+/* ===== Selection focus ring ===== */
+.grid-focus-trap:focus {
+  outline: none;
+}
+
+/* ===== Number formats ===== */
+.cell-number {
+  justify-content: flex-end;
+}
+
+.cell-text {
+  justify-content: flex-start;
+}
+
+.cell-center {
+  justify-content: center;
+}
+
+/* ===== Error cells ===== */
+.cell-error {
+  color: #d93025;
+}
+
+/* ===== Merge cells ===== */
+.cell-merged {
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* ===== Scrollbar styling ===== */
+.grid-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.grid-scroll::-webkit-scrollbar-track {
+  background: #f1f3f4;
+}
+
+.grid-scroll::-webkit-scrollbar-thumb {
+  background: #bdc1c6;
+  border-radius: 6px;
+  border: 2px solid #f1f3f4;
+}
+
+.grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: #80868b;
+}
+
+/* ===== Color picker ===== */
+.color-picker-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 200;
+  padding: 8px;
+}
+
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+
+.color-swatch:hover {
+  transform: scale(1.2);
+}
+
+/* ===== Dropdown button ===== */
+.dropdown-trigger {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 200;
+  min-width: 140px;
+  padding: 4px 0;
+}
+
+.dropdown-menu-item {
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dropdown-menu-item:hover {
+  background: #f1f3f4;
+}
+
+/* ===== Highlight for find/replace ===== */
+.cell-highlight {
+  background: #fff176 !important;
+}
+
+/* ===== Charts floating ===== */
+.chart-overlay {
+  position: absolute;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 8px;
+  z-index: 50;
+  cursor: move;
+}
+
+/* ===== Responsive toolbar ===== */
+@media (max-width: 768px) {
+  .toolbar-label {
+    display: none;
+  }
+  .toolbar-select-wide {
+    width: 60px;
+  }
+}

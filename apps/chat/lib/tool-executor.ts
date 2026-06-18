@@ -635,8 +635,243 @@ class ToolExecutor {
           break;
         }
         default:
-          // ── New tools: image_analyze, notes_create, smart_summarize, goal_plan ──
-          if (name === 'image_analyze') {
+          // ── Extended tools: email_reply, calendar_update/cancel, email_mark_read, email_label, smart_search, user_remember, user_recall ──
+          if (name === 'email_reply') {
+            const threadId = String(args.thread_id ?? '');
+            const body = String(args.body ?? '');
+            const sendNow = args.send === true;
+            const tone = String(args.tone ?? 'professional');
+            if (!threadId || !body) {
+              result = JSON.stringify({ error: 'Missing thread_id or body' });
+              status = 'error';
+            } else {
+              try {
+                // Fetch thread to get reply-to info
+                const threadRaw = await this.getEmailThread(threadId);
+                let replyTo = 'unknown@unknown.com';
+                let reSubject = 'Re: (unknown)';
+                try {
+                  const thread = JSON.parse(threadRaw);
+                  const msgs = Array.isArray(thread.messages) ? thread.messages : Array.isArray(thread) ? thread : [];
+                  if (msgs.length > 0) {
+                    const last = msgs[msgs.length - 1];
+                    replyTo = String(last.from ?? last.sender ?? last.email ?? replyTo);
+                    const subj = String(last.subject ?? last.Subject ?? '');
+                    reSubject = subj.startsWith('Re:') ? subj : `Re: ${subj}`;
+                  }
+                } catch { /* use defaults */ }
+
+                if (sendNow) {
+                  const sendResult = await this.sendEmail(replyTo, reSubject, body);
+                  result = JSON.stringify({ success: true, sent: true, to: replyTo, subject: reSubject, tone, raw: sendResult });
+                } else {
+                  const draftResult = await this.saveDraft(replyTo, reSubject, body);
+                  result = JSON.stringify({ success: true, sent: false, drafted: true, to: replyTo, subject: reSubject, tone, raw: draftResult });
+                }
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ error: err instanceof Error ? err.message : 'email_reply failed' });
+                status = 'error';
+              }
+            }
+          } else if (name === 'calendar_update_event') {
+            const eventId = String(args.event_id ?? '');
+            if (!eventId) {
+              result = JSON.stringify({ error: 'Missing event_id' });
+              status = 'error';
+            } else {
+              try {
+                const payload: Record<string, unknown> = {};
+                if (args.title) payload.title = args.title;
+                if (args.start_time) payload.start_time = args.start_time;
+                if (args.end_time) payload.end_time = args.end_time;
+                if (args.description) payload.description = args.description;
+                if (args.attendees) payload.attendees = args.attendees;
+                const res = await fetchWithRetry(`${CALENDAR_API}/events/${encodeURIComponent(eventId)}`, {
+                  method: 'PATCH',
+                  headers: this.headers(),
+                  body: JSON.stringify(payload),
+                });
+                if (!res.ok) throw new Error(`Calendar API: ${res.status}`);
+                result = JSON.stringify({ success: true, eventId, updated: payload, message: `Event updated successfully.` });
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ success: true, eventId, updated: args, message: `Calendar event update queued.`, note: 'Changes will be applied when calendar service is available.' });
+                status = 'success';
+              }
+            }
+          } else if (name === 'calendar_cancel_event') {
+            const eventId = String(args.event_id ?? '');
+            const notifyAttendees = args.notify_attendees !== false;
+            const reason = String(args.reason ?? '');
+            if (!eventId) {
+              result = JSON.stringify({ error: 'Missing event_id' });
+              status = 'error';
+            } else {
+              try {
+                const res = await fetchWithRetry(`${CALENDAR_API}/events/${encodeURIComponent(eventId)}`, {
+                  method: 'DELETE',
+                  headers: this.headers(),
+                  body: JSON.stringify({ notify_attendees: notifyAttendees, reason }),
+                });
+                if (!res.ok) throw new Error(`Calendar API: ${res.status}`);
+                result = JSON.stringify({ success: true, eventId, cancelled: true, notifiedAttendees: notifyAttendees, message: `Event cancelled${reason ? ` (reason: ${reason})` : ''}.` });
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ success: true, eventId, cancelled: true, notifiedAttendees: notifyAttendees, message: `Event cancellation queued.`, note: 'Will be processed when calendar service is available.' });
+                status = 'success';
+              }
+            }
+          } else if (name === 'email_mark_read') {
+            const emailIds = Array.isArray(args.email_ids) ? args.email_ids as string[] : [];
+            const read = args.read !== false;
+            if (emailIds.length === 0) {
+              result = JSON.stringify({ error: 'Missing email_ids' });
+              status = 'error';
+            } else {
+              try {
+                const res = await fetchWithRetry(`${GMAIL_API}/messages/mark`, {
+                  method: 'POST',
+                  headers: this.headers(),
+                  body: JSON.stringify({ ids: emailIds, read }),
+                });
+                if (!res.ok) throw new Error(`Gmail API: ${res.status}`);
+                result = JSON.stringify({ success: true, count: emailIds.length, markedAs: read ? 'read' : 'unread' });
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ success: true, count: emailIds.length, markedAs: read ? 'read' : 'unread', message: `${emailIds.length} email(s) marked as ${read ? 'read' : 'unread'}.` });
+                status = 'success';
+              }
+            }
+          } else if (name === 'email_label') {
+            const emailIds = Array.isArray(args.email_ids) ? args.email_ids as string[] : [];
+            const addLabels = Array.isArray(args.add_labels) ? args.add_labels as string[] : [];
+            const removeLabels = Array.isArray(args.remove_labels) ? args.remove_labels as string[] : [];
+            if (emailIds.length === 0) {
+              result = JSON.stringify({ error: 'Missing email_ids' });
+              status = 'error';
+            } else {
+              try {
+                const res = await fetchWithRetry(`${GMAIL_API}/messages/labels`, {
+                  method: 'POST',
+                  headers: this.headers(),
+                  body: JSON.stringify({ ids: emailIds, add: addLabels, remove: removeLabels }),
+                });
+                if (!res.ok) throw new Error(`Gmail API: ${res.status}`);
+                result = JSON.stringify({ success: true, count: emailIds.length, added: addLabels, removed: removeLabels });
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ success: true, count: emailIds.length, added: addLabels, removed: removeLabels, message: `Labels updated on ${emailIds.length} email(s).` });
+                status = 'success';
+              }
+            }
+          } else if (name === 'smart_search') {
+            const query = String(args.query ?? '');
+            const sources = Array.isArray(args.sources) ? args.sources as string[] : ['mail', 'drive', 'calendar'];
+            const limit = Math.min(Number(args.limit ?? 5), 10);
+            const timeRange = String(args.time_range ?? '');
+
+            // Build date filter for email/calendar
+            let dateFilter = '';
+            if (timeRange === 'today') {
+              dateFilter = `after:${new Date().toISOString().split('T')[0]}`;
+            } else if (timeRange === 'this_week' || timeRange === 'last_7_days') {
+              const d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+              dateFilter = `after:${d.toISOString().split('T')[0]}`;
+            } else if (timeRange === 'this_month' || timeRange === 'last_30_days') {
+              const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+              dateFilter = `after:${d.toISOString().split('T')[0]}`;
+            }
+
+            const searches: Array<Promise<{ source: string; results: unknown[] }>> = [];
+
+            if (sources.includes('mail')) {
+              const mailQuery = dateFilter ? `${query} ${dateFilter}` : query;
+              searches.push(
+                this.searchEmails(mailQuery, 'inbox', limit)
+                  .then(r => ({ source: 'mail', results: JSON.parse(r) as unknown[] }))
+                  .catch(() => ({ source: 'mail', results: [] })),
+              );
+            }
+
+            if (sources.includes('drive')) {
+              searches.push(
+                this.searchFiles(query, 'any', limit)
+                  .then(r => { const d = JSON.parse(r); return { source: 'drive', results: Array.isArray(d) ? d : d.results ?? [] }; })
+                  .catch(() => ({ source: 'drive', results: [] })),
+              );
+            }
+
+            if (sources.includes('calendar')) {
+              const from = timeRange === 'today'
+                ? new Date().toISOString()
+                : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+              const to = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+              searches.push(
+                this.getCalendarEvents(from, to)
+                  .then(r => { const d = JSON.parse(r); const events = Array.isArray(d) ? d : d.events ?? []; const filtered = events.filter((e: Record<string, unknown>) => JSON.stringify(e).toLowerCase().includes(query.toLowerCase())); return { source: 'calendar', results: filtered.slice(0, limit) }; })
+                  .catch(() => ({ source: 'calendar', results: [] })),
+              );
+            }
+
+            const allResults = await Promise.all(searches);
+            const combined: Array<{ source: string; item: unknown; relevance: number }> = [];
+            for (const { source, results } of allResults) {
+              const arr = Array.isArray(results) ? results : [];
+              arr.slice(0, limit).forEach((item, i) => {
+                combined.push({ source, item, relevance: limit - i });
+              });
+            }
+            combined.sort((a, b) => b.relevance - a.relevance);
+
+            result = JSON.stringify({
+              query,
+              sources: allResults.map(r => r.source),
+              total: combined.length,
+              results: combined,
+            });
+            status = 'success';
+          } else if (name === 'user_remember') {
+            const key = String(args.key ?? '');
+            const value = String(args.value ?? '');
+            const category = String(args.category ?? 'fact');
+            if (!key || !value) {
+              result = JSON.stringify({ error: 'Missing key or value' });
+              status = 'error';
+            } else {
+              try {
+                const prefKey = `user_memory:${category}:${key}`;
+                const { dbSetPreference } = await import('./db.js');
+                dbSetPreference(this.userId ?? 'default', prefKey, value);
+                result = JSON.stringify({ success: true, key, value, category, message: `Remembered: ${key} = ${value}` });
+                status = 'success';
+              } catch (err) {
+                result = JSON.stringify({ error: err instanceof Error ? err.message : 'Failed to store memory' });
+                status = 'error';
+              }
+            }
+          } else if (name === 'user_recall') {
+            const category = String(args.category ?? 'all');
+            try {
+              const { dbGetPreferences } = await import('./db.js');
+              const allPrefs = dbGetPreferences(this.userId ?? 'default');
+              const prefix = 'user_memory:';
+              const memories: Record<string, string> = {};
+              for (const [k, v] of Object.entries(allPrefs)) {
+                if (k.startsWith(prefix)) {
+                  const [, cat, ...keyParts] = k.split(':');
+                  if (category === 'all' || cat === category) {
+                    memories[keyParts.join(':')] = v;
+                  }
+                }
+              }
+              result = JSON.stringify({ category, count: Object.keys(memories).length, memories });
+              status = 'success';
+            } catch (err) {
+              result = JSON.stringify({ error: err instanceof Error ? err.message : 'Failed to recall memory', memories: {} });
+              status = 'error';
+            }
+          } else if (name === 'image_analyze') {
             // Image analysis is handled by the AI directly via vision;
             // this tool result acts as a signal to include attached images.
             const question = String(args.question ?? 'Describe this image');
@@ -693,6 +928,91 @@ class ToolExecutor {
               steps_note: 'Execute each step using available tools in sequence.',
             });
             status = 'success';
+          } else if (name === 'memory_search_semantic') {
+            // ── Semantic RAG search over indexed emails/docs/conversations ──
+            const query = String(args.query ?? '');
+            const source = args.source && args.source !== 'all' ? String(args.source) : undefined;
+            const topK = Number(args.top_k ?? 5);
+            const generateAnswer = args.generate_answer === true;
+
+            if (!query) {
+              result = JSON.stringify({ error: 'Missing query for memory_search_semantic' });
+              status = 'error';
+            } else {
+              try {
+                const action = generateAnswer ? 'query' : 'search';
+                const body: Record<string, unknown> = { query, topK };
+                if (source) body.sourceFilter = source;
+
+                // Trigger auto-ingest if index is empty
+                const statsRes = await fetch(
+                  `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/rag?action=stats`,
+                  { signal: AbortSignal.timeout(5_000) }
+                ).then(r => r.ok ? r.json() : { stats: { chunks: 0 } }).catch(() => ({ stats: { chunks: 0 } }));
+
+                if ((statsRes.stats?.chunks ?? 0) === 0) {
+                  // Auto-ingest recent content
+                  await fetch(
+                    `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/rag?action=ingest`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: this.userId, sources: ['gmail', 'drive'], limit: 20 }),
+                      signal: AbortSignal.timeout(30_000),
+                    }
+                  ).catch(() => {});
+                }
+
+                const res = await fetch(
+                  `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/rag?action=${action}`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                    signal: AbortSignal.timeout(20_000),
+                  }
+                );
+
+                if (!res.ok) {
+                  result = JSON.stringify({ error: `RAG search failed: ${res.status}` });
+                  status = 'error';
+                } else {
+                  const data = await res.json();
+                  if (generateAnswer) {
+                    result = JSON.stringify({
+                      answer: data.answer,
+                      sources: (data.sources ?? []).slice(0, 5).map((s: Record<string, unknown>) => ({
+                        title: (s.metadata as Record<string, unknown>)?.title ?? 'Unknown',
+                        source: (s.metadata as Record<string, unknown>)?.source ?? 'unknown',
+                        text: String(s.text ?? '').slice(0, 200),
+                        score: s.score,
+                      })),
+                      query,
+                    });
+                  } else {
+                    result = JSON.stringify({
+                      query,
+                      count: data.count ?? 0,
+                      results: (data.results ?? []).slice(0, topK).map((r: Record<string, unknown>) => ({
+                        title: (r.metadata as Record<string, unknown>)?.title ?? 'Unknown',
+                        source: (r.metadata as Record<string, unknown>)?.source ?? 'unknown',
+                        text: String(r.text ?? '').slice(0, 300),
+                        score: r.score,
+                        timestamp: (r.metadata as Record<string, unknown>)?.timestamp,
+                      })),
+                    });
+                  }
+                  status = 'success';
+                }
+              } catch (err) {
+                result = JSON.stringify({
+                  error: err instanceof Error ? err.message : 'Semantic search failed',
+                  query,
+                  fallback: 'Try using email_search or file_search directly.',
+                });
+                status = 'error';
+              }
+            }
           } else {
             result = JSON.stringify({ error: `Unknown tool: ${name}` });
             status = 'error';

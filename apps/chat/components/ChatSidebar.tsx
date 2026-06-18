@@ -16,6 +16,7 @@ import { cn } from '@anvil/ui';
 import type { Conversation } from '@/lib/types';
 import AIStatusBar from './AIStatusBar';
 import WorkflowPanel from './WorkflowPanel';
+import ActionItemsPanel from './ActionItemsPanel';
 
 interface Props {
   conversations: Conversation[];
@@ -52,7 +53,7 @@ export default function ChatSidebar({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [keyboardIdx, setKeyboardIdx] = useState<number | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<'chats' | 'workflows'>('chats');
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'workflows' | 'actions'>('chats');
   const listRef = useRef<HTMLDivElement>(null);
 
   // Filter conversations by search
@@ -256,6 +257,16 @@ export default function ChatSidebar({
         >
           Workflows
         </button>
+        <button
+          onClick={() => setSidebarTab('actions')}
+          className={`flex-1 py-2 text-xs font-medium transition-colors ${
+            sidebarTab === 'actions'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Actions
+        </button>
       </div>
 
       {/* Conversation list */}
@@ -267,6 +278,11 @@ export default function ChatSidebar({
               onResult={onWorkflowResult}
             />
           </div>
+        ) : sidebarTab === 'actions' ? (
+          <ActionItemsPanel
+            userId={userId}
+            onJumpToConversation={onSelect}
+          />
         ) : (<>
         {Object.entries(groups).map(([label, convs]) => {
           if (convs.length === 0) return null;

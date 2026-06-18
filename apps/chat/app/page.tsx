@@ -37,6 +37,8 @@ import ApprovalGate, { type ApprovalAction } from '@/components/ApprovalGate';
 import ChatSettingsPanel, { DEFAULT_SETTINGS, type ChatSettings } from '@/components/ChatSettings';
 import WeeklySummaryWidget from '@/components/WeeklySummaryWidget';
 import DraftPreviewModal from '@/components/DraftPreviewModal';
+import { ReplyThreadModal } from '@/components/ReplyThreadModal';
+import type { ReplyDraft } from '@/components/ReplyThreadModal';
 import SmartCompose from '@/components/SmartCompose';
 import MeetingSchedulerModal from '@/components/MeetingSchedulerModal';
 import MeetingPrepPanel from '@/components/MeetingPrepPanel';
@@ -46,6 +48,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
 import FollowUpPanel from '@/components/FollowUpPanel';
 import { ToastContainer, toastSuccess, toastError, toastInfo } from '@/components/Toast';
+import SmartSearchModal from '@/components/SmartSearchModal';
 import ChainProgress from '@/components/ChainProgress';
 import { useChain } from '@/lib/use-chain';
 import type {
@@ -89,6 +92,8 @@ import AttentionToast from '@/components/AttentionToast';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import ChatAnalyticsPanel from '@/components/ChatAnalyticsPanel';
 import GoalAutopilotPanel from '@/components/GoalAutopilotPanel';
+import SmartPaste, { useSmartPaste } from '@/components/SmartPaste';
+import LiveContextSidebar from '@/components/LiveContextSidebar';
 import ThinkingDisplay from '@/components/ThinkingDisplay';
 
 export default function ChatPage() {
@@ -102,9 +107,11 @@ export default function ChatPage() {
   const [streamingThinking, setStreamingThinking] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showSmartSearch, setShowSmartSearch] = useState(false);
   const [showMemorySearch, setShowMemorySearch] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
   const [showDraftPreview, setShowDraftPreview] = useState(false);
+  const [pendingReplyDraft, setPendingReplyDraft] = useState<ReplyDraft | null>(null);
   const [showSmartCompose, setShowSmartCompose] = useState(false);
   const [showMeetingScheduler, setShowMeetingScheduler] = useState(false);
   const [meetingPrepData, setMeetingPrepData] = useState<{ title?: string; startTime?: string; attendees?: string[] } | null>(null);
@@ -138,6 +145,8 @@ export default function ChatPage() {
   const [showMemoryManager, setShowMemoryManager] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showAutopilot, setShowAutopilot] = useState(false);
+  const [showLiveContext, setShowLiveContext] = useState(false);
+  const { pasteEvent, clearPaste } = useSmartPaste(80);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { generateTitle } = useAutoTitle();
@@ -173,6 +182,10 @@ export default function ChatPage() {
         e.preventDefault();
         setShowCommandPalette(prev => !prev);
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'K') {
+        e.preventDefault();
+        setShowSmartSearch(prev => !prev);
+      }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         handleNewConversation();
@@ -196,6 +209,7 @@ export default function ChatPage() {
       if (e.key === 'Escape') {
         setShowCommandPalette(false);
         setShowSearch(false);
+        setShowSmartSearch(false);
         setShowPinnedMessages(false);
         setShowPersonaSelector(false);
         setShowInsights(false);
@@ -229,6 +243,10 @@ export default function ChatPage() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'G') {
         e.preventDefault();
         setShowAutopilot(prev => !prev);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        setShowLiveContext(prev => !prev);
       }
     };
     window.addEventListener('keydown', handler);
@@ -521,17 +539,39 @@ export default function ChatPage() {
             }
             return [...prev, toolCall];
           });
+          // Detect completed email_reply draft to show review modal
+          if (toolCall.tool === 'email_reply' && toolCall.status === 'success') {
+            try {
+              const result = JSON.parse(toolCall.result) as { drafted?: boolean; to?: string; subject?: string; tone?: string };
+              if (result.drafted && result.to) {
+                const args = toolCall.args as { body?: string; thread_id?: string; tone?: string };
+                setPendingReplyDraft({
+                  threadId: String(toolCall.args.thread_id ?? ''),
+                  to: result.to,
+                  subject: result.subject ?? 'Re: (untitled)',
+                  body: args.body ?? '',
+                  tone: args.tone ?? result.tone ?? 'professional',
+                });
+              }
+            } catch { /* ignore parse errors */ }
+          }
         },
         onPendingApproval: (data) => {
           const riskMap: Record<string, 'high' | 'medium' | 'low'> = {
             email_send: 'high',
+            email_reply: 'high',
             calendar_create_event: 'medium',
+            calendar_update_event: 'medium',
+            calendar_cancel_event: 'high',
             document_write: 'medium',
             file_share: 'medium',
           };
           const labelMap: Record<string, string> = {
             email_send: 'Send an email',
+            email_reply: 'Send a reply email',
             calendar_create_event: 'Create a calendar event',
+            calendar_update_event: 'Update a calendar event',
+            calendar_cancel_event: 'Cancel a calendar event',
             document_write: 'Create/edit a document',
             file_share: 'Share a file',
           };
@@ -940,6 +980,16 @@ export default function ChatPage() {
                 📈
               </button>
               <button
+                onClick={() => setShowLiveContext(v => !v)}
+                className={showLiveContext
+                  ? 'text-[11px] px-2 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-medium transition-colors'
+                  : 'text-[11px] px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors'
+                }
+                title="AI Knowledge Index — semantic search across emails, docs &amp; conversations (Ctrl+Shift+L)"
+              >
+                🧠
+              </button>
+              <button
                 onClick={() => setShowMeetingScheduler(true)}
                 className="text-[11px] px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
                 title="Schedule a meeting"
@@ -992,6 +1042,15 @@ export default function ChatPage() {
                 </button>
               )}
               <ThemeToggle />
+              <button
+                onClick={() => setShowSmartSearch(true)}
+                title="Smart Search — ⌘⇧K"
+                className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
               <NotificationBell onAction={(prompt) => { handleSend(prompt); setShowCommandPalette(false); }} />
               {/* Persona selector */}
               <div className="relative">
@@ -1091,6 +1150,7 @@ export default function ChatPage() {
                 onSend={handleSend}
                 onShowWeeklySummary={() => setShowWeeklySummary(true)}
                 onShowScheduler={() => setShowMeetingScheduler(true)}
+                onShowSmartSearch={() => setShowSmartSearch(true)}
                 onOpenTriage={() => setShowInboxTriage(true)}
                 onOpenTasks={() => setShowTaskPanel(true)}
                 recentConversations={conversations.slice(0, 3)}
@@ -1190,6 +1250,18 @@ export default function ChatPage() {
               onExecute={handleSend}
             />
           )}
+          {/* Smart Paste — AI clipboard analysis */}
+          {pasteEvent && (
+            <SmartPaste
+              pastedText={pasteEvent.text}
+              onAction={(prompt) => {
+                clearPaste();
+                handleSend(prompt);
+              }}
+              onDismiss={clearPaste}
+              className="mx-4 mb-2"
+            />
+          )}
           <ChatInput
             onSend={handleSend}
             isLoading={isLoading}
@@ -1275,6 +1347,19 @@ export default function ChatPage() {
             onScrollTo={handleScrollToMessage}
           />
         )}
+
+        {/* Live Context / RAG Knowledge sidebar */}
+        {showLiveContext && (
+          <LiveContextSidebar
+            context={activeConv?.context ?? { files: [], people: [], topics: [], preferences: [], actions: [] }}
+            userId="default"
+            onSendMessage={(msg) => {
+              setShowLiveContext(false);
+              handleSend(msg);
+            }}
+            className="w-64"
+          />
+        )}
       </div>
 
       {/* Overlays */}
@@ -1286,6 +1371,7 @@ export default function ChatPage() {
             if (prompt === '__schedule__') { setShowMeetingScheduler(true); return; }
             if (prompt === '__inbox_triage__') { setShowInboxTriage(true); setShowCommandPalette(false); return; }
             if (prompt === '__extract_tasks__') { setShowTaskPanel(true); setShowCommandPalette(false); return; }
+            if (prompt === '__smart_search__') { setShowSmartSearch(true); setShowCommandPalette(false); return; }
             handleSend(prompt);
           }}
           onSelectConversation={handleSelectConversation}
@@ -1308,6 +1394,17 @@ export default function ChatPage() {
           conversations={conversations}
           onSelect={handleSelectConversation}
           onClose={() => setShowSearch(false)}
+        />
+      )}
+
+      {showSmartSearch && (
+        <SmartSearchModal
+          open={showSmartSearch}
+          onClose={() => setShowSmartSearch(false)}
+          onSelectResult={(prompt) => {
+            setShowSmartSearch(false);
+            handleSend(prompt);
+          }}
         />
       )}
 
@@ -1356,6 +1453,21 @@ export default function ChatPage() {
 
       {showDraftPreview && (
         <DraftPreviewModal onClose={() => setShowDraftPreview(false)} />
+      )}
+
+      {pendingReplyDraft && (
+        <ReplyThreadModal
+          draft={pendingReplyDraft}
+          onSend={(body) => {
+            handleSend(`Send this reply to ${pendingReplyDraft.to}: ${body}`);
+            setPendingReplyDraft(null);
+          }}
+          onSaveDraft={(body) => {
+            toastSuccess('Reply saved to drafts');
+            setPendingReplyDraft(null);
+          }}
+          onDiscard={() => { setPendingReplyDraft(null); toastInfo('Reply discarded'); }}
+        />
       )}
 
       {showSmartCompose && (

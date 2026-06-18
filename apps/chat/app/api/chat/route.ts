@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ChatEngine } from '@/lib/chat-engine';
 import { learnFromTurn, buildContextAdditions } from '@/lib/context-accumulator';
+import { extractTurnIntelligence } from '@/lib/conversation-intelligence';
 
 // Use Node.js runtime for full async support with tool execution
 
@@ -132,6 +133,18 @@ export async function POST(req: NextRequest) {
         } catch {
           // Never let learning crash the response
         }
+
+        // Extract conversation intelligence (tasks, decisions, commitments)
+        // Run async without blocking the response
+        const aiText = typeof result.message === 'string'
+          ? result.message
+          : (result.message as { content: string }).content ?? '';
+        extractTurnIntelligence(
+          effectiveUserId,
+          conversationId,
+          effectiveMessage,
+          aiText,
+        ).catch(() => { /* never crash the response */ });
       } catch (err) {
         send('error', { message: err instanceof Error ? err.message : 'Unknown error' });
       } finally {

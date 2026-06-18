@@ -210,6 +210,22 @@ function scoreFollowThrough(stats: ConvStats): ProductivityInsight {
 export function generateProductivityReport(conversations: Conversation[]): WeeklyProductivityReport {
   const stats = analyzeConversations(conversations);
 
+  // Compute prior-week stats for week-over-week comparison
+  const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  let prevWeekActions = 0;
+  for (const conv of conversations) {
+    for (const msg of conv.messages) {
+      if (msg.timestamp >= twoWeeksAgo && msg.timestamp < oneWeekAgo) {
+        prevWeekActions += msg.toolCalls?.length ?? 0;
+      }
+    }
+  }
+  const thisWeekActions = stats.toolCallCount;
+  const weekComparedToLast = prevWeekActions > 0
+    ? Math.round(((thisWeekActions - prevWeekActions) / prevWeekActions) * 100)
+    : thisWeekActions > 0 ? 100 : 0;
+
   const insights = [
     scoreSpeed(stats),
     scoreFocus(stats),
@@ -247,7 +263,7 @@ export function generateProductivityReport(conversations: Conversation[]): Weekl
     insights,
     topStrength: `${topStrength.icon} ${topStrength.title}`,
     topImprovement: `${topImprovement.icon} ${topImprovement.recommendation ?? topImprovement.title}`,
-    weekComparedToLast: Math.round((Math.random() - 0.4) * 20), // TODO: compare against prev week DB
+    weekComparedToLast,
     activeDays: stats.activeDays.size,
     totalActions: stats.toolCallCount,
     generatedAt: Date.now(),
