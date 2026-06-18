@@ -265,6 +265,15 @@ export class OpenAIClient {
             onChunk({ delta: delta.content, done: false });
           }
 
+          // Extended thinking / reasoning (o1, o3, and future reasoning models)
+          if (delta.reasoning) {
+            onChunk({ delta: '', done: false, thinkingDelta: delta.reasoning });
+          }
+          // Alternative field name used by some providers
+          if (delta.reasoning_content) {
+            onChunk({ delta: '', done: false, thinkingDelta: delta.reasoning_content });
+          }
+
           // Accumulate tool calls
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {

@@ -187,16 +187,17 @@ export class GoalPlanner {
         break;
       }
 
-      // Execute ready tasks
-      await Promise.all(execBatch.map(async (task) => {
+      // Execute ready tasks sequentially (generator semantics require sequential yields)
+      for (const task of execBatch) {
         task.status = 'running';
         task.startedAt = Date.now();
-        yield_internal(task.id, 'started');
+        yield { type: 'task_started', taskId: task.id };
 
         // Resolve $ref args from prior outputs
         const resolvedArgs = this.resolveArgs(task.args, outputs);
 
         let retries = 0;
+        let succeeded = false;
         while (retries <= this.config.maxRetries) {
           try {
             const resultStr = await this.config.executeTask(task.tool, resolvedArgs);
@@ -210,6 +211,7 @@ export class GoalPlanner {
               outputs[`${task.id}.${task.outputKey}`] = result;
             }
             outputs[task.id] = result;
+            succeeded = true;
             break;
           } catch (err) {
             retries++;
@@ -218,19 +220,16 @@ export class GoalPlanner {
               task.error = err instanceof Error ? err.message : 'Unknown error';
               task.completedAt = Date.now();
               failCount++;
+            } else {
+              // Brief pause before retry
+              await new Promise(r => setTimeout(r, 500 * retries));
             }
           }
         }
-      }).map(async (p) => {
-        // Yield events from parallel execution
-        await p;
-      }));
 
-      // Yield task events after batch
-      for (const task of execBatch) {
-        if (task.status === 'done') {
+        if (succeeded) {
           yield { type: 'task_done', taskId: task.id, result: task.result };
-        } else if (task.status === 'failed') {
+        } else {
           yield { type: 'task_failed', taskId: task.id, error: task.error ?? 'Failed' };
         }
       }
@@ -355,11 +354,6 @@ export class GoalPlanner {
       status: 'failed',
     };
   }
-}
-
-// Internal helper — needed because we can't yield inside async callbacks
-function yield_internal(_taskId: string, _status: string): void {
-  // Events are collected and yielded in the main loop
 }
 
 // ── Convenience factory ───────────────────────────────────────────────────
